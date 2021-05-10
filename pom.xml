@@ -5,7 +5,7 @@
 	<groupId>no.paneon.api.core</groupId>
 	<artifactId>apicore</artifactId>
 	<version>1.0.0</version>
-	<name>API tools - core part</name>
+	<name>API diagram generator</name>
 
 	<properties>
 		<jexcel.version>1.0.6</jexcel.version>
@@ -189,7 +189,7 @@
 							<goal>repackage</goal>
 						</goals>
 						<configuration>
-							<mainCla>no.paneon.api.core.app.App</mainClass>
+							<mainClass>no.paneon.api.core.app.App</mainClass>
 						</configuration>
 					</execution>
 				</executions>
