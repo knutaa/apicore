@@ -2,10 +2,10 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>no.paneon.api.diagram</groupId>
+	<groupId>no.paneon.api.core</groupId>
 	<artifactId>apicore</artifactId>
 	<version>1.0.0</version>
-	<name>API diagram generator</name>
+	<name>API tools - core part</name>
 
 	<properties>
 		<jexcel.version>1.0.6</jexcel.version>
@@ -189,7 +189,7 @@
 							<goal>repackage</goal>
 						</goals>
 						<configuration>
-							<mainClass>no.paneon.api.diagram.app.App</mainClass>
+							<mainCla>no.paneon.api.core.app.App</mainClass>
 						</configuration>
 					</execution>
 				</executions>
@@ -257,7 +257,7 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>no.paneon.api.diagram.app.App</mainClass>
+							<mainClass>no.paneon.api.core.app.App</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
