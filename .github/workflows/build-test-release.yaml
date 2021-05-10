@@ -3,8 +3,8 @@ name: Java CI
 on: [push]
 
 env:
-  APP: apidiagram
-  ARTIFACT_NAME: 'apidiagram.tgz'
+  APP: apicore
+  ARTIFACT_NAME: 'apicore.tgz'
 
 jobs:
   build:
