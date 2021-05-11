@@ -189,7 +189,7 @@
 							<goal>repackage</goal>
 						</goals>
 						<configuration>
-							<mainCla>no.paneon.api.core.app.App</mainClass>
+							<mainClass>no.paneon.api.core.app.App</mainClass>
 						</configuration>
 					</execution>
 				</executions>
