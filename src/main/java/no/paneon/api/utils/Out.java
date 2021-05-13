@@ -3,7 +3,7 @@ package no.paneon.api.utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import no.panoen.api.logging.AspectLogger;
+import no.paneon.api.logging.AspectLogger;
 
 public class Out {
 

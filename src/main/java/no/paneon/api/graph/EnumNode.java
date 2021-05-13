@@ -8,8 +8,8 @@ import org.json.JSONArray;
 
 import no.paneon.api.diagram.layout.Place;
 import no.paneon.api.model.APIModel;
-import no.panoen.api.logging.LogMethod;
-import no.panoen.api.logging.AspectLogger.LogLevel;
+import no.paneon.api.logging.LogMethod;
+import no.paneon.api.logging.AspectLogger.LogLevel;
 
 import org.apache.logging.log4j.LogManager;
 

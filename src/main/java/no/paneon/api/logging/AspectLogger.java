@@ -1,4 +1,4 @@
-package no.panoen.api.logging;
+package no.paneon.api.logging;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;

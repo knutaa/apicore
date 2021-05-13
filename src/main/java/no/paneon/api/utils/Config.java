@@ -30,8 +30,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import no.paneon.api.model.APIModel;
-import no.panoen.api.logging.LogMethod;
-import no.panoen.api.logging.AspectLogger.LogLevel;
+import no.paneon.api.logging.LogMethod;
+import no.paneon.api.logging.AspectLogger.LogLevel;
 
 
 public class Config {

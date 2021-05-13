@@ -24,8 +24,8 @@ import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Utils;
-import no.panoen.api.logging.LogMethod;
-import no.panoen.api.logging.AspectLogger.LogLevel;
+import no.paneon.api.logging.LogMethod;
+import no.paneon.api.logging.AspectLogger.LogLevel;
 
 public class Complexity {
 

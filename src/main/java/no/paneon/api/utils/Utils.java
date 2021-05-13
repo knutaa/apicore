@@ -55,9 +55,9 @@ import no.paneon.api.graph.APISubGraph;
 import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Property;
 import no.paneon.api.model.APIModel;
-import no.panoen.api.logging.AspectLogger;
-import no.panoen.api.logging.LogMethod;
-import no.panoen.api.logging.AspectLogger.LogLevel;
+import no.paneon.api.logging.AspectLogger;
+import no.paneon.api.logging.LogMethod;
+import no.paneon.api.logging.AspectLogger.LogLevel;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;

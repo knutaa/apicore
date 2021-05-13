@@ -1,9 +1,9 @@
-package no.panoen.api.logging;
+package no.paneon.api.logging;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-import no.panoen.api.logging.AspectLogger.LogLevel;
+import no.paneon.api.logging.AspectLogger.LogLevel;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.RetentionPolicy;
