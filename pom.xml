@@ -2,10 +2,10 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>no.paneon.api.core</groupId>
+	<groupId>no.paneon.api</groupId>
 	<artifactId>apicore</artifactId>
-	<version>1.0.1</version>
-	<name>API diagram generator</name>
+	<version>1.0.2</version>
+	<name>API tooling core library</name>
 
 	<properties>
 		<jexcel.version>1.0.6</jexcel.version>
@@ -180,23 +180,6 @@
 		<plugins>
 
 			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<version>2.3.0.RELEASE</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-						<configuration>
-							<mainClass>no.paneon.api.core.app.App</mainClass>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-
-			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>aspectj-maven-plugin</artifactId>
 				<version>1.11</version>
@@ -247,20 +230,6 @@
 					<target>1.8</target>
 				</configuration>
 
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.2.0</version>
-				<configuration>
-					<archive>
-						<manifest>
-							<addClasspath>true</addClasspath>
-							<mainClass>no.paneon.api.core.app.App</mainClass>
-						</manifest>
-					</archive>
-				</configuration>
 			</plugin>
 
 			<!--This plugin's configuration is used to store Eclipse m2e settings 
