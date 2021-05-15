@@ -113,10 +113,6 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-      - name: Settings
-        run: |
-          find /home/runner/ -name settings.xml -exec cat {} \;
-          cat /home/runner/.m2/settings.xml
           
       - name: Publish package
         run: mvn --batch-mode deploy
