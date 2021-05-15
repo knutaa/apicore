@@ -63,6 +63,9 @@ jobs:
     needs: [test]
      
     steps:       
+       - name: Settings
+         run: find . -name settings.xml -exec cat {} \;
+
        - name: Download Artifacts
          uses: actions/download-artifact@master
          with:
