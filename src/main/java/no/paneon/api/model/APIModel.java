@@ -1812,4 +1812,58 @@ public class APIModel {
 	}
 
 
+	private static Map<String,Counter> operationCounter = null;
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public static Set<String> getResourcesByOperation(String operation) {
+		Set<String> res = new HashSet<>();
+
+		if(operationCounter==null) {
+			operationCounter = extractAllOperationsForResources(swagger);
+		}
+
+		if(operationCounter.containsKey(operation)) {
+			res.addAll(operationCounter.get(operation).counts.keySet());
+		}
+		return res;
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
+	private static Map<String,Counter> extractAllOperationsForResources(JSONObject swagger) {
+
+		// map of counters per operation / method
+		Map<String,Counter>  res = ALL_OPS.stream().collect(Collectors.toMap(p -> p, p -> new Counter()));
+
+		if(swagger==null) {
+			LOG.info("... missing API specification (swagger)");
+			return res;
+		}
+
+		for(JSONObject pathObj : getPathObjs() ) {
+			for(String op : pathObj.keySet()) {
+
+				JSONObject opObj = pathObj.getJSONObject(op);
+
+				List<String> resources = getChildStream(opObj)
+						.filter(APIModel::hasResponses)
+						.map(APIModel::getResponseEntity)
+						.map(APIModel::getNormalResponses)
+						.flatMap(List::stream)
+						.map(APIModel::getResourceFromResponse)
+						.flatMap(List::stream)
+						.map(APIModel::getMappedResource)
+						.collect(Collectors.toList());
+
+				for(String resource : resources) {
+					res.get(op).increment(resource);
+				}
+
+			}
+		}
+
+		return res;
+
+	}
+
+
 }
