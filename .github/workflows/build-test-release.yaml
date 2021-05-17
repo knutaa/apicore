@@ -124,4 +124,4 @@ jobs:
       - name: Publish package
         run: mvn --batch-mode deploy
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN  }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
