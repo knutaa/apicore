@@ -6,7 +6,6 @@ import java.util.List;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 
-import no.paneon.api.diagram.layout.Place;
 import no.paneon.api.model.APIModel;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;

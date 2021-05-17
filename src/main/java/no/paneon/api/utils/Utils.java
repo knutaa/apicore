@@ -46,6 +46,7 @@ import org.springframework.core.io.ClassPathResource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
@@ -203,19 +204,19 @@ public class Utils {
 		return f.getName();
 	}
 
-	@LogMethod(level=LogLevel.TRACE)
-	public static JSONObject readYamlAsJSON(String fileName, boolean errorOK) throws Exception {
-		try {
-			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
-	        File file = new File(path);
-	        String yaml = FileUtils.readFileToString(file, "utf-8");
-	        String json = convertYamlToJson(yaml);
-	        return new JSONObject(json); 
-		} catch(Exception ex) {
-			if(!errorOK) throw(ex);
-			return new JSONObject();
-		}
-    }
+//	@LogMethod(level=LogLevel.TRACE)
+//	public static JSONObject readYamlAsJSON(String fileName, boolean errorOK) throws Exception {
+//		try {
+//			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+//	        File file = new File(path);
+//	        String yaml = FileUtils.readFileToString(file, "utf-8");
+//	        String json = convertYamlToJson(yaml);
+//	        return new JSONObject(json); 
+//		} catch(Exception ex) {
+//			if(!errorOK) throw(ex);
+//			return new JSONObject();
+//		}
+//    }
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static JSONObject convertYamlAsJSON(String yaml, boolean errorOK) throws Exception {
@@ -241,57 +242,57 @@ public class Utils {
 		}
     }
 	
-	@LogMethod(level=LogLevel.TRACE)
-	public static String convertJsonToYaml(JSONObject json) throws Exception {
-		YAMLFactory yamlFactory = new YAMLFactory()	
-			 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES) 
-	         .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-	         // .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
-	         ;
-		
-		YAMLMapper mapper = new YAMLMapper(yamlFactory);
-	    mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-
-		
-	    ObjectMapper jsonMapper = new ObjectMapper();
-	    jsonMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-	    
-	    jsonMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
-
-	    JsonNode json2 = mapper.readTree(json.toString());
-	    
-	    final Object obj = jsonMapper.treeToValue(json2, Object.class);
-	    final String jsonString = jsonMapper.writeValueAsString(obj);
-
-	    LOG.debug("convertJsonToYaml: json={}", jsonString);
-	    
-	    JsonNode jsonNodeTree = new ObjectMapper().readTree(jsonString);
-        String jsonAsYaml = mapper.writeValueAsString(jsonNodeTree);
-        return jsonAsYaml;
-        
-	}
-	
-	@LogMethod(level=LogLevel.TRACE)
-    static String convertYamlToJson(String yaml) throws Exception {
-	    ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-	    Object obj = yamlReader.readValue(yaml, Object.class);
-
-	    ObjectMapper jsonWriter = new ObjectMapper();
-	    return jsonWriter.writeValueAsString(obj);
-	}
-	
-	@LogMethod(level=LogLevel.TRACE)
-	public static JSONObject readJSON(String fileName, boolean errorOK) throws Exception {
-		try {
-			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
-	        File file = new File(path);
-	        String content = FileUtils.readFileToString(file, "utf-8");
-	        return new JSONObject(content); 
-		} catch(Exception ex) {
-			if(!errorOK) throw(ex);
-			return new JSONObject();
-		}
-    }
+//	@LogMethod(level=LogLevel.TRACE)
+//	public static String convertJsonToYaml(JSONObject json) throws Exception {
+//		YAMLFactory yamlFactory = new YAMLFactory()	
+//			 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES) 
+//	         .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+//	         // .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
+//	         ;
+//		
+//		YAMLMapper mapper = new YAMLMapper(yamlFactory);
+//	    mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+//
+//		
+//	    ObjectMapper jsonMapper = new ObjectMapper();
+//	    jsonMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+//	    
+//	    jsonMapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+//
+//	    JsonNode json2 = mapper.readTree(json.toString());
+//	    
+//	    final Object obj = jsonMapper.treeToValue(json2, Object.class);
+//	    final String jsonString = jsonMapper.writeValueAsString(obj);
+//
+//	    LOG.debug("convertJsonToYaml: json={}", jsonString);
+//	    
+//	    JsonNode jsonNodeTree = new ObjectMapper().readTree(jsonString);
+//        String jsonAsYaml = mapper.writeValueAsString(jsonNodeTree);
+//        return jsonAsYaml;
+//        
+//	}
+//	
+//	@LogMethod(level=LogLevel.TRACE)
+//    static String convertYamlToJson(String yaml) throws Exception {
+//	    ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
+//	    Object obj = yamlReader.readValue(yaml, Object.class);
+//
+//	    ObjectMapper jsonWriter = new ObjectMapper();
+//	    return jsonWriter.writeValueAsString(obj);
+//	}
+//	
+//	@LogMethod(level=LogLevel.TRACE)
+//	public static JSONObject readJSON(String fileName, boolean errorOK) throws Exception {
+//		try {
+//			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+//	        File file = new File(path);
+//	        String content = FileUtils.readFileToString(file, "utf-8");
+//	        return new JSONObject(content); 
+//		} catch(Exception ex) {
+//			if(!errorOK) throw(ex);
+//			return new JSONObject();
+//		}
+//    }
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static JSONObject convertJSON(String content, boolean errorOK) throws Exception {
@@ -1036,5 +1037,79 @@ public class Utils {
 		return res;
 		
 	}	
+	
+	private static final String EXCEPTION_MESSAGE  = "exeption: {}";
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static JSONObject readJSON(String fileName, boolean errorOK) throws AppException {
+		try {
+			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+	        File file = new File(path);
+	        String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+	        return new JSONObject(content); 
+		} catch(Exception ex) {
+			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
+			if(!errorOK) throw(new AppException());
+			return new JSONObject();
+		}
+    }
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static JSONObject readYamlAsJSON(String fileName, boolean errorOK) throws AppException {
+		try {
+			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+	        File file = new File(path);
+	        String yaml = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+	        String json = convertYamlToJson(yaml);
+	        return new JSONObject(json); 
+		} catch(Exception ex) {
+			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
+			if(!errorOK) throw(new AppException());
+			return new JSONObject();
+		}
+    }
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static String convertJsonToYaml(JSONObject json) throws AppException {
+		try {
+			YAMLFactory yamlFactory = new YAMLFactory()	
+				 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES) 
+		         .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+		         .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
+		         ;
+			
+			ObjectMapper mapper = new ObjectMapper(yamlFactory);		 
+		    SimpleModule module = new SimpleModule();
+		    
+		    module.setSerializerModifier(new YamlBeanSerializerModifier());
+		    mapper.registerModule(module);
+		    
+		    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+	
+		    return mapper.writeValueAsString(json);
+		    
+		} catch(Exception ex) {
+			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
+			throw(new AppException());
+		}
+		        
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
+    public static String convertYamlToJson(String yaml) throws AppException {
+				
+		try {
+		    ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
+		    Object obj = yamlReader.readValue(yaml, Object.class);
+			    
+		    ObjectMapper jsonWriter = new ObjectMapper();
+	
+		    return jsonWriter.writeValueAsString(obj);		    
+		    			
+		} catch(Exception ex) {
+			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
+			throw(new AppException());
+		}
+	}
 
 }

@@ -1,4 +1,4 @@
-package no.paneon.api.diagram.layout;
+package no.paneon.api.graph;
 
 import java.util.Arrays;
 import java.util.EnumMap;

@@ -16,7 +16,6 @@ import org.jgrapht.Graph;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import no.paneon.api.diagram.layout.Place;
 import no.paneon.api.model.APIModel;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
