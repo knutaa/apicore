@@ -57,71 +57,71 @@ jobs:
         run: |
           echo "Testing - to be added"
 
-  release:
-    runs-on: ubuntu-latest
-    name: publish release
-    needs: [test]
-    permissions: 
-      contents: read
-      packages: write 
-
-    steps:       
-      - uses: actions/checkout@v1
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@master
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ./
-
-      - name: Get timestamp
-        run: |
-          echo "NOW=$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
-          echo "NOW=" ${NOW}
-          ls -l
-      
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
-        with:
-          tag_name: tools-${{ env.NOW }} 
-          release_name: Release tooling ${{ env.NOW }}  
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ env.ARTIFACT_NAME }}
-          asset_name: ${{ env.ARTIFACT_NAME }}
-          asset_content_type: application/gzip
-
-      - name: Publish package
-        run: mvn --batch-mode deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
-
-  # package:
+  # release:
   #   runs-on: ubuntu-latest
-  #   name: publish package
+  #   name: publish release
   #   needs: [test]
   #   permissions: 
   #     contents: read
   #     packages: write 
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - uses: actions/setup-java@v2
+
+  #   steps:       
+  #     - uses: actions/checkout@v1
+
+  #     - name: Download Artifacts
+  #       uses: actions/download-artifact@master
   #       with:
-  #         java-version: '11'
-  #         distribution: 'adopt'
-          
+  #         name: ${{ env.ARTIFACT_NAME }}
+  #         path: ./
+
+  #     - name: Get timestamp
+  #       run: |
+  #         echo "NOW=$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
+  #         echo "NOW=" ${NOW}
+  #         ls -l
+      
+  #     - name: Create Release
+  #       id: create_release
+  #       uses: actions/create-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+  #       with:
+  #         tag_name: tools-${{ env.NOW }} 
+  #         release_name: Release tooling ${{ env.NOW }}  
+  #         draft: false
+  #         prerelease: false
+
+  #     - name: Upload Release Asset
+  #       id: upload-release-asset 
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+  #       with:
+  #         upload_url: ${{ steps.create_release.outputs.upload_url }}
+  #         asset_path: ${{ env.ARTIFACT_NAME }}
+  #         asset_name: ${{ env.ARTIFACT_NAME }}
+  #         asset_content_type: application/gzip
+
   #     - name: Publish package
   #       run: mvn --batch-mode deploy
   #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #         GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+
+  package:
+    runs-on: ubuntu-latest
+    name: publish package
+    needs: [test]
+    permissions: 
+      contents: read
+      packages: write 
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+          
+      - name: Publish package
+        run: mvn --batch-mode deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN  }}
