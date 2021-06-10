@@ -6,7 +6,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
 
@@ -47,6 +50,7 @@ public class Node implements Comparable<Object>  {
 	static final String TYPE = "type";
 	static final String ARRAY = "array";
 	static final String ENUM = "enum";
+	static final String NULLABLE = "nullable";
 
 	static final String DESCRIPTION = "description";
 	static final String REF = CoreAPIGraph.REF;
@@ -113,9 +117,16 @@ public class Node implements Comparable<Object>  {
 						Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 						
 						if(property.has(ENUM)) {
-							LOG.debug("addPropertyDetails: property={} values={}" , propName, Config.getList(property,ENUM));
 
-							propDetails.addEnumValues( Config.getList(property,ENUM) );
+							List<Object> elements = Config.getListAsObject(property,ENUM);
+
+							propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()) );
+
+							LOG.debug("addPropertyDetails: property={} values={}" , propName, propDetails.getValues() );
+
+							boolean candidateNullable = elements.stream().anyMatch(Objects::isNull);
+							
+							if(property.has(NULLABLE) && candidateNullable) propDetails.setNullable();
 
 						}
 						

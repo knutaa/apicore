@@ -109,5 +109,18 @@ public class Property {
 		addValues(values);		
 		isEnum=true;
 	}
+
+	boolean isNullable = false;
+	public void setNullable() {
+		this.isNullable=true;
+	}
+	
+	public void setNullable(boolean value) {
+		this.isNullable=value;
+	}
+	
+	public boolean isNullable() {
+		return this.isNullable;
+	}
 	
 }

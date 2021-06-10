@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -304,11 +305,18 @@ public class Config {
 	@LogMethod(level=LogLevel.TRACE)
 	public static List<String> getList(JSONObject config, String key) {
 		List<String> res = new LinkedList<>();
+				
+		res.addAll( getListAsObject(config,key).stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()));
 		
-		if(config==null) return res;
-		
-		if(config.optJSONArray(key)!=null) {
-			res.addAll(config.optJSONArray(key).toList().stream().map(Object::toString).collect(Collectors.toList()));
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static List<Object> getListAsObject(JSONObject config, String key) {
+		List<Object> res = new LinkedList<>();
+				
+		if(config!=null && config.optJSONArray(key)!=null) {
+			res.addAll(config.optJSONArray(key).toList());
 		}
 		return res;
 	}
