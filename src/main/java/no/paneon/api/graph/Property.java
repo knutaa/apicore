@@ -18,7 +18,9 @@ public class Property {
 	String cardinality;
 	boolean required = false;
 	Visibility visibility;
-	
+	boolean isNullable = false;
+	boolean isEnum = false;
+
 	String description = "";
 	
 	public enum Visibility {
@@ -100,7 +102,6 @@ public class Property {
 		return values;
 	}
 
-	boolean isEnum = false;
 	public boolean isEnum() {
 		return this.isEnum;
 	}
@@ -110,7 +111,6 @@ public class Property {
 		isEnum=true;
 	}
 
-	boolean isNullable = false;
 	public void setNullable() {
 		this.isNullable=true;
 	}

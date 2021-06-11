@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -1064,6 +1065,19 @@ public class APIGraph extends CoreAPIGraph {
 	@LogMethod(level=LogLevel.DEBUG)
 	public Set<Edge> getOutboundEdges(Node node) {
 		return this.graph.outgoingEdgesOf(node);
+	}
+
+	public void removeTechnicalAllOfs() {
+		Set<Edge> oneOfEdges = this.graph.edgeSet().stream().filter(Edge::isOneOf).collect(toSet());
+		
+		for(Edge edge : oneOfEdges) {
+			Node target = this.graph.getEdgeTarget(edge);
+			Node source = this.graph.getEdgeSource(edge);
+
+			Set<Edge> allOfEdges = this.graph.getAllEdges(target, source).stream().filter(Edge::isAllOf).collect(toSet());
+			
+			this.graph.removeAllEdges(allOfEdges);		
+		}
 	}
 
 	

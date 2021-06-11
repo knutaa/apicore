@@ -69,6 +69,11 @@ public class Edge {
 		return oneOf && !flattenedInheritance();
 	}
 	
+	public boolean isAllOf() {
+		boolean allOf = this instanceof AllOf;
+		return allOf;
+	}
+
 	private boolean flattenedInheritance() {
 		List<String> flatten = Config.getFlattenInheritance();
 		boolean res = flatten.contains(this.related.getName());

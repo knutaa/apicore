@@ -2,11 +2,15 @@ package no.paneon.api.graph;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import no.paneon.api.model.APIModel;
+import no.paneon.api.utils.Config;
+import no.paneon.api.utils.Out;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
@@ -67,13 +71,20 @@ public class EnumNode extends Node {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public void processEnum() {
-
+		
 	    if(!APIModel.isEnumType(type)) return;
-	    	    				
-	    JSONArray enumValues = APIModel.getDefinition(type).getJSONArray("enum");
-	    	    
-	    enumValues.forEach(v -> addValue(v.toString()));
-	        
+	    	  
+	    JSONObject definition = APIModel.getDefinition(type);
+
+	    List<Object> elements = Config.getListAsObject(definition, "enum");
+	    	    	    
+	    elements.stream().filter(Objects::nonNull).map(Object::toString).forEach(this::addValue);
+	    
+	    boolean candidateNullable =  elements.stream().anyMatch(Objects::isNull);
+	    boolean nullable = definition.optBoolean("nullable");
+	    
+	    this.setNullable(candidateNullable && nullable);
+	    	        
 	}
 	
 	@Override
@@ -81,4 +92,16 @@ public class EnumNode extends Node {
 	public boolean isSimpleType() {
 		return false;
 	}
+	
+	boolean nullable = false;
+	@LogMethod(level=LogLevel.DEBUG)
+	public boolean getNullable() {
+		return this.nullable;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public void setNullable(boolean v) {
+		this.nullable = v;
+	}
+	
 }

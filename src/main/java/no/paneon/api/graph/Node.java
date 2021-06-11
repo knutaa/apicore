@@ -117,7 +117,7 @@ public class Node implements Comparable<Object>  {
 						Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 						
 						if(property.has(ENUM)) {
-
+							
 							List<Object> elements = Config.getListAsObject(property,ENUM);
 
 							propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()) );
@@ -126,7 +126,7 @@ public class Node implements Comparable<Object>  {
 
 							boolean candidateNullable = elements.stream().anyMatch(Objects::isNull);
 							
-							if(property.has(NULLABLE) && candidateNullable) propDetails.setNullable();
+							if(property.optBoolean(NULLABLE) && candidateNullable) propDetails.setNullable();
 
 						}
 						
