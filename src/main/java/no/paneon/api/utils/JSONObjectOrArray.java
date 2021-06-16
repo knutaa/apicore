@@ -32,8 +32,6 @@ public class JSONObjectOrArray {
 			return res.set(new JSONObject(content) );		
 		} catch(FileNotFoundException e1) {
 			Out.printAlways("... file not found: " + Utils.getBaseFileName(file) );
-			Out.printAlways("... file not found: " + file );
-
 		} catch(Exception e1) {
 		
 			try {
