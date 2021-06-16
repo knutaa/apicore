@@ -229,17 +229,24 @@ public class Utils {
 		}
     }
 
+//	@LogMethod(level=LogLevel.TRACE)
+//	public static String readFile(String fileName) {
+//		try {
+//			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+//	        File file = new File(path);
+//	        String res = FileUtils.readFileToString(file, "utf-8");
+//	        return res;
+//		} catch(Exception ex) {
+//			Out.printAlways("... unable to read from file: " + fileName);
+//			return "";
+//		}
+//    }
+	
 	@LogMethod(level=LogLevel.TRACE)
-	public static String readFile(String fileName) {
-		try {
-			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
-	        File file = new File(path);
-	        String res = FileUtils.readFileToString(file, "utf-8");
-	        return res;
-		} catch(Exception ex) {
-			Out.printAlways("... unable to read from file: " + fileName);
-			return "";
-		}
+	public static String readFile(String fileName) throws Exception {
+		String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
+        File file = new File(path);
+        return FileUtils.readFileToString(file, "utf-8");
     }
 	
 //	@LogMethod(level=LogLevel.TRACE)

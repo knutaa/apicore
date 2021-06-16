@@ -1785,6 +1785,9 @@ public class APIModel {
 		
 		if(operation!=null && operation.has(RESPONSES)) {
 			Set<String> responseCodes = operation.optJSONObject(RESPONSES).keySet().stream().filter(v -> v.startsWith("2")).collect(toSet());
+			
+			LOG.debug("getSuccessResponseCode: path={} op={} responseCodes={}",  path, op, responseCodes);
+			
 //			if(responseCodes.size()==1) {
 //				res = responseCodes.iterator().next();
 //			} else if(!responseCodes.isEmpty()) {
@@ -1792,7 +1795,7 @@ public class APIModel {
 //			} else {
 //				Out.printAlways("... unable to extract unique success response code for " + path + " - found alternatives: " + responseCodes);
 //			}
-			if(responseCodes.isEmpty()) {
+			if(!responseCodes.isEmpty()) {
 				Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
 				if(optRes.isPresent()) res = optRes.get();
 			}

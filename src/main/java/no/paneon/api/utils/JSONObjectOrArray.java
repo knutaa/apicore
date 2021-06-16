@@ -1,6 +1,7 @@
 package no.paneon.api.utils;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.Optional;
 
 import org.json.JSONArray;
@@ -24,12 +25,15 @@ public class JSONObjectOrArray {
 	public static JSONObjectOrArray readJSONObjectOrArray(String file) {
 		
 		JSONObjectOrArray res = new JSONObjectOrArray();
-
-		String content = Utils.readFile(file);
-				
-		try {
-			return res.set(new JSONObject(content) );
 			
+		String content = null;
+		try {
+			content = Utils.readFile(file);
+			return res.set(new JSONObject(content) );		
+		} catch(FileNotFoundException e1) {
+			Out.printAlways("... file not found: " + Utils.getBaseFileName(file) );
+			Out.printAlways("... file not found: " + file );
+
 		} catch(Exception e1) {
 		
 			try {
