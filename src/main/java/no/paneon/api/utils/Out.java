@@ -23,7 +23,7 @@ public class Out {
 	}
 	
 	public static void printAlways(String s) {
-		LOG.log(AspectLogger.VERBOSE, s);
+		LOG.log(AspectLogger.INFO, s);
 	}
 
 	public static void println(String ... args) {

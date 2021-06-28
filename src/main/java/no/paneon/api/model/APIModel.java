@@ -148,7 +148,6 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static void setSwaggerSource(String filename) {
 		swaggerSource = filename;
-		// setSwagger(Utils.readJSONOrYaml(swaggerSource));
 	}
 
 	private static final String FORMAT = "format";
@@ -171,7 +170,6 @@ public class APIModel {
 	private static final String NOTIFICATIONS = "notifications";
 
 	private static final String ALLOF = "allOf";
-	private static final String ONEOF = "oneOf";
 
 	private static final String DISCRIMINATOR = "discriminator";
 	private static final String MAPPING = "mapping";
@@ -1204,7 +1202,6 @@ public class APIModel {
 	public static String getCustomPuml(JSONObject definition, Optional<Integer> minItems, Optional<Integer> maxItems) {
 		StringBuilder res = new StringBuilder();
 
-		boolean isRequired=false;
 		if(definition==null) return res.toString();
 
 		LOG.debug("getCustomPuml: definition={} minItems={} maxItems={}", definition, minItems, maxItems);

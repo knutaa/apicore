@@ -183,18 +183,18 @@ public class CoreAPIGraph {
 				}
 			});
 			
-			boolean includeDiscriminaatorMapping = Config.getBoolean(INCLUDE_DISCRIMINATOR_MAPPING);
+			boolean includeDiscriminatorMapping = Config.getBoolean(INCLUDE_DISCRIMINATOR_MAPPING);
 			JSONObject mapping = APIModel.getMappingForResource(definition);
-			if(includeDiscriminaatorMapping && mapping !=null) {
-				Set<String> oneofs = mapping.keySet();
-				oneofs.remove(definition);
+			if(includeDiscriminatorMapping && mapping !=null) {
+				Set<String> discriminatorMapping  = mapping.keySet();
+				discriminatorMapping.remove(definition);
 				
-				LOG.debug("addProperties:: mapping: resource={} oneofs={}", definition, oneofs);
+				LOG.debug("addProperties:: mapping: resource={} oneofs={}", definition, discriminatorMapping);
 	
-				for(String oneof : oneofs) {					
-					Node to = getOrAddNode(g, oneof);
+				for(String discriminator : discriminatorMapping) {					
+					Node to = getOrAddNode(g, discriminator);
 		
-					Edge edge = new OneOf(from, to);
+					Edge edge = new Discriminator(from, to);
 			
 					g.addEdge(from, to, edge);		
 		

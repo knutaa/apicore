@@ -69,6 +69,11 @@ public class Edge {
 		return oneOf && !flattenedInheritance();
 	}
 	
+	public boolean isDiscriminator() {
+		boolean discriminator = this instanceof Discriminator;
+		return discriminator && !flattenedInheritance();
+	}
+	
 	public boolean isAllOf() {
 		boolean allOf = this instanceof AllOf;
 		return allOf;

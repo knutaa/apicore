@@ -20,8 +20,7 @@ public class OAS2Test  {
     @BeforeClass
     public static void runOnceBeforeClass() {        
         APIModel.setSwaggerSource(file);
-        APIModel.loadAPI(file);
-
+        APIModel.loadAPI(file);       
     }
 
     @AfterClass
@@ -42,7 +41,6 @@ public class OAS2Test  {
     	List<String> resources = APIModel.getAllDefinitions();
     	    	
     	assert(resources.contains("Catalog"));
-    	
     }
 	
 	
