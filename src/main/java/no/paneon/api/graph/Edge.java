@@ -60,8 +60,8 @@ public class Edge {
 	}
 	
 	public boolean isInheritance() {
-		boolean allOf = this instanceof AllOf;
-		return allOf && !flattenedInheritance();
+		boolean isInheritance = isOneOf() || isAllOf() || isDiscriminator();
+		return isInheritance && !flattenedInheritance();
 	}
 
 	public boolean isOneOf() {

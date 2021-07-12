@@ -79,6 +79,8 @@ public class GraphComplexity {
 
 		for(Node node : graph.vertexSet().stream().sorted().collect(toList())) {
 
+			LOG.debug("computeGraphComplexity:: node={} isSimplePrefixGr={}", node, isSimplePrefixGraph(graph,node));
+
 			if(!shortestPath.containsKey(node) || 
 			   !longestPath.containsKey(node) ||
 			   (!node.equals(resource) && isSimplePrefixGraph(graph,node))) continue;
@@ -97,7 +99,9 @@ public class GraphComplexity {
 								    Map.Entry::getKey, 
 								    Map.Entry::getValue, 
 								    (oldValue, newValue) -> oldValue, LinkedHashMap::new));
-						
+				
+		LOG.debug("computeGraphComplexity: node={} nodeComplexity={}", this.resource, nodeComplexity);
+		
 		return nodeComplexity;
 	}
 	

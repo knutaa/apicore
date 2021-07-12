@@ -386,13 +386,18 @@ public class CoreAPIGraph {
 	public static Graph<Node,Edge> getSubGraphWithInheritance(Graph<Node,Edge> graph, Node node, Node resource) {
 		Set<Node> nodes = getNodesOfSubGraph(graph, node);
 		
-		LOG.debug("getSubGraph:: node={} resource={} nodes={}", node, resource, nodes);
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} nodes={}", node, resource, nodes);
 
 		Set<Node> simpleTypes = graph.vertexSet().stream()
 				.filter(Node::isSimpleType)
 				.collect(toSet());
 
+		
+		LOG.debug("getSubGraph:: node={} simpleTypes={}", node, simpleTypes);
+
 		nodes.removeAll(simpleTypes);
+
+		LOG.debug("getSubGraphWithInheritance:: after remove simple nodes={}", nodes);
 
 		Set<Node> excludeNodes = new HashSet<>();
 		
@@ -402,8 +407,8 @@ public class CoreAPIGraph {
 					.filter(n -> CoreAPIGraph.isLeafNodeOrOnlyEnums(graph, n))
 					.collect(toSet());
 
-			LOG.debug("getSubGraph:: node={} resource={} nodes={}", node, resource, nodes);
-			LOG.debug("getSubGraph:: node={} resource={} inheritedBy={}", node, resource, inheritedBy);
+			LOG.debug("getSubGraphWithInheritance:: node={} resource={} nodes={}", node, resource, nodes);
+			LOG.debug("getSubGraphWithInheritance:: node={} resource={} inheritedBy={}", node, resource, inheritedBy);
 			
 			if(!Config.getBoolean(INCLUDE_INHERITED)) {
 				inheritedBy.clear();
@@ -411,7 +416,7 @@ public class CoreAPIGraph {
 				excludeNodes.addAll(inheritedBy);
 			}
 			
-			LOG.debug("getSubGraph:: node={} resource={} inheritedBy={} nodes={}", node, resource, inheritedBy, nodes);
+			LOG.debug("getSubGraphWithInheritance:: node={} resource={} inheritedBy={} nodes={}", node, resource, inheritedBy, nodes);
 
 		}
 	
@@ -420,23 +425,42 @@ public class CoreAPIGraph {
 					.filter(n -> graph.getAllEdges(n, node).stream().anyMatch(Edge::isOneOf))
 					.collect(toSet());
 
-			LOG.debug("getSubGraph:: node={} oneOfs={}", node, oneOfs);
+			LOG.debug("getSubGraphWithInheritance:: node={} oneOfs={}", node, oneOfs);
 
 			excludeNodes.addAll(oneOfs);
+			
+			Set<Node> discriminators = nodes.stream()
+					.filter(n -> graph.getAllEdges(n, node).stream().anyMatch(Edge::isDiscriminator))
+					.collect(toSet());
+
+			
+			LOG.debug("getSubGraphWithInheritance:: node={} discriminators={}", node, discriminators);
+
+			Predicate<Edge> isNotDiscriminator = e -> !e.isDiscriminator();
+			
+			discriminators = discriminators.stream()
+								.filter(n -> graph.getAllEdges(n, node).stream().anyMatch(isNotDiscriminator))
+								.collect(toSet());
+			
+			excludeNodes.addAll(discriminators);
 
 		}
 
-		LOG.debug("getSubGraph:: node={} excludeNodes={}", node, excludeNodes);
+		LOG.debug("getSubGraphWithInheritance:: node={} excludeNodes={}", node, excludeNodes);
 
 		nodes.removeAll(excludeNodes);
 
 		Graph<Node,Edge> subGraph = new AsSubgraph<>(graph, nodes);
 		
-		LOG.debug("getSubGraph:: node={} subGraph edges={}", node, subGraph.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
+		LOG.debug("getSubGraphWithInheritance:: node={} subGraph edges={}", node, subGraph.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
 
-		removeOutboundFromDiscriminatorMappingNodes(subGraph,nodes);
+		Set<Node> excludedNodes = new HashSet<>();
+		excludedNodes.add(node);
+		
+		removeOutboundFromDiscriminatorMappingNodes(subGraph,excludedNodes);
 
-		LOG.debug("getSubGraph:: node={} subGraph edges={}", node, subGraph.edgeSet());
+		LOG.debug("getSubGraphWithInheritance:: node={} subGraph edges={}", node, subGraph.edgeSet());
+		LOG.debug("getSubGraphWithInheritance:: after remove outbound edges={}", subGraph.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
 
 		Predicate<Node> noNeighbours = n -> CoreAPIGraph.getNeighbours(subGraph, n).isEmpty();		
 		Predicate<Node> noInboundNeighbours = n -> CoreAPIGraph.getInboundNeighbours(subGraph, n).isEmpty();
@@ -444,14 +468,17 @@ public class CoreAPIGraph {
 		Set<Node> orphans = selectGraphNodes(subGraph,noNeighbours,node);		
 		orphans.forEach(subGraph::removeVertex);
 		
-		LOG.debug("getSubGraph:: node={} orphans={}", node, orphans);
-		LOG.debug("getSubGraph:: node={} subGraph={}", node, subGraph);
+		LOG.debug("getSubGraphWithInheritance:: node={} orphans={}", node, orphans);
+		LOG.debug("getSubGraphWithInheritance:: node={} subGraph={}", node, subGraph);
 
 		boolean remove=true;
 		while(remove) {
 			remove = false;
 			
-			Set<Node> reachable = CoreAPIGraph.getSubGraphNodes(subGraph, node);
+			Set<Node> reachable = CoreAPIGraph.getSubGraphNodes(graph, node); // TBD : or subGraph ?
+			
+			LOG.debug("getSubGraphWithInheritance:: node={} reachable={} ", node, reachable);
+
 			Set<Node> allNodes = subGraph.vertexSet();
 			Set<Node> unReachable = new HashSet<>(allNodes);
 			unReachable.removeAll(reachable);
@@ -460,56 +487,37 @@ public class CoreAPIGraph {
 			
 			unReachable.remove(node);
 			
-			LOG.debug("getSubGraph:: node={} reachable={} ", node, reachable);
-			LOG.debug("getSubGraph:: node={} unReachabl={} ", node, unReachable);
+			LOG.debug("getSubGraphWithInheritance:: node={} reachable={} ", node, reachable);
+			LOG.debug("getSubGraphWithInheritance:: node={} unReachabl={} ", node, unReachable);
 			
 			if(!reachable.isEmpty() && !unReachable.isEmpty()) {
 				remove=true;
+				
+				LOG.debug("getSubGraphWithInheritance:: node={} unReachable={} ", node, unReachable);
+
 				unReachable.forEach(subGraph::removeVertex); 				
 			}
 			
-//			Set<Node> noInbound = selectGraphNodes(subGraph,noInboundNeighbours,node);
-//						
-//			if(node.getName().contentEquals("GcQuote")) {
-//				Optional<Node> pp = CoreAPIGraph.getNodeByName(subGraph, "ProductPrice");
-//				
-//				if(pp.isPresent()) {
-//					LOG.debug("getSubGraph:: node={} inbound ProductPrice={} ", node, CoreAPIGraph.getInboundNeighbours(subGraph, pp.get()));
-//				}
-//			}
-//			
-//			LOG.debug("getSubGraph:: node={} noInbound={} ", node, noInbound);
-//			LOG.debug("getSubGraph:: node={} subGraph={}", node, subGraph);
-//
-//			noInbound.removeAll(excludeNodes);
-//			// noInbound.removeAll(nodes); // Check!
-//
-//			if(!noInbound.isEmpty()) {
-//				remove=true;
-//				noInbound.forEach(subGraph::removeVertex); 
-//				
-//				LOG.debug("getSubGraph:: node={} removed={} ", node, noInbound);
-//
-//			}
 		}
 		
-		LOG.debug("getSubGraph:: node={} final subGraph={}", node, subGraph);
+		LOG.debug("getSubGraphWithInheritance:: node={} final subGraph={}", node, subGraph.vertexSet());
 
 		return subGraph;
 	}
 	
 	
 	@LogMethod(level=LogLevel.DEBUG)
-	private static void removeOutboundFromDiscriminatorMappingNodes(Graph<Node, Edge> graph, Set<Node> nodes) {
+	private static void removeOutboundFromDiscriminatorMappingNodes(Graph<Node, Edge> graph, Set<Node> excludedNodes) {
 				
-		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: nodes={}", nodes);
+		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: excludedNodes={}", excludedNodes);
 
 		Set<Edge> edgesToRemove = new HashSet<>();
 
-		for(Node node : nodes) {
+		for(Node node : graph.vertexSet()) {
 			Set<String> mapping = node.getDiscriminatorMapping();
 			if(!mapping.isEmpty()) {
 				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mapping={}", node.getName(), mapping);
+								
 				Set<Node> mappingNodes = mapping.stream()
 											.map(n -> CoreAPIGraph.getNodeByName(graph,n))
 											.filter(Optional::isPresent)
@@ -518,6 +526,10 @@ public class CoreAPIGraph {
 			
 				// mappingNodes.removeAll(currentGraphNodes);
 				
+				mappingNodes.removeAll(excludedNodes);
+				
+				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNodes={}", node, mappingNodes);
+
 				for(Node mappingNode : mappingNodes) {
 					
 					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNode={}", node, mappingNode);
@@ -526,7 +538,9 @@ public class CoreAPIGraph {
 					
 					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: mappingNode={} #1 edges={}", mappingNode, edges);
 
-					edges = edges.stream().filter(edge -> !graph.getEdgeTarget(edge).equals(node)).collect(toSet());
+					edges = edges.stream()
+							.filter(edge -> !graph.getEdgeTarget(edge).equals(node))
+							.collect(toSet());
 					
 					boolean atLeastOneLargeSubGraph = edges.stream().anyMatch(edge -> !isSmallSubGraph(graph,mappingNode,edge));
 					
@@ -540,7 +554,7 @@ public class CoreAPIGraph {
 			}
 		}
 		
-		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: nodes={}", nodes);
+		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: nodes={}", graph.vertexSet());
 		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: edgesToRemove={}", edgesToRemove);
 		LOG.debug("");
 
@@ -649,6 +663,9 @@ public class CoreAPIGraph {
 	private static Set<Node> getSubGraphHelper(Graph<Node,Edge> graph, Node node, Set<Node> seen) {
 		Set<Node> neighbours = getOutboundNeighbours(graph, node);
 		
+//		if(node.getName().equals("Product")) LOG.debug("getSubGraphHelper: {} neighbours={}",  node, neighbours);		
+//		if(node.getName().equals("Product")) LOG.debug("getSubGraphHelper: {} graph={}",  node, graph.vertexSet());
+
 		Set<Node> res = new HashSet<>();
 		
 		res.addAll(neighbours);
@@ -662,6 +679,8 @@ public class CoreAPIGraph {
 			}
 		}
 		
+//		if(node.getName().equals("Product")) LOG.debug("getSubGraphHelper: {} res={}",  node, res);
+
 		return res;
 	}
 

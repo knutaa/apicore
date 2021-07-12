@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
 
+import java.util.Collection;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jgrapht.Graph;
@@ -322,7 +324,9 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public boolean inheritsFrom(Graph<Node, Edge> graph, Node candidate) {
-		return graph.getAllEdges(this, candidate).stream().anyMatch(edge -> edge instanceof AllOf);
+		// return graph.getAllEdges(this, candidate).stream().anyMatch(edge -> edge instanceof AllOf);
+		return graph.getAllEdges(this, candidate).stream().anyMatch(Edge::isInheritance);
+
 	}
 
 	public void addInheritance(String type) {
@@ -335,6 +339,19 @@ public class Node implements Comparable<Object>  {
 	
 	public Set<String> getDiscriminatorMapping() {
 		return this.discriminatorMapping;
+	}
+
+	Set<Node> circleNodes = new HashSet<>();
+	public void addCircleElements(Collection<Node> circle) {
+		circleNodes.addAll(circle);
+	}
+	
+	public boolean isPartOfCircle() {
+		return !circleNodes.isEmpty();
+	}
+	
+	public Set<Node> getCircleNodes() {
+		return this.circleNodes;
 	}
 	
 }

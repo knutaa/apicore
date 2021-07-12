@@ -98,6 +98,8 @@ public class APIGraph extends CoreAPIGraph {
 		this.circles = GraphAlgorithms.cyclicAllCycles(this.graph, this.resourceNode);
 		
 		LOG.debug("init:: #2");
+		
+        LOG.debug("APIGraph: resource={} circles={}", resource, circles);
 
 
 	}
@@ -1068,15 +1070,20 @@ public class APIGraph extends CoreAPIGraph {
 	}
 
 	public void removeTechnicalAllOfs() {
-		Set<Edge> oneOfEdges = this.graph.edgeSet().stream().filter(Edge::isOneOf).collect(toSet());
+		Set<Edge> edges = this.graph.edgeSet().stream().filter(Edge::isDiscriminator).collect(toSet());
 		
-		for(Edge edge : oneOfEdges) {
+		for(Edge edge : edges) {
 			Node target = this.graph.getEdgeTarget(edge);
 			Node source = this.graph.getEdgeSource(edge);
 
-			Set<Edge> allOfEdges = this.graph.getAllEdges(target, source).stream().filter(Edge::isAllOf).collect(toSet());
+			LOG.debug("removeTechnicalAllOfs: target={} source={}", target.getName(), source.getName());
 			
-			this.graph.removeAllEdges(allOfEdges);		
+			if(target.getName().endsWith("RefOrValue") || source.getName().endsWith("RefOrValue")) {
+				
+				Set<Edge> allOfEdges = this.graph.getAllEdges(target, source).stream().filter(Edge::isAllOf).collect(toSet());
+				
+				this.graph.removeAllEdges(allOfEdges);	
+			}
 		}
 	}
 

@@ -54,17 +54,21 @@ public class ComplexityAdjustedAPIGraph {
 	@LogMethod(level=LogLevel.DEBUG)
 	public void generateSubGraphsForResource(String resource) {
 			
+	    LOG.debug("### generateSubGraphsForResource: resource=" + resource);
+
 	    Node resourceNode = graph.getNode(resource);
 
 	    LOG.debug("generateSubGraphsForResource: resource={} completeGraph={}" , resource, graph.getCompleteGraph());
 
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(graph.getCompleteGraph(), resourceNode, resourceNode);
 	    
+	    LOG.debug("generateSubGraphsForResource: resource={} resourceGraph={}" , resource, resourceGraph.vertexSet());
+
 	    LOG.debug("generateSubGraphsForResource: resource={} resourceGraph={}" , resource, resourceGraph);
 
 	    GraphComplexity analyser = new GraphComplexity(resourceGraph, resourceNode);
 	    
-	    Map<Node, Integer> complexity = analyser.computeGraphComplexity();
+	    Map<Node,Integer> complexity = analyser.computeGraphComplexity();
 	    
 	    LOG.debug("generateSubGraphsForResource: complexity resourceNode={} keys={}" , resourceNode, complexity.keySet());
 	    
@@ -72,18 +76,36 @@ public class ComplexityAdjustedAPIGraph {
 	    
 	    if(complexity.isEmpty()) {    	
 	    	graphMap.put(resource, resourceGraph);
+	    	
+    		LOG.debug("generateSubGraphsForResource: #1 node={} subGraph={}",  resource, resourceGraph.vertexSet());
+
 	    } else {
-	    	complexity.keySet().stream().forEach(node -> graphMap.put(node.getName(), CoreAPIGraph.getSubGraphWithInheritance(resourceGraph, node, resourceNode)) );
+	    	for(Node node : complexity.keySet() ) {
+	    		Graph<Node,Edge> subGraph = CoreAPIGraph.getSubGraphWithInheritance(resourceGraph, node, resourceNode);
+	    		
+	    		LOG.debug("generateSubGraphsForResource: #2 node={} subGraph={}",  node, subGraph.vertexSet());
+	    		
+	    		graphMap.put(node.getName(), subGraph);
+	    	}
 	    }
 	    
 	    Map<String,Graph<Node,Edge>> mappingGraphs = addMissingMappedResources(graph.getCompleteGraph(), resourceGraph.vertexSet());
 
-	    mappingGraphs.keySet().forEach(key -> graphMap.put(key,mappingGraphs.get(key)));
+	    for(String key : mappingGraphs.keySet() ) {
+	    	graphMap.put(key,mappingGraphs.get(key));
+	    	
+		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
+
+	    }
 	    
-	    LOG.debug("generateSubGraphsForResource: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet());
+	    LOG.debug("generateSubGraphsForResource: resource={} mappingGraphs={} graphMap={}" , resource, mappingGraphs.keySet(), graphMap.keySet() );
 	    
 	    LOG.debug("generateSubGraphsForResource: complexity resourceNode={} graph for resource={}" , resourceNode, graphMap.get(resource).vertexSet());
 
+	    LOG.debug("#2 generateSubGraphsForResource: resource={} subgraphs:: {}", resource, debug(graphMap));
+	    
+	    // TBD  ok here
+	    
 //	    Set<String> allNodes = resourceGraph.vertexSet().stream().map(Node::getName).collect(toSet());
 //	    Set<String> refOrValueNodes = allNodes.stream().filter(s -> s.endsWith(REF_OR_VALUE)).collect(toSet());
 //	    
@@ -104,14 +126,18 @@ public class ComplexityAdjustedAPIGraph {
 	    // LOG.debug("generateSubGraphsForResource: complexity resourceNode={} graph for resource={}" , resourceNode, graphMap.get(resource).vertexSet());
 
 	    pruneSubGraphsFromContainingGraphs(resource, graphMap);
-	    
+	    	    
+	    LOG.debug("#3 generateSubGraphsForResource: after prune subgraphs:: {}", debug(graphMap));
+    
 	    LOG.debug("generateSubGraphsForResource: #1 resource={} final graphMap={}", resource, graphMap.keySet());
 
 	    // LOG.debug("generateSubGraphsForResource: complexity resourceNode={} graph for resource={}" , resourceNode, graphMap.get(resource).vertexSet());
 
-		removeSubGraphsCoveredByContainingGraph(graphMap);
+		// removeSubGraphsCoveredByContainingGraph(graphMap);
 
-	    // LOG.debug("generateSubGraphsForResource: complexity resourceNode={} graph for resource={}" , resourceNode, graphMap.get(resource).vertexSet());
+	    LOG.debug("#4 generateSubGraphsForResource: after remove subgraphs:: {}", debug(graphMap));
+
+	    LOG.debug("generateSubGraphsForResource: complexity resourceNode={} graph for resource={}" , resourceNode, graphMap.get(resource).vertexSet());
 
 	    allGraphs.put(resource, graphMap);
 
@@ -120,8 +146,32 @@ public class ComplexityAdjustedAPIGraph {
 
 	}
 	
+	private final String NEWLINE = "\n";
+	
+	private String debug(Map<String,Graph<Node,Edge>> graphs) {
+		StringBuilder str = new StringBuilder();
+				
+		if(graphs.isEmpty()) return str.toString();
+		
+	    for(String graph : graphs.keySet() ) {
+	    	Graph<Node,Edge> g = graphs.get(graph);
+	    	
+			str.append(NEWLINE);
+		    str.append( "... subGraph=" + graph + " nodes=" + g.vertexSet() );
+		    
+			str.append(NEWLINE);
+		    str.append( "... subGraph=" + graph + " edges=" + g.edgeSet() );
+
+	    }
+		str.append(NEWLINE);
+				
+		return str.toString();
+	}
+	
 	private Map<String,Graph<Node,Edge>> addMissingMappedResources(Graph<Node, Edge> graph, Set<Node> nodes) {
 		
+	    LOG.debug("addMissingMappedResources: nodes={}", nodes);
+
 		Map<String, Graph<Node, Edge>> res = new HashMap<>();
 		
 		Set<String> mapping = nodes.stream()
@@ -129,8 +179,10 @@ public class ComplexityAdjustedAPIGraph {
 								.flatMap(Set::stream)
 								.collect(toSet());
 			    		
+	    LOG.debug("addMissingMappedResources: mapping={}", mapping);
+
 		Set<String> refs = mapping.stream()
-				.filter(s -> s.endsWith("Ref"))
+				.filter(s -> s.endsWith("Ref") )
 				// .map(s -> s.replaceFirst("Ref$",""))
 				.collect(toSet());
 		
@@ -158,35 +210,147 @@ public class ComplexityAdjustedAPIGraph {
 			    LOG.debug("addMissingMappedResources: node={} edges={}", node, graph.outgoingEdgesOf(node));
 	
 		    	Graph<Node, Edge> g = CoreAPIGraph.getSubGraphWithInheritance(graph, node, node);
+		    	
 		    	if(!g.edgeSet().isEmpty()) {
 		    		res.put(candidate, g);
+		    		
+		    		LOG.debug("addMissingMappedResources: candidate={} graph={}", candidate, g.vertexSet());
+
 		    		LOG.debug("addMissingMappedResources: candidate={} graph={}", candidate, res.get(candidate));
 		    	}
 	    	}
 	    }
 		
+	    LOG.debug("addMissingMappedResources: res={}", res.keySet());
+
 	    return res;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private void pruneSubGraphsFromContainingGraphs(String resource, Map<String, Graph<Node, Edge>> graphMap) {
 	    List<String> remainingGraphs = getGraphsBySize(graphMap);
-	    
+	    	    
 		while(!remainingGraphs.isEmpty()) {		
 			String node = remainingGraphs.remove(0);
 							
-			LOG.debug("pruneSubGraphsFromContainingGraphs: resource={} node={}",  resource, node);
+			LOG.debug("#10 pruneSubGraphsFromContainingGraphs: node={} remainingGraphs={}",  node, remainingGraphs);
 
 			for(String containing : remainingGraphs) {
-				removeContainedSubgraph(resource, containing, graphMap.get(node), graphMap);
+				// if(!containing.contentEquals(resource))
+				LOG.debug("#12 pruneSubGraphsFromContainingGraphs: node={} containing={}",  node, containing);
+
+				removeContainedSubgraph(resource, node, containing, graphMap.get(node), graphMap);
+				
 			}
 				
 		}
 			
 	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	private void removeContainedSubgraph(String resource, String rootOfGraphToRemove, String rootOfGraphToPrune, Graph<Node, Edge> subGraphToRemove, Map<String,Graph<Node,Edge>> graphMap) {
+		Graph<Node,Edge> originalGraph = graphMap.get(rootOfGraphToPrune);
+
+		Optional<Node> optSubResource = getNodeByName(originalGraph,rootOfGraphToPrune);
+		Optional<Node> optRootToPrune = getNodeByName(originalGraph,rootOfGraphToRemove);
+
+		LOG.debug("#13 removeContainedSubgraph: optSubResource={} optRootToPrune={}",  optSubResource, optRootToPrune);
+
+		if(!optSubResource.isPresent() || !optRootToPrune.isPresent()) return;
+		
+		Node subResource = optSubResource.get();
+		
+		Optional<Node> optResource = getNodeByName(originalGraph,rootOfGraphToRemove); // was resource
+		if(!optResource.isPresent()) return;
+
+		Node resourceNode = optResource.get();
+
+		Graph<Node,Edge> graphToPrune = originalGraph; // CoreAPIGraph.getSubGraphWithInheritance(originalGraph, subResource, resourceNode);
+
+		LOG.debug("removeContainedSubgraph: subResource={} graphToPrune={}",  subResource, graphToPrune.vertexSet());
+
+		// if(graphToPrune.vertexSet().size()<GRAPH_PRUNE_MIN_SIZE) return;
+
+		graphToPrune.removeAllEdges(graphToPrune.outgoingEdgesOf(optRootToPrune.get()));
+		
+		boolean hasRemoved=true;
+		while(hasRemoved) {
+			hasRemoved=false;
+			final Graph<Node,Edge> g = graphToPrune;
+			Set<Node> nodesWithNoIncomingEdges = graphToPrune.vertexSet().stream()
+				.filter(n -> g.incomingEdgesOf(n).isEmpty())
+				.filter(n -> !n.equals(subResource) && !n.equals(resourceNode))
+				.collect(toSet());
+			
+			LOG.debug("#11 removeContainedSubgraph: subResource={} rootOfGraphToRemove={} nodesWithNoIncomingEdges={}",  subResource, optRootToPrune.get(), nodesWithNoIncomingEdges );
+
+			if(!nodesWithNoIncomingEdges.isEmpty()) {
+				graphToPrune.removeAllVertices(nodesWithNoIncomingEdges);
+				hasRemoved=true;
+			}
+		}
+		
+		// graphToPrune = addSimpleInheritance(subResource, graphToPrune, originalGraph, rootOfGraphToPrune.contentEquals(resource));
+		
+		// graphToPrune = revertToOriginalIfTooSmall(subResource, graphToPrune, originalGraph, rootOfGraphToPrune.contentEquals(resource));
+							
+		graphMap.put(rootOfGraphToPrune, graphToPrune);
+		
+//		Set<Node> nodesToPrune = subGraphToRemove.vertexSet().stream().filter(graphToPrune::containsVertex).collect(toSet());
+//				    	
+//		LOG.debug("removeContainedSubgraph: #0 subResource={} nodesToPrune={}",  subResource, nodesToPrune);
+//				
+//		Set<Edge> edgesToPrune = nodesToPrune.stream()
+//									.map(graphToPrune::outgoingEdgesOf)
+//									.flatMap(Set::stream)
+//									.collect(toSet());
+//
+//		LOG.debug("removeContainedSubgraph: #1 subResource={} nodesToPrune={}",  subResource, nodesToPrune);
+//		LOG.debug("removeContainedSubgraph: #1 subResource={} edgesToPrune={}",  subResource, edgesToPrune);
+//
+//		graphToPrune.removeAllEdges(edgesToPrune);
+//					
+//		removeOrphans(graphToPrune, subResource);
+//				 
+//		Set<Node> remainingNodes = graphToPrune.vertexSet();
+//		
+//		LOG.debug("removeContainedSubgraph: #2 subResource={} remainingNodes={}",  subResource, remainingNodes);
+//
+//		final Graph<Node,Edge> g = graphToPrune;
+//		Set<Edge> reinstateEdges = edgesToPrune.stream()
+//			.filter(edge -> remainingNodes.contains(edge.node))
+//			.filter(edge -> remainingNodes.contains(edge.related))
+//			.filter(edge -> isCompleteCandidate(g, edge.node))
+//			.filter(edge -> isCompleteCandidate(g, edge.related))
+//			.filter(Edge::isInheritance)
+//			.filter(Edge::isOneOf)
+//			.collect(toSet());
+//		
+//		LOG.debug("removeContainedSubgraph: subResource={} reinstateEdges={}",  subResource, reinstateEdges);
+//		
+//		for(Edge edge : reinstateEdges) {
+//			Node source = originalGraph.getEdgeSource(edge);
+//			Node target = originalGraph.getEdgeTarget(edge);
+//			if(!isRefOrValue(source)) {
+//				graphToPrune.addEdge(source, target, edge);
+//				LOG.debug("removeContainedSubgraph: addEdge source={} target={} edge={}", source, target, edge);
+//			}
+//		}
+//		
+//		graphToPrune = addSimpleInheritance(subResource, graphToPrune, originalGraph, root.contentEquals(resource));
+//		
+//		graphToPrune = revertToOriginalIfTooSmall(subResource, graphToPrune, originalGraph, root.contentEquals(resource));
+//							
+//		graphMap.put(root, graphToPrune);
+//		
+//		LOG.debug("removeContainedSubgraph: final subResource={} graphMap={}", subResource, graphMap.keySet());
+
+		
+	}
+
 
 	@LogMethod(level=LogLevel.DEBUG)
-	private void removeContainedSubgraph(String resource, String root, Graph<Node, Edge> subGraphToRemove, Map<String,Graph<Node,Edge>> graphMap) {
+	private void removeContainedSubgraph_old(String resource, String root, Graph<Node, Edge> subGraphToRemove, Map<String,Graph<Node,Edge>> graphMap) {
 		Graph<Node,Edge> originalGraph = graphMap.get(root);
 
 		Optional<Node> optSubResource = getNodeByName(originalGraph,root);
@@ -203,6 +367,8 @@ public class ComplexityAdjustedAPIGraph {
 		Node resourceNode = optResource.get();
 
 		Graph<Node,Edge> graphToPrune = CoreAPIGraph.getSubGraphWithInheritance(originalGraph, subResource, resourceNode);
+
+		LOG.debug("removeContainedSubgraph: subResource={} graphToPrune={}",  subResource, graphToPrune.vertexSet());
 
 		if(graphToPrune.vertexSet().size()<GRAPH_PRUNE_MIN_SIZE) return;
 						
@@ -327,7 +493,11 @@ public class ComplexityAdjustedAPIGraph {
 	    
 		while(!remainingGraphs.isEmpty()) {		
 			String node = remainingGraphs.remove(0);
-																
+			
+			Set<Node> nodes = graphMap.get(node).vertexSet();
+			
+			LOG.debug("removeSubGraphsCoveredByContainingGraph: remainingGraph={} node={} vertexSet={}",  remainingGraphs, node, nodes);
+			
 			remainingGraphs.stream()
 				.map(graphMap::get)
 				.forEach(superior -> {
@@ -335,6 +505,39 @@ public class ComplexityAdjustedAPIGraph {
 					
 					if(covered) {
 						unusedSubGraphs.add(node);
+						LOG.debug("removeSubGraphsCoveredByContainingGraph: node={} unusedSubGraphs={}", node, unusedSubGraphs);
+
+					}
+				});
+		}
+				
+		LOG.debug("removeSubGraphsCoveredByContainingGraph: subgraphs to remove={}", unusedSubGraphs);
+		
+		unusedSubGraphs.forEach(graphMap::remove);
+		
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	private void removeSubGraphsCoveredByContainingGraph_old(Map<String, Graph<Node, Edge>> graphMap) {
+		Set<String> unusedSubGraphs = new HashSet<>();
+	    List<String> remainingGraphs = getGraphsBySize(graphMap);
+	    
+		while(!remainingGraphs.isEmpty()) {		
+			String node = remainingGraphs.remove(0);
+			
+			Set<Node> nodes = graphMap.get(node).vertexSet();
+			
+			LOG.debug("removeSubGraphsCoveredByContainingGraph: remainingGraph={} node={} vertexSet={}",  remainingGraphs, node, nodes);
+			
+			remainingGraphs.stream()
+				.map(graphMap::get)
+				.forEach(superior -> {
+					boolean covered = graphMap.get(node).vertexSet().stream().allMatch(n -> superior.vertexSet().contains(n));
+					
+					if(covered) {
+						unusedSubGraphs.add(node);
+						LOG.debug("removeSubGraphsCoveredByContainingGraph: node={} unusedSubGraphs={}", node, unusedSubGraphs);
+
 					}
 				});
 		}

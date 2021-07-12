@@ -393,7 +393,7 @@ public class Utils {
 	    
 	}
 
-	private enum CopyStyle {
+	public enum CopyStyle {
 		OVERWRITE,
 		KEEP_ORIGINAL
 	}

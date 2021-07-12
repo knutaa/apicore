@@ -18,6 +18,7 @@ import static java.util.stream.Collectors.toSet;
 import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
 import no.paneon.api.logging.LogMethod;
+import no.paneon.api.utils.Out;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
 import org.apache.logging.log4j.Logger;
@@ -357,7 +358,10 @@ public class GraphAlgorithms {
 		
 		while(iterator.hasNext()) {
 			Node node = iterator.next();
-			if(visited.contains(node)) continue;
+			
+			// TBD
+			// if(visited.contains(node)) continue;
+			visited.clear();
 			
 			path.add(node);
 			cyclicUtilAllCycles(graph, node, path, node, cycles, visited);
@@ -376,7 +380,7 @@ public class GraphAlgorithms {
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
-    private static List<List<Node>>  cyclicUtilAllCycles(Graph<Node,Edge> graph, Node node, List<Node> path, Node parent, List<List<Node>> foundCycles, Set<Node> visited) 
+    private static List<List<Node>> cyclicUtilAllCycles(Graph<Node,Edge> graph, Node node, List<Node> path, Node parent, List<List<Node>> foundCycles, Set<Node> visited) 
     {   
         Set<Node> neighbours = getNeighbours(graph, node).stream()
         						.filter(n -> !n.equals(node))
@@ -389,14 +393,22 @@ public class GraphAlgorithms {
         }
         
         for(Node neighbour : neighbours) {
+        	
+	        LOG.debug("cyclicUtilAllCycles: node={} neighbour={}", node, neighbour);
+
         	if(neighbour.isEnumNode() || neighbour.equals(parent) || (true && visited.contains(neighbour))) continue;
 
         	visited.add(neighbour);
 
         	if (path.contains(neighbour)) {
 				List<Node> circle = getCircle(path, neighbour);
+				
+		        LOG.debug("cyclicUtilAllCycles: node={} circle={}", node, circle);
 
 				if(!isCycleAlreadyFound(foundCycles,circle)) {
+					
+			        LOG.debug("cyclicUtilAllCycles: node={} NEW circle={}", node, circle);
+
 					foundCycles.add(circle);
 				}
                 // visited.add(neighbour);
@@ -408,6 +420,9 @@ public class GraphAlgorithms {
 	        	path.remove(neighbour);
             }
         } 
+        
+        LOG.debug("cyclicUtilAllCycles: node={} foundCycles={}", node, foundCycles);
+
         return foundCycles; 
     } 
   
