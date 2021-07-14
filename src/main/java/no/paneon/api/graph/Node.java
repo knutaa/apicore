@@ -3,10 +3,12 @@ package no.paneon.api.graph;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -47,13 +49,18 @@ public class Node implements Comparable<Object>  {
 	
 	Set<String> discriminatorMapping;
 	
+	String inline = "";
+	
 	static final String ALLOF = "allOf";
 	static final String PROPERTIES = "properties";
 	static final String TYPE = "type";
 	static final String ARRAY = "array";
+	static final String ITEMS = "items";
 	static final String ENUM = "enum";
 	static final String NULLABLE = "nullable";
 
+	static final String DISCRIMINATOR = "discriminator";
+	
 	static final String DESCRIPTION = "description";
 	static final String REF = CoreAPIGraph.REF;
 	static final String INCLUDE_INHERITED = CoreAPIGraph.INCLUDE_INHERITED;
@@ -78,19 +85,288 @@ public class Node implements Comparable<Object>  {
 		this();
 		this.resource=resource;		
 		
-		addPropertyDetails(Property.BASE);
-		
 		addDescription();
-		
-		Property.Visibility visibility = Config.getBoolean(INCLUDE_INHERITED) ? Property.VISIBLE_INHERITED : Property.HIDDEN_INHERITED;
-		
-		addAllOfs(visibility);
-		
-		addDiscriminatorMapping();
 
+		this.inline = getInlineDefinition();
+		
+		Optional<JSONObject> optExpanded = getExpandedJSON();
+		
+		if(optExpanded.isPresent() && !optExpanded.get().isEmpty()) {
+			this.inline = convertExpanded(optExpanded.get());
+			
+			LOG.debug("Node::getExpandedJSON resource={} optExpanded={}" , resource, optExpanded.get().toString(2) );
+			LOG.debug("inline={}" , this.inline );
+
+		} else {
+			
+			Property.Visibility visibility = Config.getBoolean(INCLUDE_INHERITED) ? Property.VISIBLE_INHERITED : Property.HIDDEN_INHERITED;
+
+			addPropertyDetails(Property.BASE);									
+			addAllOfs(visibility);
+			addDiscriminatorMapping();	
+		
+		}
+		
 	}
 
 	
+	private String convertExpanded(JSONObject obj) {
+		String res = "";
+		if(obj.has(ITEMS)) {
+			res = convertExpanded(obj.optJSONObject(ITEMS));
+			
+			String cardinality = APIModel.getCardinality(obj,false);
+			if(!cardinality.isBlank()) {
+				res = res + " [" + cardinality + "]";
+			}
+			
+		} else if(obj.has(TYPE)) {
+			res = obj.optString(TYPE);
+		}
+		return res;
+	}
+
+	private String getInlineDefinition() {
+		JSONObject def = APIModel.getDefinition(this.resource);
+		return getInlineDefinition(def);
+	}
+	
+
+	private Optional<JSONObject> getExpandedJSON() {
+		JSONObject def = APIModel.getDefinition(this.resource);
+		return getExpandedJSON(def);
+	}
+
+	private Optional<JSONObject> getExpandedJSON(JSONObject obj) {
+		Optional<JSONObject> res = Optional.empty();
+		
+		JSONObject clone = new JSONObject(obj.toString());
+
+		if(obj!=null) {
+			LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
+			
+			if(obj.has(ENUM) || obj.has(PROPERTIES) || obj.has(DISCRIMINATOR) ) return res;
+			
+			if(obj.has(REF)) {
+				JSONObject refDef = APIModel.getDefinitionBySchemaObject(obj);
+				res = getExpandedJSON(refDef);
+				
+			} else if(obj.has(ALLOF)) {
+				
+				JSONArray array = obj.optJSONArray(ALLOF);			
+				res = getExpandedJSON(array);
+				if(res.isPresent()) {
+					partialOverwriteJSON(clone,res.get());
+				}	
+				clone.remove(ALLOF);
+				res = Optional.of(clone);
+
+			} else if(obj.has(ITEMS)) {
+				
+				JSONObject items = obj.optJSONObject(ITEMS);
+				if(items!=null) {
+					res = getExpandedJSON(items);
+					if(res.isPresent()) {
+						clone.put(ITEMS, res.get());
+						res = Optional.of(clone);
+					}
+				} else {
+					JSONArray array = obj.optJSONArray(ITEMS);
+					res = getExpandedJSON(array);
+					if(res.isPresent()) {
+						clone.put(ITEMS, res.get());
+						res = Optional.of(clone);
+					}
+					
+				}
+								
+			} else {
+				res = Optional.of(clone);
+			}
+		}
+		
+		if(res.isPresent()) LOG.debug("Node::getFlatten resource={} res={}" , resource, res );
+
+		
+		return res;
+		
+	}
+	
+	
+	
+	private Optional<JSONObject> getExpandedJSON(JSONArray array) {
+		Optional<JSONObject> res = Optional.empty();
+		
+		LOG.debug("getExpandedJSON:: array={}",  array.toString(2));
+
+		JSONObject clone = new JSONObject();
+		
+		Iterator<Object> iter = array.iterator();
+		while(iter.hasNext()) {
+			Object o = iter.next();
+			LOG.debug("getExpandedJSON:: o={}",  o);
+			if(o instanceof JSONObject) {
+				JSONObject obj = (JSONObject) o;
+				res = getExpandedJSON(obj);
+				if(res.isPresent()) {
+					partialOverwriteJSON(clone,res.get());
+				} else {
+					return res;
+				}
+			} else {
+				LOG.debug("getExpandedJSON:: NOT PROCESSED o={}",  o);
+			}
+		}
+		
+		if(!clone.keySet().isEmpty()) {
+			res = Optional.of(clone);
+		} else {
+			res = Optional.empty();
+		}
+		
+		return res;
+	}
+
+	private void partialOverwriteJSON(JSONObject target, JSONObject source) {
+		LOG.debug("partialOverwriteJSON:: source={}",  source.toString());
+		for(String key : source.keySet()) {
+			target.put(key, source.get(key));
+		}
+	}
+
+	private String getInlineDefinition(JSONObject def) {
+		String res = "";
+		
+		if(def!=null) {
+			LOG.debug("Node::getInlineDefinition resource={} def={}" , resource, def.toString() );
+			
+			if(def.has(ENUM)) {
+				res = "";
+			} else if(def.has(PROPERTIES)) {
+				res = "";
+			} else if(def.has(REF)) {
+				JSONObject refDef = APIModel.getDefinitionBySchemaObject(def);
+				String cardinality = APIModel.getCardinality(refDef, false);
+
+				res = getInlineDefinition(refDef) ;
+				
+				if(!cardinality.isBlank()) res = res + getCardinalityString(cardinality);
+				
+				LOG.debug("Node::getInlineDefinition resource={} refDef={}" , resource, refDef.toString() );
+
+			} else if(def.has(ALLOF)) {
+				JSONArray array = def.optJSONArray(ALLOF);
+				
+				res = getInlineDefinition(array);
+
+				String cardinality = getCardinality(array, res);
+
+				res = res + cardinality;
+				
+
+			} else if(def.has(ITEMS)) {
+				
+				String cardinality = APIModel.getCardinality(def, false);
+
+				JSONObject obj = def.optJSONObject(ITEMS);
+				if(obj!=null) {
+					res = getInlineDefinition(obj);
+				} else {
+					JSONArray array = def.optJSONArray(ITEMS);
+					Iterator<Object> iter = array.iterator();
+					while(iter.hasNext()) {
+						Object o = iter.next();
+						if(o instanceof JSONObject) {
+							obj = (JSONObject) o;
+							res = getInlineDefinition(obj);
+						} 
+						if(!res.isBlank()) break;
+					}
+				}
+				
+				res = res + getCardinalityString(cardinality);	
+				
+			} else {
+				String cardinality = APIModel.getCardinality(def, false);
+				res = getType(def) + getCardinalityString(cardinality);	
+				
+				LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
+			}
+		}
+		
+		if(!res.isBlank()) LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
+
+		return res;
+		
+	}
+
+	private String getInlineDefinition(JSONArray array) {
+		String res = "";
+		for(Object o : array) {
+			if(o instanceof JSONObject) {
+				JSONObject obj = (JSONObject) o;
+				res = getInlineDefinition(obj);
+			} 
+			if(!res.isBlank()) break;
+		}
+		return res;
+	}
+
+	private String getCardinality(JSONArray array, String definition) {
+		String res = "";
+		for(Object o : array) {
+			if(o instanceof JSONObject) {
+				JSONObject obj = (JSONObject) o;
+				res = APIModel.getCardinality(obj, false);
+			} 
+			if(!res.isBlank()) break;
+		}
+		
+		if(!definition.isBlank()) LOG.debug("getCardinality: definition={} res={} array={}",  definition, res, array);
+		
+		return res;
+	}
+	
+	private String getCardinalityString(String cardinality) {
+		String res = "";
+		if(!cardinality.isBlank()) res = " [" + cardinality + "]";
+		return res;
+	}
+
+	private String getType(JSONObject def) {
+		String res="";
+		
+		if(def.has(ITEMS)) {
+			if(def.optJSONArray(ITEMS)!=null) {
+				JSONArray array = def.optJSONArray(ITEMS);
+				res = getType(array);
+			} else if(def.optJSONObject(ITEMS)!=null) {
+				JSONObject obj = def.optJSONObject(ITEMS);
+				res = getType(obj);
+			} 
+		}
+		
+		if(res.isBlank()) res = def.optString(TYPE);
+		
+		return res;
+	}
+
+	private String getType(JSONArray def) {
+		String res="";
+		
+		for(Object o : def) {
+			if(o instanceof JSONObject) {
+				JSONObject obj = (JSONObject) o;
+				res = getType(obj);
+			} 
+			
+			if(!res.isBlank()) break;
+		}
+				
+		return res;
+	}
+	
+
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addPropertyDetails(Property.Visibility visibility) {
 		JSONObject propObj = APIModel.getPropertyObjectForResource(this.resource);
@@ -100,8 +376,10 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addPropertyDetails(JSONObject propObj, Property.Visibility visibility) {
 			
+		// Out.debug("addPropertyDetails: propObj={}" , propObj.toString(2) );
+
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.optString(TYPE))) {
-			
+			LOG.debug("addPropertyDetails: NOT PROCESSED propObj={}" , propObj.toString(2) );
 		} else  {
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
@@ -352,6 +630,10 @@ public class Node implements Comparable<Object>  {
 	
 	public Set<Node> getCircleNodes() {
 		return this.circleNodes;
+	}
+
+	public String getInline() {
+		return inline;
 	}
 	
 }

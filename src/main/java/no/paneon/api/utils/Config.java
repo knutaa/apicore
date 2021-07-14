@@ -823,6 +823,7 @@ public class Config {
     	if(file!=null) {
      		JSONObject defaults = Utils.readJSONOrYaml(file);		
     		addConfiguration(defaults);
+    		LOG.debug("setDefaults: data=" + defaults.toString(2));
     	}
     }
 

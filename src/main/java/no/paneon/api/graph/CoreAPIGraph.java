@@ -104,6 +104,16 @@ public class CoreAPIGraph {
 
 		LOG.debug("generateGraph: g=" + g);
 		
+		Predicate<Node> isNotInline = n -> !n.getInline().isBlank();
+		
+		Set<Node> inlineNodes = g.vertexSet().stream().filter(isNotInline).collect(toSet());
+		
+		LOG.debug("generateGraph: inline nodes=" + inlineNodes);
+
+		Set<Edge> outgoingFromInline = inlineNodes.stream().map(g::outgoingEdgesOf).flatMap(Set::stream).collect(toSet());
+		
+		g.removeAllEdges(outgoingFromInline);
+		
 		return g;
 			
 	}
@@ -205,6 +215,16 @@ public class CoreAPIGraph {
 		}		
 	}
 	
+//	private boolean specialArrayAllOf(JSONArray allOfs) {
+//		Predicate<String> isMinOrMax = s -> s.contains("minItems") || s.contains("maxItems");
+//		
+//		boolean minOrMax = allOfs.toList().stream().map(Object::toString).anyMatch(isMinOrMax);
+//		
+//		if(true || minOrMax) Out.debug("specialArrayAllOf: allOfs={}", allOfs.toString(2));
+//		
+//		return minOrMax;
+//	}
+
 	private void processAllOfReference(Graph<Node, Edge> g, JSONObject allOfObject, Node from) {
 		String type = APIModel.getTypeByReference(allOfObject.optString(REF));
 		
@@ -655,8 +675,46 @@ public class CoreAPIGraph {
 		Set<Node>  res = getSubGraphHelper(graph, node, seen);
 		
 		res.remove(parent);
-		
+				
 		return res;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static void removeRedundantRelationships(Graph<Node,Edge> graph, Node parent) {
+				
+		Set<Node> nodes = new HashSet<>();
+		nodes.addAll( graph.vertexSet() );
+				
+		if(!nodes.contains(parent)) return;
+		
+		nodes = graph.incomingEdgesOf(parent).stream().filter(Edge::isDiscriminator).map(graph::getEdgeSource).collect(toSet());
+		
+		nodes.remove(parent);
+		
+		LOG.debug("removeRedundantRelationships: resource={} nodes={}", parent, nodes);
+
+		boolean removed=false;
+		for(Node node : nodes) {
+			Set<Edge> irrelevantDiscriminators = graph.edgesOf(node).stream().filter(Edge::isDiscriminator).collect(toSet());
+			graph.removeAllEdges(irrelevantDiscriminators);
+			removed = removed || !irrelevantDiscriminators.isEmpty();
+		}
+		
+		Predicate<Node> noInboundEdges  = n -> graph.incomingEdgesOf(n).isEmpty();
+		Predicate<Node> notResourceNode = n -> !n.equals(parent);
+		
+		while(removed) {
+			nodes = graph.vertexSet().stream().filter(noInboundEdges).filter(notResourceNode).collect(toSet());
+			graph.removeAllVertices(nodes);	
+
+			LOG.debug("removeRedundantRelationships: resource={} REMOVE nodes={}", parent, nodes);
+
+			removed = !nodes.isEmpty();
+		}
+	
+		LOG.debug("removeRedundantRelationships: resource={} DONE nodes={}", parent, graph.vertexSet());
+		LOG.debug("removeRedundantRelationships: resource={} DONE edges={}", parent, graph.edgeSet());
+
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)

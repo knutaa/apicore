@@ -128,8 +128,9 @@ public class APIModel {
 								if(obj.has(REQUIRED)) definition.put(REQUIRED, obj.get(REQUIRED));
 								if(obj.has(DESCRIPTION)) definition.put(DESCRIPTION, obj.get(DESCRIPTION));
 								if(obj.has(TYPE)) definition.put(TYPE, obj.get(TYPE));
-
 								LOG.debug("rearrangeDefinitions:: rearrange type={} obj={}", type, definition.get(PROPERTIES));
+							} else {
+								rewrittenAllOfs.put(obj);
 							}
 						} else {
 							rewrittenAllOfs.put(allOf);

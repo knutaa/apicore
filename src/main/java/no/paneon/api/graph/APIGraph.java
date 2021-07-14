@@ -57,15 +57,19 @@ public class APIGraph extends CoreAPIGraph {
 	
 	List<List<Node>> circles;
 	
-	public APIGraph(CoreAPIGraph core, Graph<Node,Edge> graph, String resource) {
+	boolean keepTechnicalEdges;
+	
+	public APIGraph(CoreAPIGraph core, Graph<Node,Edge> graph, String resource, Boolean keepTechnicalEdges) {
 		super(core);
 		
 		this.graph=graph;
 		
 		this.resource = resource;	
 		this.resourceNode = getNode(resource);
+		this.keepTechnicalEdges = keepTechnicalEdges;
 		
 		init();
+		
 	}
 	
 	public APIGraph(String resource) {
@@ -95,6 +99,11 @@ public class APIGraph extends CoreAPIGraph {
 	    
 		LOG.debug("init:: #1");
 
+		if(!this.keepTechnicalEdges) { 
+			removeTechnicalAllOfs();
+			removeRedundantRelationships();
+		}
+		
 		this.circles = GraphAlgorithms.cyclicAllCycles(this.graph, this.resourceNode);
 		
 		LOG.debug("init:: #2");
@@ -252,7 +261,12 @@ public class APIGraph extends CoreAPIGraph {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public boolean isLeafNode(Node node) {
-		return graph.outgoingEdgesOf(node).isEmpty();
+		boolean res=false;
+		
+		if(graph.vertexSet().contains(node)) {
+			res = graph.outgoingEdgesOf(node).isEmpty();
+		}
+		return res;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1085,6 +1099,39 @@ public class APIGraph extends CoreAPIGraph {
 				this.graph.removeAllEdges(allOfEdges);	
 			}
 		}
+	}
+
+	public void removeRedundantRelationships() {
+		
+		CoreAPIGraph.removeRedundantRelationships(graph, resourceNode);
+		
+//		Set<Node> nodes = this.getInboundEdges(this.resourceNode).stream().filter(Edge::isDiscriminator).map(this.graph::getEdgeSource).collect(toSet());
+//		
+//		nodes.remove(this.resourceNode);
+//		
+//		LOG.debug("removeRedundantRelationships: resource={} nodes={}", this.resourceNode, nodes);
+//
+//		boolean removed=false;
+//		for(Node node : nodes) {
+//			Set<Edge> irrelevantDiscriminators = this.graph.edgesOf(node).stream().filter(Edge::isDiscriminator).collect(toSet());
+//			this.graph.removeAllEdges(irrelevantDiscriminators);
+//			removed = removed || !irrelevantDiscriminators.isEmpty();
+//		}
+//		
+//		Predicate<Node> noInboundEdges  = n -> getInboundEdges(n).isEmpty();
+//		Predicate<Node> notResourceNode = n -> !n.equals(this.resourceNode);
+//		
+//		while(removed) {
+//			nodes = this.graph.vertexSet().stream().filter(noInboundEdges).filter(notResourceNode).collect(toSet());
+//			Out.debug("removeRedundantRelationships: resource={} REMOVE nodes={}", this.resourceNode, nodes);
+//			this.graph.removeAllVertices(nodes);	
+//
+//			removed = !nodes.isEmpty();
+//		}
+//	
+//		Out.debug("removeRedundantRelationships: resource={} DONE nodes={}", this.resourceNode, this.graph.vertexSet());
+//		Out.debug("removeRedundantRelationships: resource={} DONE edges={}", this.resourceNode, this.graph.edgeSet());
+
 	}
 
 	

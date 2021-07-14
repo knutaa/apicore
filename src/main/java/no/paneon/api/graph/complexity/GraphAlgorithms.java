@@ -258,12 +258,26 @@ public class GraphAlgorithms {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static <N,E> Set<N> getOutboundNeighbours(Graph<N,E> graph, N node) {
-		return graph.outgoingEdgesOf(node).stream().map(graph::getEdgeTarget).collect(toSet());
+		Set<N> res = new HashSet<>();
+		
+		if(graph.vertexSet().contains(node)) {
+			res = graph.outgoingEdgesOf(node).stream().map(graph::getEdgeTarget).collect(toSet());
+		}
+		return res;
+		
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static <N,E> Set<N> getInboundNeighbours(Graph<N,E> graph, N node) {
-		return graph.incomingEdgesOf(node).stream().map(graph::getEdgeSource).collect(toSet());
+		// return graph.incomingEdgesOf(node).stream().map(graph::getEdgeSource).collect(toSet());
+		
+		Set<N> res = new HashSet<>();
+		
+		if(graph.vertexSet().contains(node)) {
+			res = graph.incomingEdgesOf(node).stream().map(graph::getEdgeSource).collect(toSet());
+		}
+		return res;
+		
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
