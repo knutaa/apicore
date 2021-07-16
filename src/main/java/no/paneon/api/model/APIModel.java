@@ -777,7 +777,7 @@ public class APIModel {
 		List<String> res = new LinkedList<>();
 
 		if(rules==null || rules.isEmpty()) {
-			if(firstAPImessage) Out.println("... API rules not found - extracting notification support from API");
+			if(firstAPImessage) Out.println("... extracting notification support from API");
 			setSeenAPImessage();
 			return getNotificationsFromSwagger(resource);
 		}

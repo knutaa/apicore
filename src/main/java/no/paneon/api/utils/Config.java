@@ -128,14 +128,20 @@ public class Config {
     	try {
 			JSONObject o = Utils.readYamlAsJSON(rulesSource,true);
 			// next level, only one containing api attribute
-			rules=o.getJSONObject(o.keySet().iterator().next());
+			Optional<String> apiKey = o.keySet().stream().filter(k -> k.startsWith("api")).findFirst();
+			
+			if(apiKey.isPresent()) {
+				rules=o.getJSONObject(apiKey.get());
+			} else {
+				Out.println("... unable to read rules from " + rulesSource + " ('api' property not found)");
+			}
 			
 			if(LOG.isDebugEnabled())
 				LOG.log(Level.DEBUG, "setRulesSource: rules={}", rules.toString(2));
 
 		} catch(Exception e) {
 			Out.println("... unable to read rules from " + rulesSource);
-			
+			e.printStackTrace();
 			if(LOG.isDebugEnabled())
 				LOG.log(Level.DEBUG, "setRulesSource: exception={}", e.getLocalizedMessage());
 		}		

@@ -62,6 +62,8 @@ public class ComplexityAdjustedAPIGraph {
 
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(graph.getCompleteGraph(), resourceNode, resourceNode);
 	    
+	    simplifyGraphForComplexDiscriminators(resourceGraph, resourceNode);
+	    
 	    LOG.debug("generateSubGraphsForResource: resource={} resourceGraph={}" , resource, resourceGraph.vertexSet());
 
 	    LOG.debug("generateSubGraphsForResource: resource={} resourceGraph={}" , resource, resourceGraph);
@@ -146,6 +148,34 @@ public class ComplexityAdjustedAPIGraph {
 
 	}
 	
+	private void simplifyGraphForComplexDiscriminators(Graph<Node,Edge> graph, Node resourceNode) {
+		Set<Node> nodes = graph.vertexSet();
+		
+		Predicate<Node> notResourceNode = n -> !n.equals(resourceNode);
+		
+		Set<Node> complexDiscriminators = nodes.stream()
+											.filter(n -> outBoundDiscriminators(graph,n)>2)
+											.filter(notResourceNode)
+											.collect(toSet());
+		
+	    if(!complexDiscriminators.isEmpty()) LOG.debug("simplifyGraphForComplexDiscriminators: resourceNode={} complexDiscriminators={}", resourceNode, complexDiscriminators);
+
+	    for(Node n : complexDiscriminators) {
+	    	Set<Node> outbound = graph.outgoingEdgesOf(n).stream().filter(Edge::isDiscriminator).map(graph::getEdgeTarget).collect(toSet());
+	    	
+	    	LOG.debug("simplifyGraphForComplexDiscriminators: resourceNode={} remove={}", resourceNode, outbound);
+	    	
+	    	graph.removeAllVertices(outbound);
+
+	    	
+	    }
+			    
+	}
+
+	private long outBoundDiscriminators(Graph<Node,Edge> graph, Node n) {
+		return graph.outgoingEdgesOf(n).stream().filter(Edge::isDiscriminator).count();
+	}
+
 	private final String NEWLINE = "\n";
 	
 	private String debug(Map<String,Graph<Node,Edge>> graphs) {

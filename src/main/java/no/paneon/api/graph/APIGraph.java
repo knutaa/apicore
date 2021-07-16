@@ -1105,33 +1105,6 @@ public class APIGraph extends CoreAPIGraph {
 		
 		CoreAPIGraph.removeRedundantRelationships(graph, resourceNode);
 		
-//		Set<Node> nodes = this.getInboundEdges(this.resourceNode).stream().filter(Edge::isDiscriminator).map(this.graph::getEdgeSource).collect(toSet());
-//		
-//		nodes.remove(this.resourceNode);
-//		
-//		LOG.debug("removeRedundantRelationships: resource={} nodes={}", this.resourceNode, nodes);
-//
-//		boolean removed=false;
-//		for(Node node : nodes) {
-//			Set<Edge> irrelevantDiscriminators = this.graph.edgesOf(node).stream().filter(Edge::isDiscriminator).collect(toSet());
-//			this.graph.removeAllEdges(irrelevantDiscriminators);
-//			removed = removed || !irrelevantDiscriminators.isEmpty();
-//		}
-//		
-//		Predicate<Node> noInboundEdges  = n -> getInboundEdges(n).isEmpty();
-//		Predicate<Node> notResourceNode = n -> !n.equals(this.resourceNode);
-//		
-//		while(removed) {
-//			nodes = this.graph.vertexSet().stream().filter(noInboundEdges).filter(notResourceNode).collect(toSet());
-//			Out.debug("removeRedundantRelationships: resource={} REMOVE nodes={}", this.resourceNode, nodes);
-//			this.graph.removeAllVertices(nodes);	
-//
-//			removed = !nodes.isEmpty();
-//		}
-//	
-//		Out.debug("removeRedundantRelationships: resource={} DONE nodes={}", this.resourceNode, this.graph.vertexSet());
-//		Out.debug("removeRedundantRelationships: resource={} DONE edges={}", this.resourceNode, this.graph.edgeSet());
-
 	}
 
 	

@@ -38,7 +38,9 @@ public class AspectLogger {
 		
 	}
 	
-	public static final Level VERBOSE = Level.forName("VERBOSE", 50);
+	public static final Level VERBOSE = Level.forName("VERBOSE", 0);
+	public static final Level ALWAYS  = Level.forName("ALWAYS", 1);
+
 	public static final Level INFO = Level.forName("INFO", Level.INFO.intLevel());
 
 	private static final int LINESIZE = 120;

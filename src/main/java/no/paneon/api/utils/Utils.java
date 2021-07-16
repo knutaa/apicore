@@ -753,7 +753,7 @@ public class Utils {
 
 
 	@LogMethod(level=LogLevel.TRACE)
-	public static File getFile(String fileName, List<String> directories) {
+	public static File getFile(String fileName, List<String> directories) throws Exception {
 		File res=null;
 						
 		directories.add("");
