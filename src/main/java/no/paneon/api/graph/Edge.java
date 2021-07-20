@@ -1,6 +1,7 @@
 package no.paneon.api.graph;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.Logger;
 
@@ -72,6 +73,10 @@ public class Edge {
 	public boolean isDiscriminator() {
 		boolean discriminator = this instanceof Discriminator;
 		return discriminator && !flattenedInheritance();
+	}
+	
+	public boolean isNotDiscriminator() {
+		return !isDiscriminator();
 	}
 	
 	public boolean isAllOf() {

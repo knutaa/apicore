@@ -99,16 +99,19 @@ public class APIGraph extends CoreAPIGraph {
 	    
 		LOG.debug("init:: #1");
 
+        LOG.debug("APIGraph: resource={} #1 graph={}", resource, graph.vertexSet());
+
+		// CoreAPIGraph.simplifyAllOfDiscriminatorPairs(completeGraph, graph, resourceNode);
+
 		if(!this.keepTechnicalEdges) { 
-			removeTechnicalAllOfs();
-			removeRedundantRelationships();
+			// CoreAPIGraph.simplifyAllOfDiscriminatorPairs(completeGraph, graph, resourceNode);
 		}
 		
 		this.circles = GraphAlgorithms.cyclicAllCycles(this.graph, this.resourceNode);
 		
 		LOG.debug("init:: #2");
 		
-        LOG.debug("APIGraph: resource={} circles={}", resource, circles);
+        LOG.debug("APIGraph: resource={} #2 graph={}", resource, graph.vertexSet());
 
 
 	}

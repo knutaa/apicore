@@ -134,7 +134,7 @@ public class APIModel {
 							}
 						} else {
 							rewrittenAllOfs.put(allOf);
-							LOG.debug("rearrangeDefinitions:: unexpected array element for type={} element={}", type, allOf);
+							Out.debug("rearrangeDefinitions:: unexpected array element for type={} element={}", type, allOf);
 						}
 					});
 					
@@ -182,7 +182,9 @@ public class APIModel {
 
 		List<String> res = getCoreResources(); 
 			
-		res.addAll( getSubclassesByResources(res) );
+		LOG.debug("getResources:: {}", res);
+
+		// res.addAll( getSubclassesByResources(res) );
 		
 		LOG.debug("getResources:: {}", res);
 		

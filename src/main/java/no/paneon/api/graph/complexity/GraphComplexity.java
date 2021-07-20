@@ -72,7 +72,7 @@ public class GraphComplexity {
 					
 		Set<Node> nodes = graph.vertexSet();
 		
-		Set<String> mappings = nodes.stream().map(Node::getDiscriminatorMapping).flatMap(Set::stream).collect(toSet());
+		Set<String> mappings = nodes.stream().map(Node::getExternalDiscriminatorMapping).flatMap(Set::stream).collect(toSet());
 		
 		LOG.debug("computeGraphComplexity:: nodes={}", nodes);
 		LOG.debug("computeGraphComplexity:: mappings={}", mappings);
