@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -127,21 +128,27 @@ public class Config {
     	
     	try {
 			JSONObject o = Utils.readYamlAsJSON(rulesSource,true);
+			
+			LOG.debug("## setRulesSource: rules={}", o.toString(2));
+
 			// next level, only one containing api attribute
 			Optional<String> apiKey = o.keySet().stream().filter(k -> k.startsWith("api")).findFirst();
 			
 			if(apiKey.isPresent()) {
-				rules=o.getJSONObject(apiKey.get());
+				rules=o.optJSONObject(apiKey.get());
+				
+				if(rules!=null) {
+					LOG.debug("setRulesSource: rules={}", rules.toString(2));
+				}
+				
 			} else {
-				Out.println("... unable to read rules from " + rulesSource + " ('api' property not found)");
+				Out.println("... unable to read rules from {} ('api' property not found)", rulesSource);
 			}
 			
-			if(LOG.isDebugEnabled())
-				LOG.log(Level.DEBUG, "setRulesSource: rules={}", rules.toString(2));
+			if(LOG.isDebugEnabled() && rules!=null)
+				LOG.debug("setRulesSource: rules={}", rules.toString(2));
 
 		} catch(Exception e) {
-			Out.println("... unable to read rules from " + rulesSource);
-			e.printStackTrace();
 			if(LOG.isDebugEnabled())
 				LOG.log(Level.DEBUG, "setRulesSource: exception={}", e.getLocalizedMessage());
 		}		
@@ -226,11 +233,11 @@ public class Config {
 	private static JSONObject rules=null;
 	
 	@LogMethod(level=LogLevel.TRACE)
-	public static void setRulesSource(String rules) {
+	public static void setRulesSource(String rulesFile) {
 		
-		if(rules==null) return;
+		if(rulesFile==null) return;
 		
-		rulesSource=rules;
+		rulesSource=rulesFile;
 		readRules();
 	}
 	
@@ -874,6 +881,76 @@ public class Config {
 			Out.debug("... unable to process configuration property '{}' - expecting integer value", property);
 			return 0;
 		}
+	}
+
+	public static JSONObject getRulesForResource(String resource) {
+		JSONObject rules = Config.getRules();
+		
+		LOG.debug("getRulesForResource: resource={} rules={}", resource, rules);	
+
+		if(rules !=null) {
+			LOG.debug("getRulesForResource: resource={} rules={}", resource, rules);	
+
+			String rulesKey = "rules " + resource;
+			if(rules.has(rulesKey)) {
+				JSONObject resourceRules = rules.optJSONObject(rulesKey);
+				return resourceRules;
+			}
+			
+			JSONArray resourcesRules = rules.optJSONArray("resources");
+			if(resourcesRules!=null) {		
+
+				Iterator<Object> iter = resourcesRules.iterator();
+				while(iter.hasNext()) {
+					Object o = iter.next();
+					if(o instanceof JSONObject) {
+						JSONObject resourceRules = (JSONObject)o;
+						
+						LOG.debug("getRulesForResource: resource={} rules={}", resource, rules);	
+
+						if(resourceRules.has("name") && resourceRules.optString("name").contentEquals(resource)) {
+							LOG.debug("getRulesForResource: resource={} rules={}", resource, rules);	
+							return resourceRules;
+						}
+					}
+				}				
+			}
+		}
+		
+		return null;
+	}
+
+	public static JSONObject getRulesForOperation(JSONObject rulesForResource, String op) {
+		if(rulesForResource !=null) {
+
+			JSONArray operationRules = rulesForResource.optJSONArray("supportedHttpMethods");
+		
+			if(operationRules==null) {
+				
+				JSONObject operationRulesObject = rulesForResource.optJSONObject("supportedHttpMethods");
+
+				if(operationRulesObject.has(op)) {
+					operationRulesObject = operationRulesObject.optJSONObject(op);
+					
+					return operationRulesObject;
+				}
+				
+			} else {
+	
+				Iterator<Object> iter = operationRules.iterator();
+				while(iter.hasNext()) {
+					Object o = iter.next();
+					if(o instanceof JSONObject) {
+						JSONObject rulesForOperation = (JSONObject)o;
+							
+						if(rulesForOperation.has(op)) return rulesForOperation;
+					}
+				}	
+			}
+		}
+		
+		return null;
+		
 	}
 
 

@@ -90,7 +90,7 @@ public class Property {
 	}
 	
 	public String toString() {
-		return name + " : " + type;
+		return name + " : " + type + " required:" + required;
 	}
 	
 	List<String> values = new LinkedList<>();

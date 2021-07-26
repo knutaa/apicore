@@ -25,6 +25,7 @@ import java.time.LocalDate;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONPointer;
 
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
@@ -113,6 +114,7 @@ public class APIModel {
 
 		for(String type : getAllDefinitions() ) {
 			JSONObject definition = getDefinition(type);
+			
 			if(definition!=null && !definition.has(PROPERTIES)) {
 				if(definition.has(ALLOF)) {
 					JSONArray rewrittenAllOfs = new JSONArray();
@@ -126,23 +128,31 @@ public class APIModel {
 							} else if(obj.has(PROPERTIES)) {
 								definition.put(PROPERTIES, obj.get(PROPERTIES));
 								if(obj.has(REQUIRED)) definition.put(REQUIRED, obj.get(REQUIRED));
-								if(obj.has(DESCRIPTION)) definition.put(DESCRIPTION, obj.get(DESCRIPTION));
+								if(obj.has(DESCRIPTION) && !definition.has(DESCRIPTION)) {
+									definition.put(DESCRIPTION, obj.get(DESCRIPTION));
+								}
 								if(obj.has(TYPE)) definition.put(TYPE, obj.get(TYPE));
-								LOG.debug("rearrangeDefinitions:: rearrange type={} obj={}", type, definition.get(PROPERTIES));
+								
+								LOG.debug("rearrangeDefinitions:: rearrange type={} obj={}", type, definition.toString(2));
 							} else {
 								rewrittenAllOfs.put(obj);
 							}
 						} else {
 							rewrittenAllOfs.put(allOf);
-							Out.debug("rearrangeDefinitions:: unexpected array element for type={} element={}", type, allOf);
+							LOG.debug("rearrangeDefinitions:: unexpected array element for type={} element={}", type, allOf);
 						}
 					});
 					
 					definition.put(ALLOF, rewrittenAllOfs);
 					
+					JSONObject newDef = getDefinition(type);
+					
+					LOG.debug("rearrangeDefinitions:: type={} old={} new={}", type, definition.keySet(), newDef.keySet());
+
 				}
 				
 			}
+	
 		}
 	}
 
@@ -163,10 +173,17 @@ public class APIModel {
 	private static final String RESPONSES = "responses";
 	private static final String SCHEMA = "schema";
 	private static final String DESCRIPTION = "description";
+	
+	private static final String REQUESTBODY = "requestBody";
+
 	private static final String MIN_ITEMS = "minItems";
 	private static final String MAX_ITEMS = "maxItems";
 
-	private static final String REQUIRED = "properties";
+	private static final String REQUIRED = "required";
+
+	private static final String EXAMPLE  = "example";
+	private static final String EXAMPLES = "examples";
+	private static final String VALUE    = "value";
 
 	private static final String NOTIFICATIONS = "notifications";
 
@@ -913,6 +930,8 @@ public class APIModel {
 		}
 	}
 
+	private static Set<String> typeWarnings = new HashSet<>();
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String type(JSONObject property) {
 
@@ -931,7 +950,10 @@ public class APIModel {
 				res = Config.getFormatToType().get(format);
 
 			} else {
-				LOG.warn("... ... format: {} has no mapping, using type and format", format);
+				if(!typeWarnings.contains(format)) {
+					Out.debug("... format: {} has no mapping, using type and format", format);
+					typeWarnings.add(format);
+				}
 				res = property.getString(TYPE) + '/' + format;
 			}
 
@@ -1868,5 +1890,85 @@ public class APIModel {
 
 	}
 
+	public static Map<String, JSONObject> getOperationResponsesByResource(JSONObject opDetails) {
+		Map<String,JSONObject> res = new HashMap<>();
+		
+		if(opDetails.has(RESPONSES)) {
+			JSONObject responses = opDetails.optJSONObject(RESPONSES);
+			if(responses !=null) {
+				for(String key : responses.keySet()) {
+					res.put(key,  responses.getJSONObject(key));
+				}
+			}
+			
+		}
+		
+		return res;
+		
+	}
+	
+	public static JSONObject getOperationRequestsByResource(JSONObject opDetails) {
+	
+//	     #/requestBody:
+//	         content:
+//	           application/json:
+//	             schema:
+//	               $ref: '#/components/requestBodies/Pet'
+//	             examples:
+//		
+		JSONObject res = new JSONObject();
+
+		try {
+			List<JSONPointer> alternativePaths = Arrays.asList ( 
+													new JSONPointer( Arrays.asList( "requestBody", "content", "application/json") ),
+													new JSONPointer( Arrays.asList( "requestBody" ) ) );
+
+			Iterator<JSONPointer> iter = alternativePaths.iterator();
+			while(iter.hasNext()) {
+				JSONPointer p = iter.next();
+				Object o = opDetails.query(p);	
+				if(o!=null && (o instanceof JSONObject) ) {
+					res = (JSONObject)o;
+					
+					LOG.debug("getOperationRequestsByResource:: res={}",  res);
+					
+					break;
+				}
+			}
+
+		} catch(Exception e) {
+			
+		}
+		
+		return res;
+		
+	}
+
+	public static Map<String, JSONObject> getOperationExamples(JSONObject data) {
+		Map<String,JSONObject> res = new HashMap<>();
+		
+		if(data.has(EXAMPLES)) {
+			JSONObject examples = data.optJSONObject(EXAMPLES);
+			if(examples !=null) {
+				for(String key : examples.keySet()) {
+					JSONObject payload = examples.getJSONObject(key);
+					if(payload.has(VALUE)) payload = payload.optJSONObject(VALUE);
+					res.put(key,  payload);
+				}
+			}
+		} else if(data.has(EXAMPLE)) {
+			JSONObject example= data.optJSONObject(EXAMPLE);
+			if(example !=null) {
+				res.put("default",  example);
+			}
+		} else {
+
+		}
+		
+		LOG.debug("getOperationExamples:: res={}",  res);
+
+		return res;
+
+	}
 
 }

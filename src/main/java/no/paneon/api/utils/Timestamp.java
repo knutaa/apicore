@@ -31,5 +31,9 @@ public class Timestamp {
 		
 		lastTime = now;
 	}
+
+	public static void setActive() {
+		active=true;
+	}
 	
 }

@@ -191,8 +191,12 @@ public class CoreAPIGraph {
 						
 						LOG.debug("addProperties:: allOf: resource={} type={} obj={}", definition, type, obj);
 						
-						addProperties(g, node, type, obj);			
-	
+						addProperties(g, node, type, obj);		
+							
+					} else {
+						
+						Out.debug("addProperties:: NOT PROCESSED: resource={} allOfObject={}", definition, allOfObject.toString(2));
+
 					}
 				}				
 			}
@@ -598,11 +602,48 @@ public class CoreAPIGraph {
 			
 		}
 		
+		
 		LOG.debug("getSubGraphWithInheritance:: node={} final subGraph={}", node, subGraph.vertexSet());
 
 		return subGraph;
 	}
 	
+	
+	public static Set<Node> getReachable(Graph<Node, Edge> graph, String node) {
+		Optional<Node> optNode = CoreAPIGraph.getNodeByName(graph, node);
+		if(optNode.isPresent()) {
+			return getReachable(graph, optNode.get(), new HashSet<>() );
+		} else {
+			return new HashSet<>();
+		}
+	}
+	
+	public static Set<Node> getReachable(Graph<Node, Edge> graph, Node node) {
+		return getReachable(graph, node, new HashSet<>() );
+	}
+
+	private static Set<Node> getReachable(Graph<Node, Edge> graph, Node node, Set<Node> seen) {
+		Set<Node> res = new HashSet<>();
+		
+		res.add(node);
+		
+		if(!seen.contains(node)) {				
+			Set<Node> neighbours = CoreAPIGraph.getOutboundNeighbours(graph, node);
+			neighbours.removeAll(seen);
+			
+			
+			LOG.debug("getReachable:: node={} neighbours={}", node, neighbours);
+
+			res.addAll(neighbours);
+			
+			seen.add(node);
+			
+			res.addAll( neighbours.stream().map( n -> getReachable(graph, n, seen)).flatMap(Set::stream).collect(toSet()) );
+			
+		}
+		
+		return res;
+	}
 	
 	private static void removeIrrelevantDiscriminatorRelationships(Graph<Node, Edge> graph, Node node) {
 		Set<String> discriminators = new HashSet<>(node.getAllDiscriminatorMapping());

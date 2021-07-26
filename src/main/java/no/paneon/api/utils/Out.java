@@ -25,6 +25,10 @@ public class Out {
 	public static void printAlways(String s) {
 		LOG.log(AspectLogger.ALWAYS, s);
 	}
+	
+	public static void printAlways(String format, Object ...args) {
+		LOG.log(AspectLogger.ALWAYS, format, args);
+	}
 
 	public static void println(String ... args) {
 		if(!silentMode && LOG.isInfoEnabled()) {

@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -101,6 +102,7 @@ public class ComplexityAdjustedAPIGraph {
 //	    			CoreAPIGraph.removeRedundantRelationships(subGraph, resourceNode);
 //	    		}
 	    		
+	    	    
 	    		graphMap.put(node.getName(), subGraph);
 	    	}
 	    }
@@ -119,14 +121,15 @@ public class ComplexityAdjustedAPIGraph {
 	    pruneSubGraphsFromContainingGraphs(resource, graphMap);
 	    	    
 		removeSubGraphsCoveredByContainingGraph(graphMap);
-
+		
 	    allGraphs.put(resource, graphMap);
-
+    
 	    LOG.debug("generateSubGraphsForResource: #2 resource={} final graphMap={}", resource, graphMap.keySet());
 	    
 
 	}
 	
+
 	private boolean simplifyGraphForComplexDiscriminators(Graph<Node,Edge> graph, Node resourceNode) {
 		boolean res = false;
 		
@@ -700,15 +703,17 @@ public class ComplexityAdjustedAPIGraph {
       		if(!node.equals(pivot) && baseTypes.contains(node)) {
       			Set<Edge> edgesToRemove = graph.outgoingEdgesOf(node);
       			
+      			LOG.debug("complexityAdjustedGraph:: remove edges={}",  edgesToRemove.stream().map(Object::toString).collect(Collectors.joining("\n")));
+      			
       			graph.removeAllEdges(edgesToRemove);
       		}
       	}
       	
-      	Set<Node> reachableNodes = GraphAlgorithms.getNodesOfSubGraph(graph, pivot);
-      	      	
-      	Set<Node> nonReachableNodes = Utils.difference( graph.vertexSet(), reachableNodes);
-    		
-      	graph.removeAllVertices(nonReachableNodes);
+//      	Set<Node> reachableNodes = GraphAlgorithms.getNodesOfSubGraph(graph, pivot);
+//      	      	
+//      	Set<Node> nonReachableNodes = Utils.difference( graph.vertexSet(), reachableNodes);
+//    		
+//      	graph.removeAllVertices(nonReachableNodes);
       	
 	}
 

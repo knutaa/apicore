@@ -14,6 +14,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.toList;
 
 import java.util.Collection;
 
@@ -60,6 +61,7 @@ public class Node implements Comparable<Object>  {
 	static final String ITEMS = "items";
 	static final String ENUM = "enum";
 	static final String NULLABLE = "nullable";
+	static final String REQUIRED = "required";
 
 	static final String DISCRIMINATOR = "discriminator";
 	
@@ -374,17 +376,23 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addPropertyDetails(Property.Visibility visibility) {
 		JSONObject propObj = APIModel.getPropertyObjectForResource(this.resource);
-		addPropertyDetails(propObj, visibility);
+		addPropertyDetails(propObj, visibility, null);
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
-	private void addPropertyDetails(JSONObject propObj, Property.Visibility visibility) {
+	private void addPropertyDetails(JSONObject propObj, Property.Visibility visibility, JSONObject definition) {
 			
-		// LOG.debug("addPropertyDetails: propObj={}" , propObj.toString(2) );
+		if(definition!=null) LOG.debug("addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
 
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.optString(TYPE))) {
-			LOG.debug("addPropertyDetails: NOT PROCESSED propObj={}" , propObj.toString(2) );
+			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
+			
+			List<String> required = new LinkedList<>();
+			if(definition!=null) {
+				required = Config.getListAsObject(definition, REQUIRED).stream().map(Object::toString).collect(toList());
+			}
+			
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
 				if(property!=null) {
@@ -392,7 +400,7 @@ public class Node implements Comparable<Object>  {
 		
 					String coreType = APIModel.removePrefix(type);
 					
-					boolean isRequired = APIModel.isRequired(resource, propName);
+					boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
 					String cardinality = APIModel.getCardinality(property, isRequired);
 		
 					boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
@@ -400,6 +408,8 @@ public class Node implements Comparable<Object>  {
 					if(!seen) {
 						Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 						
+						LOG.debug("addPropertyDetails: node={} property={} " , this, propDetails );
+
 						if(property.has(ENUM)) {
 							
 							List<Object> elements = Config.getListAsObject(property,ENUM);
@@ -415,6 +425,9 @@ public class Node implements Comparable<Object>  {
 						}
 						
 						properties.add( propDetails );
+					} else {
+						LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
+
 					}
 					
 					if(APIModel.isEnumType(type) && !enums.contains(coreType)) {
@@ -430,14 +443,21 @@ public class Node implements Comparable<Object>  {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(Property.Visibility visibility) {
-		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
-			JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
-			addAllOfs(allOfs, visibility);
-		}
+//		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
+//			JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
+//			addAllOfs(allOfs, visibility);
+//		}
+		
+		JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
+		addAllOfs(allOfs, visibility);
+		
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(JSONArray allOfs, Property.Visibility visibility) {
+		
+		LOG.debug("addAllOfs: node={} addAllOfs={}", this, allOfs.toString(2));
+
 		allOfs.forEach(allOf -> {
 			if(allOf instanceof JSONObject) {
 				JSONObject definition = (JSONObject) allOf;
@@ -450,23 +470,25 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	public void addAllOfObject(JSONObject definition, Property.Visibility visibility) {
 		
-		if(definition.has(REF)) {
-			String type = APIModel.getTypeByReference(definition.optString(REF));
-				
-			if(Config.getBoolean(EXPAND_INHERITED)) {
-				this.addInheritance(type);
+		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
+			if(definition.has(REF)) {
+				String type = APIModel.getTypeByReference(definition.optString(REF));
+					
+				if(Config.getBoolean(EXPAND_INHERITED)) {
+					this.addInheritance(type);
+				}
+					
+				if(Config.getBoolean(INCLUDE_INHERITED)) {
+					JSONObject obj = APIModel.getDefinitionBySchemaObject(definition);
+					addAllOfObject(obj,Property.VISIBLE_INHERITED);
+				}	
 			}
-				
-			if(Config.getBoolean(INCLUDE_INHERITED)) {
-				JSONObject obj = APIModel.getDefinitionBySchemaObject(definition);
-				addAllOfObject(obj,Property.VISIBLE_INHERITED);
-			}	
 		}
 		
 		if(definition.has(PROPERTIES)) {
 			JSONObject obj = APIModel.getPropertyObjectBySchemaObject(definition);			
 			if(obj!=null) {	
-				addPropertyDetails(obj,visibility);				
+				addPropertyDetails(obj,visibility,definition);				
 			}
 		}
 		
