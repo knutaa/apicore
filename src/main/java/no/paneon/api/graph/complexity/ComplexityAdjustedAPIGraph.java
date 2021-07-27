@@ -107,7 +107,15 @@ public class ComplexityAdjustedAPIGraph {
 	    	}
 	    }
 	    
+	    LOG.debug("## generateSubGraphsForResource: resource={} graph={}" , resource, graphMap.keySet() );
+
 	    Map<String,Graph<Node,Edge>> mappingGraphs = addMissingMappedResources(graph.getCompleteGraph(), resourceNode, resourceGraph.vertexSet());
+
+	    LOG.debug("## generateSubGraphsForResource: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
+
+		removeSubGraphsCoveredByContainingGraph(mappingGraphs);
+
+	    LOG.debug("## generateSubGraphsForResource: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
 
 	    for(String key : mappingGraphs.keySet() ) {
 	    	graphMap.put(key,mappingGraphs.get(key));
@@ -122,6 +130,10 @@ public class ComplexityAdjustedAPIGraph {
 	    	    
 		removeSubGraphsCoveredByContainingGraph(graphMap);
 		
+	    for(String key : graphMap.keySet() ) {	    	
+		    LOG.debug("#2 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
+	    }
+
 	    allGraphs.put(resource, graphMap);
     
 	    LOG.debug("generateSubGraphsForResource: #2 resource={} final graphMap={}", resource, graphMap.keySet());

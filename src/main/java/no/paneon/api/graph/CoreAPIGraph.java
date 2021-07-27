@@ -195,7 +195,7 @@ public class CoreAPIGraph {
 							
 					} else {
 						
-						Out.debug("addProperties:: NOT PROCESSED: resource={} allOfObject={}", definition, allOfObject.toString(2));
+						Out.printAlways("addProperties:: NOT PROCESSED: resource={} allOfObject={}", definition, allOfObject.toString(2));
 
 					}
 				}				
@@ -627,8 +627,14 @@ public class CoreAPIGraph {
 		
 		res.add(node);
 		
-		if(!seen.contains(node)) {				
+		if(!seen.contains(node)) {		
+			
+			Set<String> mapped = node.getAllDiscriminatorMapping();
+			Set<Node> mappedNodes = graph.vertexSet().stream().filter(n -> mapped.contains(n.getName())).collect(toSet());
+			
 			Set<Node> neighbours = CoreAPIGraph.getOutboundNeighbours(graph, node);
+			
+			neighbours.addAll(mappedNodes);
 			neighbours.removeAll(seen);
 			
 			

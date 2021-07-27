@@ -113,7 +113,6 @@ public class APIGraph extends CoreAPIGraph {
 		
         LOG.debug("APIGraph: resource={} #2 graph={}", resource, graph.vertexSet());
 
-
 	}
 	
 	static final String ITEMS = "items";

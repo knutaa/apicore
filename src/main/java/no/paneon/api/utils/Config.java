@@ -159,11 +159,16 @@ public class Config {
 		try {
 		    String config = IOUtils.toString(is, StandardCharsets.UTF_8.name());
 		    
-		    if(name.endsWith("yaml")) config = Utils.convertYamlToJson(config);
+		    if(!config.isBlank()) {
+			    if(name.endsWith("yaml")) config = Utils.convertYamlToJson(config);
+			    			    
+			    JSONObject deltaJSON = new JSONObject(config); 
+			    
+			    LOG.debug("addConfiguration:: deltaJSON={}",  deltaJSON);
+
+			    addConfiguration(deltaJSON);
+		    }
 		    
-		    JSONObject deltaJSON = new JSONObject(config); 
-		    
-		    addConfiguration(deltaJSON);
 		} catch(Exception ex) {
 			throw(new InvalidJsonYamlException());
 		}
@@ -648,8 +653,12 @@ public class Config {
 			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
 	        File file = new File(path);
 	        String yaml = FileUtils.readFileToString(file, "utf-8");
-	        String json = convertYamlToJson(yaml);
-	        return new JSONObject(json); 
+	        if(yaml.isEmpty()) {
+	        	return new JSONObject();
+	        } else {
+		        String json = convertYamlToJson(yaml);
+		        return new JSONObject(json); 
+	        }
 		} catch(Exception ex) {
 			if(!errorOK) throw(ex);
 			return new JSONObject();
