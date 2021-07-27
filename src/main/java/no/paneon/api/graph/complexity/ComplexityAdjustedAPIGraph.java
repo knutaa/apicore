@@ -121,6 +121,7 @@ public class ComplexityAdjustedAPIGraph {
 	    	graphMap.put(key,mappingGraphs.get(key));
 	    	
 		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
+		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).edgeSet());
 
 	    }
 	    	    
@@ -292,12 +293,20 @@ public class ComplexityAdjustedAPIGraph {
     		    							.filter( e -> g.getEdge( g.getEdgeTarget(e), discriminatorNode) !=null)
     		    							.collect(toSet());
     		    	
-    		    	g.removeAllEdges(discriminatorEdges);
+    	    	    LOG.debug("specialDisciminatorCase: discriminatorNode={} discriminatorEdges={}", discriminatorNode, discriminatorEdges);
+
+    	    	    
+    	    	    // TBD - cleanup in case of pair of allOf and discriminator between nodes
+    		    	// g.removeAllEdges(discriminatorEdges);
     		    	
     				res.put(discriminatorNode.getName(), g);
     			}
-    		}    		
+    		}    
+    		
+    	    LOG.debug("## specialDisciminatorCase: candidate={} node={} res={}", candidate, node, res.keySet());
+
     	}
+    	
 		return res;
 	}
 
