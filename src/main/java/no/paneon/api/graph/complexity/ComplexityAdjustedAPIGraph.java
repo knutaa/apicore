@@ -68,14 +68,20 @@ public class ComplexityAdjustedAPIGraph {
 
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(graph.getCompleteGraph(), resourceNode, resourceNode);
 	    
+		LOG.debug("generateSubGraphsForResource: #0 node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+
 	    boolean isSimplified = simplifyGraphForComplexDiscriminators(resourceGraph, resourceNode);
 	    
 	    LOG.debug("generateSubGraphsForResource: resource={} isSimplified={} resourceGraph={}" , resource, isSimplified, resourceGraph.vertexSet());
 
 	    GraphComplexity analyser = new GraphComplexity(resourceGraph, resourceNode);
 	    
+		LOG.debug("generateSubGraphsForResource: #0a node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+
 	    Map<Node,Integer> complexity = analyser.computeGraphComplexity();
 	    
+		LOG.debug("generateSubGraphsForResource: #0b node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+
 	    LOG.debug("generateSubGraphsForResource: complexity resourceNode={} keys={}" , resourceNode, complexity.keySet());
 	    
 	    Map<String,Graph<Node,Edge>> graphMap = new HashMap<>();
@@ -85,7 +91,7 @@ public class ComplexityAdjustedAPIGraph {
 	    if(complexity.isEmpty()) {    	
 	    	graphMap.put(resource, resourceGraph);
 	    	
-    		LOG.debug("generateSubGraphsForResource: #1 node={} subGraph={}",  resource, resourceGraph.vertexSet());
+    		LOG.debug("generateSubGraphsForResource: ##1 node={} subGraph={}",  resource, resourceGraph.vertexSet());
 
 	    } else {
 	    	for(Node node : complexity.keySet() ) {
@@ -105,6 +111,10 @@ public class ComplexityAdjustedAPIGraph {
 	    	    
 	    		graphMap.put(node.getName(), subGraph);
 	    	}
+	    }
+	    
+	    for(String key : graphMap.keySet() ) {	    	
+		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
 	    }
 	    
 	    LOG.debug("## generateSubGraphsForResource: resource={} graph={}" , resource, graphMap.keySet() );

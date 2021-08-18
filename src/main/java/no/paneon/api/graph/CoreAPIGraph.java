@@ -450,14 +450,16 @@ public class CoreAPIGraph {
 
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} vertexSet={}", node, resource, graph.vertexSet());
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} edgeSet={}", node, resource, graph.edgeSet());
-
+		
 		Set<Node> simpleTypes = graph.vertexSet().stream()
 				.filter(Node::isSimpleType)
 				.collect(toSet());
-
 		
-		LOG.debug("getSubGraph:: node={} simpleTypes={}", node, simpleTypes);
+		LOG.debug("getSubGraph:: node={} resource={} simpleTypes={}", node, resource, simpleTypes);
 
+		simpleTypes.remove(node);
+		simpleTypes.remove(resource);
+		
 		nodes.removeAll(simpleTypes);
 
 		LOG.debug("getSubGraphWithInheritance:: after remove simple nodes={}", nodes);

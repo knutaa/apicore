@@ -52,21 +52,21 @@ public class APIModel {
 
 	private static String swaggerSource;
 	
-	static {    	
-
-		formatToType.put("date-time", "DateTime");
-		formatToType.put("date", "Date");
-		formatToType.put("float", "Float");
-		formatToType.put("uri", "Uri");
-		formatToType.put("url", "Url");
-
-		typeMapping.put("integer", "Integer");
-		typeMapping.put("string", "String");
-		typeMapping.put("boolean", "Boolean");
-		typeMapping.put("number", "Number");
-
-
-	}
+//	static {    	
+//
+//		formatToType.put("date-time", "DateTime");
+//		formatToType.put("date", "Date");
+//		formatToType.put("float", "Float");
+//		formatToType.put("uri", "Uri");
+//		formatToType.put("url", "Url");
+//
+//		typeMapping.put("integer", "Integer");
+//		typeMapping.put("string", "String");
+//		typeMapping.put("boolean", "Boolean");
+//		typeMapping.put("number", "Number");
+//
+//
+//	}
 
 	private APIModel() {
 	}
@@ -407,6 +407,11 @@ public class APIModel {
 
 				if(definition.has(DISCRIMINATOR)) res=false;
 				if(definition.has(ALLOF)) res=false;
+
+				if(definition.has(PROPERTIES)) {
+					JSONObject properties = definition.optJSONObject(PROPERTIES);
+					if(properties!=null && properties.keySet().size()>1) res=false;
+				}
 
 				if(definition.has(ITEMS) && definition.optJSONObject(ITEMS)!=null) definition=definition.getJSONObject(ITEMS);
 

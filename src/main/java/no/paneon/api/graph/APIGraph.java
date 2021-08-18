@@ -1077,12 +1077,22 @@ public class APIGraph extends CoreAPIGraph {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public Set<Edge> getInboundEdges(Node node) {
-		return this.graph.incomingEdgesOf(node);
+		if(graph.vertexSet().contains(node)) {
+			return this.graph.incomingEdgesOf(node);
+		} else {
+			Out.debug("ISSUE: getOutboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			return new HashSet<>();
+		}
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public Set<Edge> getOutboundEdges(Node node) {
-		return this.graph.outgoingEdgesOf(node);
+		if(graph.vertexSet().contains(node)) {
+			return this.graph.outgoingEdgesOf(node);
+		} else {
+			Out.debug("ISSUE: getOutboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			return new HashSet<>();
+		}
 	}
 
 	public void removeTechnicalAllOfs() {

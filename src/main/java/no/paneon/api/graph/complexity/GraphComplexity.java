@@ -63,7 +63,7 @@ public class GraphComplexity {
 		int minimum = Config.getInteger("minimum_complexity");
 		if(minimum==0) minimum=Integer.MAX_VALUE;
 				
-		removeSimpleTypeNodes();
+		removeSimpleTypeNodes(this.resource);
 		
 		PathAlgorithms pathAlgs = new PathAlgorithms(this.graph, this.resource);
 		
@@ -151,10 +151,12 @@ public class GraphComplexity {
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
-	private void removeSimpleTypeNodes() {		
+	private void removeSimpleTypeNodes(Node resource) {		
 		Set<Node> simpleNodes = this.graph.vertexSet().stream()
 									.filter(Node::isSimpleType)
 									.collect(toSet());
+		
+		simpleNodes.remove(resource);
 		
 		LOG.debug("removeSimpleTypeNodes:: simpleNodes={}", simpleNodes);
 		
