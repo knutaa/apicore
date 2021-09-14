@@ -12,7 +12,7 @@ public class Discriminator extends Edge {
 	}
 		
 	public Discriminator(Node node, Node related ) {
-		super(node, "{xor}", related, "", true);
+		super(node, "", related, "", true);
 	}
 
 	@Override

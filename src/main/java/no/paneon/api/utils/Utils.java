@@ -111,11 +111,13 @@ public class Utils {
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
-	public static String getStereoType(APIGraph aPIGraph, String node, String pivot) {
-	    if(node.equals(pivot)) {
+	public static String getStereoType(APIGraph aPIGraph, String node, String pivot, List<String> subGraphs) {
+	    if(node.equals(pivot) ) {
 	        return (aPIGraph instanceof APISubGraph) ? " <<SubResource>>" : " <<Pivot>>";
+	    } else if( subGraphs.contains(node)) {
+	        return " <<SubResourceReference>>" ;
 	    } else {
-	        String res = "";
+	        String res = "<<Resource>>";
 	        List<Property> props = aPIGraph.getNode(node).getProperties();
 	        boolean hasRef = props.stream().map(Property::getName).anyMatch(s -> s.equals("href"));
 	        if(hasRef) {

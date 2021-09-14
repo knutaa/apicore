@@ -1098,6 +1098,10 @@ public class APIGraph extends CoreAPIGraph {
 	public void removeTechnicalAllOfs() {
 		Set<Edge> edges = this.graph.edgeSet().stream().filter(Edge::isDiscriminator).collect(toSet());
 		
+		if(true) return;
+		
+		Out.debug("removeTechnicalAllOfs: edges={}", edges);
+		
 		for(Edge edge : edges) {
 			Node target = this.graph.getEdgeTarget(edge);
 			Node source = this.graph.getEdgeSource(edge);

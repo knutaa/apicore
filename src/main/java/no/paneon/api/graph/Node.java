@@ -149,10 +149,16 @@ public class Node implements Comparable<Object>  {
 		JSONObject clone = new JSONObject(obj.toString());
 
 		if(obj!=null) {
+			
+//			if(resource.contentEquals("ProductRef")) {
+//				Out.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
+//			}
+			
 			LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
 			
 			if(obj.has(ENUM) || obj.has(PROPERTIES) || obj.has(DISCRIMINATOR) ) return res;
-			
+			// if(obj.has(ENUM) ) return res;
+
 			if(obj.has(REF)) {
 				JSONObject refDef = APIModel.getDefinitionBySchemaObject(obj);
 				res = getExpandedJSON(refDef);
@@ -191,7 +197,7 @@ public class Node implements Comparable<Object>  {
 			}
 		}
 		
-		if(res.isPresent()) LOG.debug("Node::getFlatten resource={} res={}" , resource, res );
+		if(res.isPresent()) Out.debug("Node::getFlatten resource={} res={}" , resource, res );
 
 		
 		return res;
@@ -470,7 +476,22 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	public void addAllOfObject(JSONObject definition, Property.Visibility visibility) {
 		
+		LOG.debug("addAllOfs: node={} definition={}", this, definition);
+
 		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
+			if(definition.has(REF)) {
+				String type = APIModel.getTypeByReference(definition.optString(REF));
+					
+				if(Config.getBoolean(EXPAND_INHERITED)) {
+					this.addInheritance(type);
+				}
+					
+				if(Config.getBoolean(INCLUDE_INHERITED)) {
+					JSONObject obj = APIModel.getDefinitionBySchemaObject(definition);
+					addAllOfObject(obj,Property.VISIBLE_INHERITED);
+				}	
+			}
+		} else {
 			if(definition.has(REF)) {
 				String type = APIModel.getTypeByReference(definition.optString(REF));
 					

@@ -41,7 +41,7 @@ public class Edge {
 	}
 	
 	public String toString() {
-		return "edge: " + node + " --> " + cardinality + " " + related;
+		return "edge: " + node + " --> " + cardinality + " " + related + (!relation.isBlank() ? " : " + relation : "");
 	}
 	
 	public boolean isRequired() {

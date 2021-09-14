@@ -16,7 +16,9 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jgrapht.Graph;
+import org.json.JSONArray;
 
+import no.paneon.api.graph.APIGraph;
 import no.paneon.api.graph.CoreAPIGraph;
 import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
@@ -57,101 +59,70 @@ public class ComplexityAdjustedAPIGraph {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public void generateSubGraphsForResource(String resource) {
-			
 	    LOG.debug("### generateSubGraphsForResource: resource=" + resource);
 
-	    LOG.debug("### generateSubGraphsForResource: graph=" + graph.getCompleteGraph().vertexSet());
-
 	    Node resourceNode = graph.getNode(resource);
-
-	    LOG.debug("generateSubGraphsForResource: resource={} completeGraph={}" , resource, graph.getCompleteGraph());
-
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(graph.getCompleteGraph(), resourceNode, resourceNode);
-	    
-		LOG.debug("generateSubGraphsForResource: #0 node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+
+	    Map<String,Graph<Node,Edge>> graphMap = createSubGraphsGraphFromComplexity(resourceGraph, resourceNode);
+
+	    this.allGraphs = adjustSubGraphs(resourceNode, resourceGraph, graphMap);
+	    	    
+	}
+	
+
+	private Map<String, Graph<Node, Edge>> createSubGraphsGraphFromComplexity(Graph<Node,Edge> resourceGraph, Node resourceNode) {
+			
+		String resource = resourceNode.getName();
+			    
+		LOG.debug("createSubGraphsGraphFromComplexity: #0 node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
 
 	    boolean isSimplified = simplifyGraphForComplexDiscriminators(resourceGraph, resourceNode);
 	    
-	    LOG.debug("generateSubGraphsForResource: resource={} isSimplified={} resourceGraph={}" , resource, isSimplified, resourceGraph.vertexSet());
+	    LOG.debug("createSubGraphsGraphFromComplexity: resource={} isSimplified={} resourceGraph={}" , resource, isSimplified, resourceGraph.vertexSet());
 
 	    GraphComplexity analyser = new GraphComplexity(resourceGraph, resourceNode);
 	    
-		LOG.debug("generateSubGraphsForResource: #0a node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+		LOG.debug("createSubGraphsGraphFromComplexity: #0a node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
 
 	    Map<Node,Integer> complexity = analyser.computeGraphComplexity();
 	    
-		LOG.debug("generateSubGraphsForResource: #0b node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+		LOG.debug("createSubGraphsGraphFromComplexity: #0b node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
 
-	    LOG.debug("generateSubGraphsForResource: complexity resourceNode={} keys={}" , resourceNode, complexity.keySet());
+	    LOG.debug("createSubGraphsGraphFromComplexity: complexity resourceNode={} keys={}" , resourceNode, complexity.keySet());
 	    
 	    Map<String,Graph<Node,Edge>> graphMap = new HashMap<>();
 	    
-		LOG.debug("generateSubGraphsForResource: node={} complexity={}",  resource, complexity.keySet());
+		LOG.debug("createSubGraphsGraphFromComplexity: node={} complexity={}",  resource, complexity.keySet());
 
 	    if(complexity.isEmpty()) {    	
 	    	graphMap.put(resource, resourceGraph);
 	    	
-    		LOG.debug("generateSubGraphsForResource: ##1 node={} subGraph={}",  resource, resourceGraph.vertexSet());
+    		LOG.debug("createSubGraphsGraphFromComplexity: ##1 node={} subGraph={}",  resource, resourceGraph.vertexSet());
 
 	    } else {
 	    	for(Node node : complexity.keySet() ) {
+	    		
 	    		Graph<Node,Edge> subGraph = CoreAPIGraph.getSubGraphWithInheritance(resourceGraph, node, resourceNode);
 	    		
-	    		LOG.debug("generateSubGraphsForResource: #2 node={} subGraph={}",  node, subGraph.vertexSet());
+	    		LOG.debug("createSubGraphsGraphFromComplexity: #2 node={} subGraph={}",  node, subGraph.vertexSet());
 	    		
-	    	    isSimplified = simplifyGraphForComplexDiscriminators(subGraph, node);
+	    		isSimplified = simplifyGraphForComplexDiscriminators(subGraph, node);
 	    	    
-	    	    LOG.debug("generateSubGraphsForResource: node={} isSimplified={} subGraph={}" , node, isSimplified, subGraph.vertexSet());
+	    	    LOG.debug("createSubGraphsGraphFromComplexity: node={} isSimplified={} subGraph={}" , node, isSimplified, subGraph.vertexSet());
 
-//	    		if(!this.keepTechnicalEdges) { 
-//	    			CoreAPIGraph.removeTechnicalAllOfs(subGraph);
-//	    			CoreAPIGraph.removeRedundantRelationships(subGraph, resourceNode);
-//	    		}
+//		    		if(!this.keepTechnicalEdges) { 
+//		    			CoreAPIGraph.removeTechnicalAllOfs(subGraph);
+//		    			CoreAPIGraph.removeRedundantRelationships(subGraph, resourceNode);
+//		    		}
 	    		
 	    	    
 	    		graphMap.put(node.getName(), subGraph);
 	    	}
 	    }
 	    
-	    for(String key : graphMap.keySet() ) {	    	
-		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
-	    }
-	    
-	    LOG.debug("## generateSubGraphsForResource: resource={} graph={}" , resource, graphMap.keySet() );
-
-	    Map<String,Graph<Node,Edge>> mappingGraphs = addMissingMappedResources(graph.getCompleteGraph(), resourceNode, resourceGraph.vertexSet());
-
-	    LOG.debug("## generateSubGraphsForResource: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
-
-		removeSubGraphsCoveredByContainingGraph(mappingGraphs);
-
-	    LOG.debug("## generateSubGraphsForResource: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
-
-	    for(String key : mappingGraphs.keySet() ) {
-	    	graphMap.put(key,mappingGraphs.get(key));
-	    	
-		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
-		    LOG.debug("#1 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).edgeSet());
-
-	    }
-	    	    
-	    allGraphs.put(resource, graphMap);
-	    	    
-	    pruneSubGraphsFromContainingGraphs(resource, graphMap);
-	    	    
-		removeSubGraphsCoveredByContainingGraph(graphMap);
-		
-	    for(String key : graphMap.keySet() ) {	    	
-		    LOG.debug("#2 generateSubGraphsForResource: key={} graph={}" , key, graphMap.get(key).vertexSet());
-	    }
-
-	    allGraphs.put(resource, graphMap);
-    
-	    LOG.debug("generateSubGraphsForResource: #2 resource={} final graphMap={}", resource, graphMap.keySet());
-	    
-
+	    return graphMap;
 	}
-	
 
 	private boolean simplifyGraphForComplexDiscriminators(Graph<Node,Edge> graph, Node resourceNode) {
 		boolean res = false;
@@ -825,6 +796,96 @@ public class ComplexityAdjustedAPIGraph {
 		
 		return res;
 	}
+
+	public void generateSubGraphsFromConfig(String resource, List<String> subGraphsForResource) {
+	    LOG.debug("### generateSubGraphsFromConfig: resource=" + resource);
+
+	    Node resourceNode = graph.getNode(resource);
+	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(graph.getCompleteGraph(), resourceNode, resourceNode);
+
+	    Map<String,Graph<Node,Edge>> graphMap = createGraphsForSubResource(resourceGraph, resourceNode, subGraphsForResource);
+
+	    this.allGraphs = adjustSubGraphs(resourceNode, resourceGraph, graphMap);
+		
+	}
+	
+	
+    private Map<String, Map<String,Graph<Node,Edge>>> adjustSubGraphs(Node resourceNode, Graph<Node, Edge> resourceGraph, Map<String, Graph<Node, Edge>> graphMap) {
+    	
+    	Map<String, Map<String,Graph<Node,Edge>>> res = new HashMap<>();
+    	
+	    String resource = resourceNode.getName();
+
+	    for(String key : graphMap.keySet() ) {	    	
+		    LOG.debug("#1 adjustSubGraphs: key={} graph={}" , key, graphMap.get(key).vertexSet());
+	    }
+	    
+	    LOG.debug("## adjustSubGraphs: resource={} graph={}" , resource, graphMap.keySet() );
+
+	    Map<String,Graph<Node,Edge>> mappingGraphs = addMissingMappedResources(graph.getCompleteGraph(), resourceNode, resourceGraph.vertexSet());
+
+	    LOG.debug("## adjustSubGraphs: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
+
+		removeSubGraphsCoveredByContainingGraph(mappingGraphs);
+
+	    LOG.debug("## adjustSubGraphs: resource={} mappingGraphs={}" , resource, mappingGraphs.keySet() );
+
+	    for(String key : mappingGraphs.keySet() ) {
+	    	graphMap.put(key,mappingGraphs.get(key));
+	    	
+		    LOG.debug("#1 adjustSubGraphs: key={} graph={}" , key, graphMap.get(key).vertexSet());
+		    LOG.debug("#1 adjustSubGraphs: key={} graph={}" , key, graphMap.get(key).edgeSet());
+
+	    }
+	    	    	    
+	    res.put(resource, graphMap);
+	    	    
+	    pruneSubGraphsFromContainingGraphs(resource, graphMap);
+	    	    
+		removeSubGraphsCoveredByContainingGraph(graphMap);
+		
+	    for(String key : graphMap.keySet() ) {	    	
+		    LOG.debug("#2 adjustSubGraphs: key={} graph={}" , key, graphMap.get(key).vertexSet());
+	    }
+
+	    res.put(resource, graphMap);
+    
+	    LOG.debug("adjustSubGraphs: #2 resource={} final graphMap={}", resource, graphMap.keySet());
+	    
+	    return res;
+	    
+	}
+
+	private Map<String,Graph<Node,Edge>> createGraphsForSubResource(Graph<Node, Edge> resourceGraph, Node resourceNode, List<String> subGraphsForResource) {
+    
+	    boolean isSimplified = simplifyGraphForComplexDiscriminators(resourceGraph, resourceNode);
+	        
+	    Map<String,Graph<Node,Edge>> graphMap = new HashMap<>();
+	    
+	    if(!subGraphsForResource.contains(resourceNode.getName())) subGraphsForResource.add(0, resourceNode.getName());
+	    
+	    for(String subResource : subGraphsForResource ) {
+	    		
+	    	Optional<Node> optNode = CoreAPIGraph.getNodeByName(resourceGraph,  subResource);
+	    	
+	    	if(optNode.isPresent()) {
+	    		Node node = optNode.get();
+	    		
+	    		Graph<Node,Edge> subGraph = CoreAPIGraph.getSubGraphWithInheritance(resourceGraph, node, resourceNode);
+	    			    		
+	    		isSimplified = simplifyGraphForComplexDiscriminators(subGraph, node);
+	    	     
+	    		graphMap.put(node.getName(), subGraph);
+	    	
+	    	} else {
+	    		Out.debug("... sub-resource {} not found", subResource);
+	    	}
+			
+		}
+	    
+	    return graphMap;
+    }
+    
 	
 }
 
