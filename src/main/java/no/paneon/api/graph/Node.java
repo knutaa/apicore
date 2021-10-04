@@ -197,7 +197,7 @@ public class Node implements Comparable<Object>  {
 			}
 		}
 		
-		if(res.isPresent()) Out.debug("Node::getFlatten resource={} res={}" , resource, res );
+		if(res.isPresent()) LOG.debug("Node::getFlatten resource={} res={}" , resource, res );
 
 		
 		return res;
