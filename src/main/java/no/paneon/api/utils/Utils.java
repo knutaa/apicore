@@ -112,7 +112,9 @@ public class Utils {
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static String getStereoType(APIGraph aPIGraph, String node, String pivot, List<String> subGraphs) {
-	    if(node.equals(pivot) ) {
+		if(node.contains("_discriminator")) {
+			return " <<DiscriminatorNode>>";
+		} else if(node.equals(pivot) ) {
 	        return (aPIGraph instanceof APISubGraph) ? " <<SubResource>>" : " <<Pivot>>";
 	    } else if( subGraphs.contains(node)) {
 	        return " <<SubResourceReference>>" ;

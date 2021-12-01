@@ -50,6 +50,9 @@ public class APIModel {
 
 	public static final List<String> ALL_OPS = Arrays.asList("GET", "POST", "DELETE", "PUT", "PATCH");
 
+	private static String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
+	private static String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
+	
 	private static String swaggerSource;
 	
 //	static {    	
@@ -1047,7 +1050,7 @@ public class APIModel {
 		if( isArrayType(property) ) { 
 			res = Integer.toString(min) +  ".." + max;
 		} else {
-			res = (min==1) ? "1" : "";
+			res = (min==1) ? Config.getString(CARDINALITY_REQUIRED_ONE) : Config.getString(CARDINALITY_ZERO_OR_ONE);
 		}
 
 		return res;
@@ -1975,5 +1978,6 @@ public class APIModel {
 		return res;
 
 	}
+
 
 }

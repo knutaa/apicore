@@ -21,6 +21,8 @@ public class Property {
 	boolean isNullable = false;
 	boolean isEnum = false;
 
+	String defaultValue = null;
+	
 	String description = "";
 	
 	public enum Visibility {
@@ -121,6 +123,14 @@ public class Property {
 	
 	public boolean isNullable() {
 		return this.isNullable;
+	}
+
+	public void setDefaultValue(String value) {
+		this.defaultValue = value;
+	}
+	
+	public String getDefaultValue() {
+		return this.defaultValue;
 	}
 	
 }

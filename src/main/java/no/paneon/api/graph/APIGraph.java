@@ -68,6 +68,10 @@ public class APIGraph extends CoreAPIGraph {
 		this.resourceNode = getNode(resource);
 		this.keepTechnicalEdges = keepTechnicalEdges;
 		
+	    Set<Node> discriminatorNodes = this.graph.vertexSet().stream().filter(Node::isDiscriminatorNode).collect(toSet());
+
+    	LOG.debug("APIGraph:: discriminatorNodes={}", discriminatorNodes);
+
 		init();
 		
 	}
@@ -1100,7 +1104,7 @@ public class APIGraph extends CoreAPIGraph {
 		
 		if(true) return;
 		
-		Out.debug("removeTechnicalAllOfs: edges={}", edges);
+		LOG.debug("removeTechnicalAllOfs: edges={}", edges);
 		
 		for(Edge edge : edges) {
 			Node target = this.graph.getEdgeTarget(edge);

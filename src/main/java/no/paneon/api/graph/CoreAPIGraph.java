@@ -48,6 +48,7 @@ public class CoreAPIGraph {
     static final String INCLUDE_INHERITED = "includeInherited"; 
     
     static final String INCLUDE_DISCRIMINATOR_MAPPING = "includeDiscriminatorMapping";
+    static final String SET_DISCRIMINATOR_DEFAULT = "setDiscriminatorDefault";
     
     static final String REF = "$ref";
     
@@ -59,18 +60,94 @@ public class CoreAPIGraph {
 		this.enumMapping = new HashMap<>();
 		
 		this.completeGraph = generateGraph();	
-				
+		
+		updateNodeInheritance();
+		
+		updateDiscriminators();
+		
+		markRequiredDiscriminators();
+		
 		LOG.debug("CoreAPIGraph:: completeGraph={}", completeGraph);
 		
 //		final Node n = this.getNode("QuoteItem");
 //		if(n != null) {
-//			Out.debug("CoreAPIGraph:: {} = {}", n, this.completeGraph.edgesOf(n).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(n)).collect(Collectors.toSet()));
+//			LOG.debug("CoreAPIGraph:: {} = {}", n, this.completeGraph.edgesOf(n).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(n)).collect(Collectors.toSet()));
 //		}
 //		
-		final Node m = this.getNode("ProductRefOrValue");
-		if(m != null) {
-			LOG.debug("CoreAPIGraph:: {} = {}", m, this.completeGraph.edgesOf(m).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(m)).collect(toSet()));
+//		final Node m = this.getNode("ProductRefOrValue");
+//		if(m != null) {
+//			LOG.debug("CoreAPIGraph:: {} = {}", m, this.completeGraph.edgesOf(m).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(m)).collect(toSet()));
+//		}
+		
+	}
+	
+	
+	private void markRequiredDiscriminators() {
+		Set<Edge> edges = this.completeGraph.edgeSet().stream().filter(Edge::isDiscriminator).collect(toSet());
+		
+		for(Edge edge : edges) {
+			Node from = this.completeGraph.getEdgeSource(edge);
+			Node to   = this.completeGraph.getEdgeTarget(edge);
+
+			Set<Edge> allEdgesBetween = new HashSet<>();
+			allEdgesBetween.addAll( this.completeGraph.getAllEdges(from, to).stream().collect(toSet()) );
+			allEdgesBetween.addAll( this.completeGraph.getAllEdges(to, from).stream().collect(toSet()) );
+
+			LOG.debug("### markRequiredDiscriminators: from={} to={} all={}", from, to, allEdgesBetween);
+
+			Predicate<Edge> notDiscriminatorEdge = e -> !e.isDiscriminator();
+			
+			Optional<Edge> nonDiscriminatorExists = allEdgesBetween.stream().filter(notDiscriminatorEdge).findAny();
+			
+			if(nonDiscriminatorExists.isPresent()) {
+				edge.setMarked(true);	
+				nonDiscriminatorExists.get().setMarked(true);
+			}
+				
 		}
+		
+	}
+
+
+
+	private void updateDiscriminators() {
+		Set<Node> nodes = this.completeGraph.vertexSet();
+		
+		LOG.debug("updateDiscriminators: nodes={} set-default={}", nodes, Config.getBoolean(SET_DISCRIMINATOR_DEFAULT));
+
+		nodes.forEach(Node::updateDiscriminatorMapping);
+		
+		if(Config.getBoolean(SET_DISCRIMINATOR_DEFAULT)) {
+			this.completeGraph.edgeSet().stream()
+					.filter(Edge::isDiscriminator)
+					.map(this.completeGraph::getEdgeTarget)
+					.forEach(Node::setDiscriminatorDefault);
+		}
+		
+	}
+
+	private void updateNodeInheritance() {
+		Set<Node> nodes = this.completeGraph.vertexSet();
+		
+		LOG.debug("updateNodeInheritance: nodes={} ", nodes);
+
+		nodes.forEach(this::setNodeInheritance);
+	}
+
+	private void setNodeInheritance(Node node) {
+		Set<Node> inheritsFrom = getOutboundEdges(this.completeGraph, node).stream()
+									.filter(Edge::isAllOf)
+									.map(this.completeGraph::getEdgeTarget)
+									.filter(n -> !n.equals(node))
+									.collect(toSet());
+		
+		Set<String> inheritance = inheritsFrom.stream().map(Node::getInheritance).flatMap(Set::stream).collect(toSet());
+		
+		inheritance.addAll( inheritsFrom.stream().map(Node::getName).collect(toSet()));
+		
+		LOG.debug("### setNodeInheritance: node={} inheritance={}", node, inheritance);
+		
+		node.inheritance = Optional.of(inheritance);
 		
 	}
 	
@@ -154,6 +231,30 @@ public class CoreAPIGraph {
 				addProperties(g, node.getName());
 			}
 			
+//			if(node.getLocalDiscriminators().size()>1) {
+//				LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
+//				DiscriminatorNode discriminator = new DiscriminatorNode(node.getName() + "_discriminator");
+//				g.addVertex(discriminator);
+//				g.addEdge(node, discriminator, new Discriminator(node,discriminator));
+//
+//				node.getLocalDiscriminators().stream()
+//						.filter(label -> !label.contentEquals(node.getName()))
+//						.forEach(label -> {
+//							Node to = getOrAddNode(g, label);
+//							g.addEdge(discriminator, to, new Discriminator(discriminator, to));
+//						});
+//			}
+			
+			if(node.getLocalDiscriminators().size()>1) {
+				LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
+				node.getLocalDiscriminators().stream()
+						.filter(label -> !label.contentEquals(node.getName()))
+						.forEach(label -> {
+							Node to = getOrAddNode(g, label);
+							g.addEdge(node, to, new Discriminator(node, to));
+						});
+			}
+			
 			LOG.debug("addNode:: adding node={}", definition);
 			
 		} else {
@@ -215,74 +316,112 @@ public class CoreAPIGraph {
 				}				
 			}
 		});
-		
-		node.addDiscriminatorMapping();
-				
-		addInheritedDiscriminator(g, node);
-		
+			
 		addEdgesForInheritedEnums(g, node);
-		
 			
 	}	
 
 
-	private void addInheritedDiscriminator(Graph<Node, Edge> g, Node node) {
-		boolean includeDiscriminatorMapping = Config.getBoolean(INCLUDE_DISCRIMINATOR_MAPPING);
-		if(includeDiscriminatorMapping) {			
-			for(String discriminator : node.getExternalDiscriminatorMapping()) {					
-				Node to = getOrAddNode(g, discriminator);
-					
-				Predicate<Edge> isEdgeWithToNode = e -> g.getEdgeTarget(e).equals(to);
-				
-				boolean discriminatorExists = g.edgesOf(node).stream().filter(Edge::isDiscriminator).anyMatch(isEdgeWithToNode);
-				
-				if(!discriminatorExists) {
-					Edge edge = new Discriminator(node, to);
-			
-					addGraphEdge(g, node, to, edge);		
-		
-					LOG.debug("addProperties:: adding edge={}", edge);	
-				}
-				
-			}
-			
-			Set<String> inheritedDiscriminators = getInheritedDiscriminator(g,node); 
-			
-			if(inheritedDiscriminators.contains(node.getName()) && !node.getName().contains("RefOrValue")) {
-				inheritedDiscriminators.clear();
-				inheritedDiscriminators.add(node.getName());
-			}
-			
-			LOG.debug("addProperties:: node={} inheritedDiscriminators={}", node, inheritedDiscriminators);	
-
-			node.setInheritedDiscriminatorMapping(inheritedDiscriminators);
-			
-			for(String discriminator : inheritedDiscriminators) {					
-				Node to = getOrAddNode(g, discriminator);
-	
-				if(to.equals(node)) continue;
-				
-				Predicate<Edge> isEdgeWithToNode = e -> g.getEdgeTarget(e).equals(to);
-				
-				boolean discriminatorExists = g.edgesOf(node).stream().filter(Edge::isDiscriminator).anyMatch(isEdgeWithToNode);
-				
-				if(!discriminatorExists) {
-					Edge edge = new Discriminator(node, to);
-					addGraphEdge(g, node, to, edge);		
-					LOG.debug("addProperties:: adding discriminator edge={}", edge);	
-				}
-				
-//				boolean hasDiscriminatorEdge = g.getAllEdges(node,to).stream().anyMatch(Edge::isDiscriminator);
-//				if(!hasDiscriminatorEdge) {
+//	private void addInheritedDiscriminator(Graph<Node, Edge> g, Node node) {
+//		boolean includeDiscriminatorMapping = Config.getBoolean(INCLUDE_DISCRIMINATOR_MAPPING);
+//		if(includeDiscriminatorMapping) {
+//			
+//			Set<String> inherited = node.getInheritedDiscriminatorMapping();
+//	
+//			LOG.debug("addInheritedDiscriminator:: node={} inherited={}", node, inherited);	
+//			LOG.debug("addInheritedDiscriminator:: node={} local={}", node, node.getLocalDiscriminators() );	
+//
+//			if(inherited.contains(node.getName())) {
+//	
+//				if(node.getLocalDiscriminators().isEmpty()) {
+//					node.clearInheritedDiscriminatorMapping();	
+//					Set<String> local = new HashSet<>();
+//					local.add(node.getName());
+//					node.setInheritedDiscriminatorMapping(local);
+//				}
+//				
+//			}
+//			
+//			for(String discriminator : node.getExternalDiscriminatorMapping()) {		
+//				
+//				LOG.debug("addInheritedDiscriminator:: node={} discriminator={}", node, discriminator);	
+//
+//				Node to = getOrAddNode(g, discriminator);
+//					
+//				if(to.equals(node)) continue;
+//				
+//				boolean allOfReverse = g.getAllEdges(node, to).stream().anyMatch(Edge::isAllOf);
+//				
+//				LOG.debug("addInheritedDiscriminator:: node={} to={} allOfReverse={}", node, to, allOfReverse);	
+//				
+//				if(allOfReverse) {
+//					continue;
+//				}
+//				
+////					Set<Edge> edges = g.getAllEdges(node, to).stream().collect(toSet());
+////					edges.addAll( g.getAllEdges(to,  node).stream().collect(toSet()) );
+////					
+////					LOG.debug("addInheritedDiscriminator:: node={} to={} edges={}", node, to, edges);	
+//
+//								
+//				Predicate<Edge> isEdgeWithToNode = e -> g.getEdgeTarget(e).equals(to);
+//				
+//				boolean discriminatorExists = g.edgesOf(node).stream().filter(Edge::isDiscriminator).anyMatch(isEdgeWithToNode);
+//				
+//				if(!discriminatorExists) {
+//					Edge edge = new Discriminator(node, to);
+//			
+//					addGraphEdge(g, node, to, edge);		
+//		
+//					LOG.debug("addInheritedDiscriminator:: adding edge={}", edge);	
+//				}
+//				
+//				boolean allOf = g.getAllEdges(to, node).stream().anyMatch(Edge::isAllOf);
+//
+//				if(allOf) {
+//					// node.clearInheritedDiscriminatorMapping();
+//				}
+//				
+//				
+//			}
+//			
+//			Set<String> inheritedDiscriminators = node.getExternalDiscriminatorMapping(); // getInheritedDiscriminator(g,node); 
+//			
+//			if(inheritedDiscriminators.contains(node.getName()) && !node.getName().contains("RefOrValue")) {
+//				inheritedDiscriminators.clear();
+//				inheritedDiscriminators.add(node.getName());
+//			}
+//			
+//			LOG.debug("addInheritedDiscriminator:: node={} inheritedDiscriminators={}", node, inheritedDiscriminators);	
+//
+//			// node.setInheritedDiscriminatorMapping(inheritedDiscriminators);
+//			
+//			for(String discriminator : inheritedDiscriminators) {					
+//				Node to = getOrAddNode(g, discriminator);
+//	
+//				if(to.equals(node)) continue;
+//				
+//				Predicate<Edge> isEdgeWithToNode = e -> g.getEdgeTarget(e).equals(to);
+//				
+//				boolean discriminatorExists = g.edgesOf(node).stream().filter(Edge::isDiscriminator).anyMatch(isEdgeWithToNode);
+//				
+//				if(!discriminatorExists) {
 //					Edge edge = new Discriminator(node, to);
 //					addGraphEdge(g, node, to, edge);		
-//					LOG.debug("addProperties:: adding inherited discriminator discriminator={} edge={}", discriminator, edge);	
+//					LOG.debug("addInheritedDiscriminator:: adding discriminator edge={}", edge);	
 //				}
-			}
-			
-			
-		}		
-	}
+//				
+////				boolean hasDiscriminatorEdge = g.getAllEdges(node,to).stream().anyMatch(Edge::isDiscriminator);
+////				if(!hasDiscriminatorEdge) {
+////					Edge edge = new Discriminator(node, to);
+////					addGraphEdge(g, node, to, edge);		
+////					LOG.debug("addProperties:: adding inherited discriminator discriminator={} edge={}", discriminator, edge);	
+////				}
+//			}
+//			
+//			
+//		}		
+//	}
 
 	private void addEdgesForInheritedEnums(Graph<Node, Edge> g, Node node) {
 		if(!node.getEnums().isEmpty()) LOG.debug("addProperties: node {} enums {}",  node, node.getEnums());
@@ -291,10 +430,12 @@ public class CoreAPIGraph {
 		
 		if(!presentEnumNodes.isEmpty()) LOG.debug("addProperties: node {} enumEdges {}",  node, presentEnumNodes);
 
-		Predicate<Edge> notPresentEnumNode = e -> !presentEnumNodes.contains(g.getEdgeTarget(e));
+		Predicate<Edge> notPresentEnumNode = e -> g.getEdgeTarget(e)!=null && !presentEnumNodes.contains(g.getEdgeTarget(e));
 		
 		Set<Edge> inheritedEnumEdgesNotPresent = node.getInheritance().stream()
-								.map(this::getNode).map(g::edgesOf).flatMap(Set::stream)
+								.map(this::getNode)
+								.filter(n -> n!=null)
+								.map(g::edgesOf).flatMap(Set::stream)
 								.filter( Edge::isEnumEdge )
 								.filter( notPresentEnumNode )
 								.collect(toSet());
@@ -324,31 +465,38 @@ public class CoreAPIGraph {
 //
 //		res.addAll(inherited );
 		
-		LOG.debug("getInheritedDiscriminator:: node={} inheritsFrom={}", node, node.getInheritance());	
+//		LOG.debug("getInheritedDiscriminator:: node={} inheritsFrom={}", node, node.getInheritance());	
+//		
+//		Set<String> superClasses = node.getInheritance();
+//
+//		for(String superClass : superClasses) {
+//			Node n = getOrAddNode(g,superClass);
+//			res.addAll( n.getDiscriminatorMapping() );
+//			res.addAll( getInheritedDiscriminator(g, n) );
+//		}
+//				
+//		LOG.debug("getInheritedDiscriminator:: node={} #1 res={}", node, res);	
+//
+//		Set<String> coreInheritanceTypes = Config.get("coreInheritanceTypes").stream().collect(toSet());
+//
+//		res = res.stream().filter(n -> !coreInheritanceTypes.contains(n)).collect(toSet());
+//
+//		for(String regexp : Config.get("coreInheritanceRegexp")) {
+//			res = res.stream().filter(n -> !n.matches(regexp)).collect(toSet());
+//		}
+//		
+//		res = res.stream().filter(n -> !coreInheritanceTypes.contains(n)).collect(toSet());
+//
+//		LOG.debug("getInheritedDiscriminator:: node={} #2 res={}", node, res);	
+//
+//		return res;
 		
-		Set<String> superClasses = node.getInheritance();
-
-		for(String superClass : superClasses) {
-			Node n = getOrAddNode(g,superClass);
-			res.addAll( n.getDiscriminatorMapping() );
-			res.addAll( getInheritedDiscriminator(g, n) );
-		}
-				
-		LOG.debug("getInheritedDiscriminator:: node={} #1 res={}", node, res);	
-
-		Set<String> coreInheritanceTypes = Config.get("coreInheritanceTypes").stream().collect(toSet());
-
-		res = res.stream().filter(n -> !coreInheritanceTypes.contains(n)).collect(toSet());
-
-		for(String regexp : Config.get("coreInheritanceRegexp")) {
-			res = res.stream().filter(n -> !n.matches(regexp)).collect(toSet());
-		}
+		res = node.getAllDiscriminatorMapping();
 		
-		res = res.stream().filter(n -> !coreInheritanceTypes.contains(n)).collect(toSet());
-
-		LOG.debug("getInheritedDiscriminator:: node={} #2 res={}", node, res);	
-
+		LOG.debug("getInheritedDiscriminator:: node={} res={}", node, res);	
+		
 		return res;
+		
 		
 	}
 
@@ -432,7 +580,7 @@ public class CoreAPIGraph {
 
 		// Set<String> existingProperties = from.getProperties().stream().map(Property::getName).collect(toSet());
 		
-		// if("QuoteItem".contentEquals(typeName)) Out.debug("addProperties: from={} existingProperties={}", from, existingProperties);
+		// if("QuoteItem".contentEquals(typeName)) LOG.debug("addProperties: from={} existingProperties={}", from, existingProperties);
 
 		// Set<String> newProperties = properties.keySet(); // .stream().filter(p -> !existingProperties.contains(p)).collect(toSet());
 		
@@ -472,11 +620,7 @@ public class CoreAPIGraph {
 								new Edge(from, propertyName, to, cardinality, isRequired);
 
 				LOG.debug("addProperties: edge={}", edge);
-
-				if(edge.isEnumEdge()) {
-					LOG.debug("addProperties: enumEdge {}",  edge);
-				}
-				
+			
 				addGraphEdge(graph, from, to, edge);
 
 			} 
@@ -561,18 +705,23 @@ public class CoreAPIGraph {
 	public static Set<Node> getNodesOfSubGraph(Graph<Node,Edge> graph, Node node) {
 		Set<Node> res = new HashSet<>();
 
-		Set<Node> allDiscriminators = graph.vertexSet().stream()
-											.map(graph::edgesOf).flatMap(Set::stream)
-											.filter(Edge::isDiscriminator)
-											.map(graph::getEdgeTarget).collect(toSet());
+//		Set<Node> allDiscriminators = graph.vertexSet().stream()
+//											.map(graph::edgesOf).flatMap(Set::stream)
+//											.filter(Edge::isDiscriminator)
+//											.map(graph::getEdgeTarget).collect(toSet());
+//		
+//		LOG.debug("getNodesOfSubGraph:: node={} allDiscriminators={}", node, allDiscriminators);
 		
-		LOG.debug("getNodesOfSubGraph:: node={} allDiscriminators={}", node, allDiscriminators);
+		if(node==null) {
+			Out.printAlways("node argument equal to null - not expected");
+			return res;
+		}	
 		
 		GraphIterator<Node, Edge> it = new BreadthFirstIterator<>(graph, node);
 
 		while(it.hasNext() ) {
 			Node cand = it.next();
-			res.add(cand);
+			if(cand!=null) res.add(cand);
 		}
 
 		LOG.debug("getNodesOfSubGraph:: node={} #00 res={}", node, res);
@@ -592,7 +741,7 @@ public class CoreAPIGraph {
 
 		LOG.debug("getNodesOfSubGraph:: node={} #00 discriminators={}", node, discriminators);
 
-		discriminators.removeAll(res);
+		// 2021-11-29 TBD discriminators.removeAll(res);
 		
 		LOG.debug("getNodesOfSubGraph:: node={} #0 discriminators={}", node, discriminators);
 
@@ -680,7 +829,7 @@ public class CoreAPIGraph {
 //										.filter(notEnumNode)
 //										.collect(toSet());
 //			
-//			LOG.debug("getSubGraphWithInheritance:: node={} only inbund discriminator={}", node, onlyDiscriminator);
+//			LOG.debug("getSubGraphWithInheritance:: node={} only inbound discriminator={}", node, onlyDiscriminator);
 //	
 //			graph.removeAllVertices(onlyDiscriminator);
 			
@@ -712,7 +861,7 @@ public class CoreAPIGraph {
 								.filter(n -> graph.getAllEdges(n, node).stream().anyMatch(Edge::isNotDiscriminator))
 								.collect(toSet());
 			
-			excludeNodes.addAll(discriminators);
+			// TBD excludeNodes.addAll(discriminators);
 
 		}
 		
@@ -723,7 +872,11 @@ public class CoreAPIGraph {
 
 		excludeNodes = excludeNodes.stream().filter(notEnumNode).collect(toSet());
 		
+		LOG.debug("getSubGraphWithInheritance:: node={} excludeNodes={}", node, excludeNodes);
+
 		nodes.removeAll(excludeNodes);
+
+		LOG.debug("getSubGraphWithInheritance:: node={} nodes={}", node, nodes);
 
 		Graph<Node,Edge> subGraph = new AsSubgraph<>(graph, nodes);
 		
@@ -779,7 +932,7 @@ public class CoreAPIGraph {
 		}
 		
 		
-		LOG.debug("getSubGraphWithInheritance:: node={} final subGraph={}", node, subGraph.vertexSet());
+		LOG.debug("## getSubGraphWithInheritance:: node={} final subGraph={}", node, subGraph.vertexSet());
 
 		return subGraph;
 	}
@@ -885,61 +1038,61 @@ public class CoreAPIGraph {
 		return res;
 	}
 	
-	@LogMethod(level=LogLevel.DEBUG)
-	private static void removeOutboundFromDiscriminatorMappingNodes(Graph<Node, Edge> graph, Set<Node> excludedNodes) {
-				
-		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: excludedNodes={}", excludedNodes);
-
-		Set<Edge> edgesToRemove = new HashSet<>();
-
-		for(Node node : graph.vertexSet()) {
-			Set<String> mapping = node.getExternalDiscriminatorMapping();
-			if(!mapping.isEmpty()) {
-				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mapping={}", node.getName(), mapping);
-								
-				Set<Node> mappingNodes = mapping.stream()
-											.map(n -> CoreAPIGraph.getNodeByName(graph,n))
-											.filter(Optional::isPresent)
-											.map(Optional::get)
-											.collect(toSet());
-			
-				// mappingNodes.removeAll(currentGraphNodes);
-				
-				mappingNodes.removeAll(excludedNodes);
-				
-				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNodes={}", node, mappingNodes);
-
-				for(Node mappingNode : mappingNodes) {
-					
-					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNode={}", node, mappingNode);
-
-					Set<Edge> edges = graph.outgoingEdgesOf(mappingNode);
-					
-					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: mappingNode={} #1 edges={}", mappingNode, edges);
-
-					edges = edges.stream()
-							.filter(edge -> !graph.getEdgeTarget(edge).equals(node))
-							.collect(toSet());
-					
-					boolean atLeastOneLargeSubGraph = edges.stream().anyMatch(edge -> !isSmallSubGraph(graph,mappingNode,edge));
-					
-					if(atLeastOneLargeSubGraph) {
-						LOG.debug("removeOutboundFromDiscriminatorMappingNodes: mappingNode={} edges={}", mappingNode, edges);
-						edgesToRemove.addAll( edges );
-					}
-					
-				}
-				
-			}
-		}
-		
-		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: nodes={}", graph.vertexSet());
-		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: edgesToRemove={}", edgesToRemove);
-		LOG.debug("");
-
-		graph.removeAllEdges(edgesToRemove);
-
-	}
+//	@LogMethod(level=LogLevel.DEBUG)
+//	private static void removeOutboundFromDiscriminatorMappingNodes(Graph<Node, Edge> graph, Set<Node> excludedNodes) {
+//				
+//		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: excludedNodes={}", excludedNodes);
+//
+//		Set<Edge> edgesToRemove = new HashSet<>();
+//
+//		for(Node node : graph.vertexSet()) {
+//			Set<String> mapping = node.getExternalDiscriminatorMapping();
+//			if(!mapping.isEmpty()) {
+//				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mapping={}", node.getName(), mapping);
+//								
+//				Set<Node> mappingNodes = mapping.stream()
+//											.map(n -> CoreAPIGraph.getNodeByName(graph,n))
+//											.filter(Optional::isPresent)
+//											.map(Optional::get)
+//											.collect(toSet());
+//			
+//				// mappingNodes.removeAll(currentGraphNodes);
+//				
+//				mappingNodes.removeAll(excludedNodes);
+//				
+//				LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNodes={}", node, mappingNodes);
+//
+//				for(Node mappingNode : mappingNodes) {
+//					
+//					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: node={} mappingNode={}", node, mappingNode);
+//
+//					Set<Edge> edges = graph.outgoingEdgesOf(mappingNode);
+//					
+//					LOG.debug("removeOutboundFromDiscriminatorMappingNodes: mappingNode={} #1 edges={}", mappingNode, edges);
+//
+//					edges = edges.stream()
+//							.filter(edge -> !graph.getEdgeTarget(edge).equals(node))
+//							.collect(toSet());
+//					
+//					boolean atLeastOneLargeSubGraph = edges.stream().anyMatch(edge -> !isSmallSubGraph(graph,mappingNode,edge));
+//					
+//					if(atLeastOneLargeSubGraph) {
+//						LOG.debug("removeOutboundFromDiscriminatorMappingNodes: mappingNode={} edges={}", mappingNode, edges);
+//						edgesToRemove.addAll( edges );
+//					}
+//					
+//				}
+//				
+//			}
+//		}
+//		
+//		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: nodes={}", graph.vertexSet());
+//		LOG.debug("removeOutboundFromDiscriminatorMappingNodes: edgesToRemove={}", edgesToRemove);
+//		LOG.debug("");
+//
+//		graph.removeAllEdges(edgesToRemove);
+//
+//	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private static boolean isSmallSubGraph(Graph<Node, Edge> graph, Node node, Edge edge) {

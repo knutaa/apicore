@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
@@ -34,6 +33,8 @@ public class Node implements Comparable<Object>  {
 
     static final Logger LOG = LogManager.getLogger(Node.class);
 
+    static Map<String,Node> nodeMap = new HashMap<>();
+    
 	List<Property> properties;
 		
 	Map<Place,List<Node>> placements;
@@ -46,14 +47,16 @@ public class Node implements Comparable<Object>  {
 	
 	List<String> enums; 
 	
-	Set<String> inheritance;
+	Optional<Set<String>> inheritance;
 	
-	Set<String> discriminatorMapping;
-	Set<String> externalDiscriminatorMapping;
-	Set<String> inheritedDiscriminatorMapping;
+	// Set<String> discriminatorMapping;
+	Set<String> localDiscriminatorMapping;
+
+	Optional<Set<String>> externalDiscriminatorMapping;
 
 	String inline = "";
 	
+	static final String ATTYPE = "@type";
 	static final String ALLOF = "allOf";
 	static final String PROPERTIES = "properties";
 	static final String TYPE = "type";
@@ -72,7 +75,8 @@ public class Node implements Comparable<Object>  {
 	static final String EXPAND_INHERITED = "expandInherited";
 	static final String EXPAND_ALL_PROPERTIES_FROM_ALLOFS = "expandPropertiesFromAllOfs";
 	
-	private Node() {
+	protected Node() {
+		
 		properties = new LinkedList<>();
 		placements = new EnumMap<>(Place.class);
 		
@@ -80,10 +84,13 @@ public class Node implements Comparable<Object>  {
 		
 		enums = new LinkedList<>();
 		
-		inheritance = new HashSet<>();
-		discriminatorMapping = new HashSet<>();
-		externalDiscriminatorMapping = new HashSet<>();
-		inheritedDiscriminatorMapping = new HashSet<>();
+		inheritance = Optional.empty();
+		//discriminatorMapping = new HashSet<>();
+		externalDiscriminatorMapping = Optional.empty();
+		
+		localDiscriminatorMapping = new HashSet<>();
+		
+		// inheritedDiscriminatorMapping = new HashSet<>();
 
 	}
 	
@@ -91,7 +98,13 @@ public class Node implements Comparable<Object>  {
 		this();
 		this.resource=resource;		
 		
+		LOG.debug("Node resource={}" , resource );
+
+		nodeMap.put(this.resource, this);
+		
 		addDescription();
+		
+		setLocalDiscriminators();
 
 		this.inline = getInlineDefinition();
 		
@@ -109,12 +122,33 @@ public class Node implements Comparable<Object>  {
 
 			addPropertyDetails(Property.BASE);									
 			addAllOfs(visibility);
-			addDiscriminatorMapping();	
+			
+//			this.discriminatorMapping = getAllDiscriminators();
+//			this.externalDiscriminatorMapping = Optional.of(this.discriminatorMapping);
+//			this.discriminatorMapping.addAll( getLocalDiscriminators() );
+			
+			// addDiscriminatorMapping();	
 		
 		}
 		
 	}
 
+	public void updateDiscriminatorMapping() {
+		Set<String> inherited = getAllDiscriminators();
+		if(this.localDiscriminatorMapping.isEmpty() && inherited.contains(this.resource)) {
+			this.localDiscriminatorMapping.add(this.resource);
+		}
+		this.externalDiscriminatorMapping = Optional.of(inherited); 
+	}
+	
+	public Set<String> getLocalDiscriminators() {
+		return this.localDiscriminatorMapping;
+	}
+
+	public void setLocalDiscriminators() {
+		JSONObject mapping = APIModel.getMappingForResource(this.resource);
+		if(mapping!=null) this.localDiscriminatorMapping.addAll( mapping.keySet() );
+	}
 	
 	private String convertExpanded(JSONObject obj) {
 		String res = "";
@@ -151,7 +185,7 @@ public class Node implements Comparable<Object>  {
 		if(obj!=null) {
 			
 //			if(resource.contentEquals("ProductRef")) {
-//				Out.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
+//				LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
 //			}
 			
 			LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
@@ -262,7 +296,7 @@ public class Node implements Comparable<Object>  {
 
 				res = getInlineDefinition(refDef) ;
 				
-				if(!cardinality.isBlank()) res = res + getCardinalityString(cardinality);
+				if(!res.isEmpty() && !cardinality.isBlank()) res = res + getCardinalityString(cardinality);
 				
 				LOG.debug("Node::getInlineDefinition resource={} refDef={}" , resource, refDef.toString() );
 
@@ -271,13 +305,13 @@ public class Node implements Comparable<Object>  {
 				
 				res = getInlineDefinition(array);
 
-				String cardinality = getCardinality(array, res);
-
-				res = res + cardinality;
+				if(!res.isEmpty()) {
+					String cardinality = getCardinality(array, res);
+					res = res + cardinality;
+				}
 				
 
-			} else if(def.has(ITEMS)) {
-				
+			} else if(def.has(ITEMS)) {				
 				String cardinality = APIModel.getCardinality(def, false);
 
 				JSONObject obj = def.optJSONObject(ITEMS);
@@ -299,8 +333,11 @@ public class Node implements Comparable<Object>  {
 				res = res + getCardinalityString(cardinality);	
 				
 			} else {
-				String cardinality = APIModel.getCardinality(def, false);
-				res = getType(def) + getCardinalityString(cardinality);	
+				res = getType(def);			
+				if(!res.isEmpty()) {
+					String cardinality = APIModel.getCardinality(def, false);
+					res = res + getCardinalityString(cardinality);	
+				}	
 				
 				LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
 			}
@@ -384,6 +421,19 @@ public class Node implements Comparable<Object>  {
 		JSONObject propObj = APIModel.getPropertyObjectForResource(this.resource);
 		addPropertyDetails(propObj, visibility, null);
 	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public void removeProperties(Collection<Property> remove) {
+		Collection<String> toRemove = remove.stream().map(Property::getName).collect(toSet());
+		
+		LOG.debug("toRemove={}", toRemove);
+		LOG.debug("properties={}", this.properties);
+
+		this.properties = this.properties.stream().filter(p->!toRemove.contains(p.getName())).collect(toList());
+		
+		LOG.debug("properties={}", this.properties);
+
+	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addPropertyDetails(JSONObject propObj, Property.Visibility visibility, JSONObject definition) {
@@ -447,6 +497,35 @@ public class Node implements Comparable<Object>  {
 
 	}
 
+	Optional<Set<String>> allDiscriminators = Optional.empty();
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	private Set<String> getAllDiscriminators() {
+		if(allDiscriminators.isEmpty()) {
+			allDiscriminators = Optional.of( Node.getAllDiscriminatorsHelper(this));
+		}
+		return allDiscriminators.get();
+	}
+
+	
+	public static Set<String> getAllDiscriminatorsHelper(Node resource) {
+		Set<String> res = new HashSet<>();	
+		
+		res.addAll( resource.getInheritance().stream()
+								.map(Node::getNodeByName)
+								.map(Node::getAllDiscriminators)
+								.flatMap(Set::stream)
+								.collect(toSet()) );
+		
+		res.addAll( resource.getLocalDiscriminators() );
+		
+		LOG.debug("getAllDiscriminatorsHelper: node={} inheritance={} res={}", resource, resource.inheritance.isPresent(), res);
+
+		return res;
+
+	}
+	
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(Property.Visibility visibility) {
 //		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
@@ -520,20 +599,50 @@ public class Node implements Comparable<Object>  {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public void addDiscriminatorMapping() {		
-		JSONObject mapping = APIModel.getMappingForResource(this.resource);
-		
-		if(mapping!=null && !mapping.isEmpty()) {
-			Set<String> mappings = new HashSet<>(mapping.keySet());
-			
-			this.discriminatorMapping.addAll(mappings);
-			// this.discriminatorMapping.remove(this.resource);
-
-			mappings = new HashSet<>(mapping.keySet());
-			this.externalDiscriminatorMapping.addAll(mappings);
-			this.externalDiscriminatorMapping.remove(this.resource);
-			
-			LOG.debug("addDiscriminatorMapping: node={} mapping={}",  this.getName(), this.discriminatorMapping);
-		}
+//		
+//		LOG.debug("##### addDiscriminatorMapping: node={} inheritance={}", this.getName(), this.inheritance);
+//		
+//		JSONObject mapping = APIModel.getMappingForResource(this.resource);
+//		
+//		Set<String> inheritedMapping = this.getAllDiscriminatorMapping();
+//		
+//		LOG.debug("##### addDiscriminatorMapping: node={} inheritance={}", this.getName(), this.inheritance);
+//		LOG.debug("##### addDiscriminatorMapping: node={} inheritedMapping={}", this.getName(), inheritedMapping);
+//
+//		LOG.debug("addDiscriminatorMapping: node={} mapping  = {}",  this.getName(), mapping);
+//		
+//		// LOG.debug("addDiscriminatorMapping:: node={} inheritedDiscriminators={}", this.getName(), this.inheritedDiscriminatorMapping);	
+//
+//		Set<String> mappings = new HashSet<>();
+//		if(mapping!=null && !mapping.isEmpty()) {
+//			mappings.addAll(mapping.keySet());
+//		}
+//		
+//		if(!mappings.isEmpty() || !inheritedMapping.isEmpty()) {
+//						
+//			// this.discriminatorMapping.addAll(mappings);
+//			// this.discriminatorMapping.addAll(inheritedMapping);
+//
+////			this.externalDiscriminatorMapping.addAll(inheritedMapping);
+////			this.externalDiscriminatorMapping.remove(this.resource);
+//			
+//			LOG.debug("addDiscriminatorMapping: node={} local  = {}",  this.getName(), this.getLocalDiscriminators());
+////			LOG.debug("addDiscriminatorMapping: node={} external = {}",  this.getName(), this.externalDiscriminatorMapping);
+//
+////			if(this.discriminatorMapping.size()==1 && this.externalDiscriminatorMapping.size()>0) {
+//			if(this.getLocalDiscriminators().size()==1 ) {
+//				String localDiscriminator = this.getLocalDiscriminators().iterator().next();
+//				LOG.debug("addDiscriminatorMapping: node={} mapping={}",  this.getName(), localDiscriminator);
+//				Optional<Property> optAtType = this.properties.stream().filter(p -> p.getName().contentEquals(ATTYPE)).findFirst();
+//				if(optAtType.isPresent()) {
+//					optAtType.get().setDefaultValue(localDiscriminator);
+//					
+//					LOG.debug("addDiscriminatorMapping: node={} setDefaultValue={}",  this.getName(), localDiscriminator);
+//
+//				}
+//			}
+//
+//		}
 		
 	}
 	
@@ -652,6 +761,10 @@ public class Node implements Comparable<Object>  {
 		return this instanceof EnumNode;
 	}
 
+	public boolean isDiscriminatorNode() {
+		return this instanceof DiscriminatorNode;
+	}
+	
 	public boolean inheritsFrom(Graph<Node, Edge> graph, Node candidate) {
 		// return graph.getAllEdges(this, candidate).stream().anyMatch(edge -> edge instanceof AllOf);
 		return graph.getAllEdges(this, candidate).stream().anyMatch(Edge::isInheritance);
@@ -659,23 +772,29 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public void addInheritance(String type) {
-		this.inheritance.add(type);
+		if(!this.inheritance.isPresent()) this.inheritance = Optional.of(new HashSet<>());
+		this.inheritance.get().add(type);
 	}
 
 	public Set<String> getInheritance() {
-		return this.inheritance;
+		if(this.inheritance.isPresent()) 
+			return this.inheritance.get();
+		else
+			return new HashSet<>();
 	}
 	
 	
 	public Set<String> getDiscriminatorMapping() {
-		Set<String> all = this.discriminatorMapping;
-		
-		return all;
+//		Set<String> all = this.discriminatorMapping;
+//		
+//		return all;
+		return this.getAllDiscriminators();
 	}
 
 	public Set<String> getInheritedDiscriminatorMapping() {		
-		Set<String> inherited = this.inheritedDiscriminatorMapping;
+		Set<String> inherited = this.getAllDiscriminatorMapping();
 				
+//		Set<String> inherited = this.getAllDiscriminators();
 		return inherited;
 	}
 
@@ -683,14 +802,19 @@ public class Node implements Comparable<Object>  {
 	public Set<String> getAllDiscriminatorMapping() {		
 		Set<String> all = new HashSet<>();
 		
-		all.addAll(this.discriminatorMapping);
-		all.addAll(this.inheritedDiscriminatorMapping);
+		all.addAll(this.getLocalDiscriminators());
+		if(this.externalDiscriminatorMapping.isPresent()) all.addAll(this.externalDiscriminatorMapping.get());
 				
+		LOG.debug("getAllDiscriminatorMapping: node=" + this.getName() + " all=" + all);
+
 		return all;
 	}
 	
 	public Set<String> getExternalDiscriminatorMapping() {
-		return this.externalDiscriminatorMapping;
+		if(this.externalDiscriminatorMapping.isPresent())
+			return this.externalDiscriminatorMapping.get();
+		else 
+			return new HashSet<>();
 	}
 
 	Set<Node> circleNodes = new HashSet<>();
@@ -711,7 +835,30 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public void setInheritedDiscriminatorMapping(Set<String> inheritedDiscriminators) {
-		this.inheritedDiscriminatorMapping=inheritedDiscriminators;
+		LOG.debug("setInheritedDiscriminatorMapping: node={} inheritedDiscriminators={}",  this.getName(), inheritedDiscriminators);
+		if(this.externalDiscriminatorMapping.isPresent()) 
+			this.externalDiscriminatorMapping.get().addAll( inheritedDiscriminators );
+	}
+	
+	static private Node getNodeByName(String node) {
+		return nodeMap.get(node);
+	}
+
+	public void clearInheritedDiscriminatorMapping() {
+		if(this.externalDiscriminatorMapping.isPresent()) 
+			this.externalDiscriminatorMapping.get().clear();
+		
+		LOG.debug("clearInheritedDiscriminatorMapping: node={} externalDiscriminatorMapping={}",  
+					this.getName(), this.externalDiscriminatorMapping);
+
+	}
+	
+	public void setDiscriminatorDefault() {
+		Optional<Property> atType = properties.stream().filter(p -> p.getName().contentEquals(ATTYPE)).findAny();
+		if(atType.isPresent()) {
+			atType.get().setDefaultValue(this.getName());
+			LOG.debug("setDiscriminatorDefault: node={} default={}",  this.getName(), atType.get().getDefaultValue());
+		}
 	}
 	
 }

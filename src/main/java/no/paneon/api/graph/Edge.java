@@ -19,6 +19,8 @@ public class Edge {
 	public String cardinality;
 	public Node node;
 	public boolean required=false;
+	
+	public boolean isMarked = false;
 		
 	public Edge(Node node, String relation, Node related, String cardinality, boolean required) {
 		this.node=node;
@@ -102,4 +104,10 @@ public class Edge {
 		return res;
 	}
 	
+	public void setMarked(boolean value) {
+		
+		LOG.debug("Edge::setMarked: from={} to={} marked={}", this.node, this.related, value); 
+
+		this.isMarked = value;
+	}
 }

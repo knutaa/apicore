@@ -3,6 +3,8 @@ package no.paneon.api.graph;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import no.paneon.api.utils.Out;
+
 public class Discriminator extends Edge {
 
     static final Logger LOG = LogManager.getLogger(Discriminator.class);
@@ -13,6 +15,9 @@ public class Discriminator extends Edge {
 		
 	public Discriminator(Node node, Node related ) {
 		super(node, "", related, "", true);
+		
+		LOG.debug("Discriminator: from={} to={}", node, related);
+
 	}
 
 	@Override
