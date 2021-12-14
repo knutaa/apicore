@@ -68,7 +68,7 @@ public class Property {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public boolean isRequired() {
-		return required;
+		return this.required;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -133,4 +133,7 @@ public class Property {
 		return this.defaultValue;
 	}
 	
+	public void setRequired() {
+		this.required=true;
+	}
 }

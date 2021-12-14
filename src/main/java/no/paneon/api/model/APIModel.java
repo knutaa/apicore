@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -533,12 +534,22 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getPropertyObjectForResource(String coreResource) {
 		JSONObject res=null;
+		
 		if(resourcePropertyMap.containsKey(coreResource)) {
-			res = resourcePropertyMap.get(coreResource);
+			return resourcePropertyMap.get(coreResource);
 		} else {
 			res = getDefinition(coreResource, PROPERTIES);
-			if(res!=null) {
+			
+			LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res);
+
+			if(res!=null) {	
+				JSONObject allOfs = getFlattenAllOfs(coreResource);
+				res = mergeJSON(res,allOfs);
+				
 				resourcePropertyMap.put(coreResource, res);
+				
+				LOG.debug("getPropertyObjectForResource: resource={} properties={}",  coreResource, res.keySet());
+
 			}
 		}
 		if(res==null) res=new JSONObject();
@@ -546,6 +557,44 @@ public class APIModel {
 		return res;
 	}
 
+	@LogMethod(level=LogLevel.DEBUG) 
+	public static JSONObject getFlattenAllOfs(String resource) {
+		final JSONObject target = new JSONObject();
+		JSONObject definition = getDefinition(resource);
+		if(definition!=null && definition.has(ALLOF)) {
+			JSONArray allofs = definition.optJSONArray(ALLOF);
+			if(allofs!=null) {
+				allofs.forEach(allof -> {
+					if(allof instanceof JSONObject) {
+						JSONObject allOfDefinition = (JSONObject) allof;
+						if(allOfDefinition.has(REF)) {
+							String superior = getReferencedType(allOfDefinition, null); 
+							
+							LOG.debug("getFlattenAllOfs: allOf={} superior={}", allOfDefinition, superior);
+
+							JSONObject inheritsFrom =  getPropertyObjectForResource(superior);
+							
+							LOG.debug("merging with resource {} keys {}",  resource, inheritsFrom.keySet());
+							LOG.debug("merging with resource {} ",  inheritsFrom.toString(2));
+	
+							mergeJSON(target,inheritsFrom);
+						}
+					}
+				});
+			}
+		}
+		return target;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG) 
+	public static JSONObject mergeJSON(JSONObject target, JSONObject delta) {
+		delta.keySet().forEach(key -> {
+			target.put(key, delta.optJSONObject(key));	
+		});
+		return target;
+	}
+
+	
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONArray getAllOfForResource(String coreResource) {
 		return getDefinitions(coreResource, ALLOF);
@@ -590,9 +639,23 @@ public class APIModel {
 			}
 		}
 
+		if(res==null) res=new JSONObject();
+		
 		return res;
 	}
 
+	@LogMethod(level=LogLevel.DEBUG)
+	private static JSONObject getDefinition(JSONObject data, String ... args) {
+		JSONObject res = data;
+		int idx=0;
+		while(res!=null && idx<args.length) {
+			res = res.optJSONObject(args[idx]);
+			idx++;
+		}
+		return res;
+	}
+
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	private static JSONArray getDefinitions(String ... args) {
 		JSONObject obj = null;
@@ -830,6 +893,61 @@ public class APIModel {
 		res = res.stream()
 				.map(notification -> getNotificationLabel(resource, notification))
 				.collect(toList());
+
+		return res;
+	}
+
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static List<String> getNotificationsDetails(String resource, JSONObject rules, String notification) {
+		List<String> res = new LinkedList<>();
+
+		LOG.debug("getNotificationsDetails: resource={} notification={}",  resource, notification);
+		
+		return res;
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public static JSONObject getNotificationFromRules(String resource, String notification) {
+		String NOTIF = notification.toUpperCase();
+		
+		JSONObject res = new JSONObject();
+
+		JSONObject rulesFragment = Config.getRulesForResource(resource); 
+		JSONArray  rules = rulesFragment.getJSONArray("notifications");
+		
+		List<JSONObject> rule = new LinkedList<>();
+		
+		for(int i=0; i<rules.length(); i++) {
+			JSONObject notificationRule = rules.optJSONObject(i);
+			
+			if(!NOTIF.contains(notificationRule.optString("name").toUpperCase())) continue;
+			
+			JSONArray examples = notificationRule.optJSONArray("examples");
+
+			LOG.debug("getNotificationsDetails: NOTIF={} examples={}",  NOTIF, examples);
+
+			if(examples==null) continue;
+
+			LOG.debug("getNotificationsDetails: NOTIF={} examples={}",  NOTIF, examples.toString(2));
+			
+			for(int j=0; j<examples.length(); j++) {
+				JSONObject example = examples.optJSONObject(j);
+				
+				LOG.debug("getNotificationsDetails: NOTIF={} example={}",  NOTIF, example.optString("name").toUpperCase());
+
+				if(example!=null) rule.add(example);
+
+			}
+			
+		}
+						
+		LOG.debug("getNotificationsDetails: resource={} notification={} rules={}",  resource, notification, rules.toString(2));
+		LOG.debug("getNotificationsDetails: rule={}", rule);
+
+		if(rule.size()>0) res=rule.get(0);
+		
+		LOG.debug("getNotificationsDetails: res={}", res.toString(2));
 
 		return res;
 	}
@@ -1556,7 +1674,7 @@ public class APIModel {
 	public static Set<String> getProperties(String resource) {
 		Set<String> res = new HashSet<>();
 		JSONObject obj = getPropertyObjectForResource(resource);
-		res.addAll(obj.keySet());
+		if(obj!=null) res.addAll(obj.keySet());
 		return res;
 	}       
 
@@ -1955,24 +2073,46 @@ public class APIModel {
 	public static Map<String, JSONObject> getOperationExamples(JSONObject data) {
 		Map<String,JSONObject> res = new HashMap<>();
 		
+		LOG.debug("getOperationExamples:: data={}",  data.keySet());
+
+		if(data.has(REF)) {
+			data = APIModel.getDefinitionByReference(data.getString(REF));
+			data = APIModel.getDefinition(data, "content", "application/json");
+			
+			LOG.debug("getOperationExamples:: data={}",  data);
+
+		}
+			
+		if(data==null) return res;
+		
 		if(data.has(EXAMPLES)) {
 			JSONObject examples = data.optJSONObject(EXAMPLES);
 			if(examples !=null) {
 				for(String key : examples.keySet()) {
 					JSONObject payload = examples.getJSONObject(key);
+					
+					LOG.debug("getOperationExamples:: payload={}",  payload);
+
+					if(payload.has(REF)) payload = APIModel.getDefinitionByReference(payload.getString(REF));
+				
 					if(payload.has(VALUE)) payload = payload.optJSONObject(VALUE);
-					res.put(key,  payload);
+					
+					LOG.debug("getOperationExamples:: payload={}",  payload);
+
+					res.put(key, payload);
 				}
 			}
 		} else if(data.has(EXAMPLE)) {
 			JSONObject example= data.optJSONObject(EXAMPLE);
+			if(example.has(REF)) example = APIModel.getDefinitionByReference(example.getString(REF));
+
 			if(example !=null) {
 				res.put("default",  example);
 			}
 		} else {
-
+	
 		}
-		
+				
 		LOG.debug("getOperationExamples:: res={}",  res);
 
 		return res;

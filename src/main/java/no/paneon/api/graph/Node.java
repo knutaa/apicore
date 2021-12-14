@@ -122,15 +122,9 @@ public class Node implements Comparable<Object>  {
 
 			addPropertyDetails(Property.BASE);									
 			addAllOfs(visibility);
-			
-//			this.discriminatorMapping = getAllDiscriminators();
-//			this.externalDiscriminatorMapping = Optional.of(this.discriminatorMapping);
-//			this.discriminatorMapping.addAll( getLocalDiscriminators() );
-			
-			// addDiscriminatorMapping();	
-		
+							
 		}
-		
+				
 	}
 
 	public void updateDiscriminatorMapping() {
@@ -180,60 +174,58 @@ public class Node implements Comparable<Object>  {
 	private Optional<JSONObject> getExpandedJSON(JSONObject obj) {
 		Optional<JSONObject> res = Optional.empty();
 		
+		if(obj==null) return res;
+		
 		JSONObject clone = new JSONObject(obj.toString());
-
-		if(obj!=null) {
 			
 //			if(resource.contentEquals("ProductRef")) {
 //				LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
 //			}
 			
-			LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
-			
-			if(obj.has(ENUM) || obj.has(PROPERTIES) || obj.has(DISCRIMINATOR) ) return res;
-			// if(obj.has(ENUM) ) return res;
+		LOG.debug("Node::getFlatten resource={} def={}" , resource, obj.toString(2) );
+		
+		if(obj.has(ENUM) || obj.has(PROPERTIES) || obj.has(DISCRIMINATOR) ) return res;
+		// if(obj.has(ENUM) ) return res;
 
-			if(obj.has(REF)) {
-				JSONObject refDef = APIModel.getDefinitionBySchemaObject(obj);
-				res = getExpandedJSON(refDef);
-				
-			} else if(obj.has(ALLOF)) {
-				
-				JSONArray array = obj.optJSONArray(ALLOF);			
+		if(obj.has(REF)) {
+			JSONObject refDef = APIModel.getDefinitionBySchemaObject(obj);
+			res = getExpandedJSON(refDef);
+			
+		} else if(obj.has(ALLOF)) {
+			
+			JSONArray array = obj.optJSONArray(ALLOF);			
+			res = getExpandedJSON(array);
+			if(res.isPresent()) {
+				partialOverwriteJSON(clone,res.get());
+			}	
+			clone.remove(ALLOF);
+			res = Optional.of(clone);
+
+		} else if(obj.has(ITEMS)) {
+			
+			JSONObject items = obj.optJSONObject(ITEMS);
+			if(items!=null) {
+				res = getExpandedJSON(items);
+				if(res.isPresent()) {
+					clone.put(ITEMS, res.get());
+					res = Optional.of(clone);
+				}
+			} else {
+				JSONArray array = obj.optJSONArray(ITEMS);
 				res = getExpandedJSON(array);
 				if(res.isPresent()) {
-					partialOverwriteJSON(clone,res.get());
-				}	
-				clone.remove(ALLOF);
-				res = Optional.of(clone);
-
-			} else if(obj.has(ITEMS)) {
-				
-				JSONObject items = obj.optJSONObject(ITEMS);
-				if(items!=null) {
-					res = getExpandedJSON(items);
-					if(res.isPresent()) {
-						clone.put(ITEMS, res.get());
-						res = Optional.of(clone);
-					}
-				} else {
-					JSONArray array = obj.optJSONArray(ITEMS);
-					res = getExpandedJSON(array);
-					if(res.isPresent()) {
-						clone.put(ITEMS, res.get());
-						res = Optional.of(clone);
-					}
-					
+					clone.put(ITEMS, res.get());
+					res = Optional.of(clone);
 				}
-								
-			} else {
-				res = Optional.of(clone);
+				
 			}
+							
+		} else {
+			res = Optional.of(clone);
 		}
 		
 		if(res.isPresent()) LOG.debug("Node::getFlatten resource={} res={}" , resource, res );
 
-		
 		return res;
 		
 	}
@@ -859,6 +851,65 @@ public class Node implements Comparable<Object>  {
 			atType.get().setDefaultValue(this.getName());
 			LOG.debug("setDiscriminatorDefault: node={} default={}",  this.getName(), atType.get().getDefaultValue());
 		}
+	}
+	
+	public void updatePropertiesFromFVO() {
+		String fvoName = this.getName() + "_FVO";
+		
+		Set<String> fvoNames = nodeMap.keySet().stream().filter(s -> s.startsWith(fvoName)).collect(toSet());
+		
+		if(fvoNames.isEmpty()) return;
+		
+		fvoNames.forEach(fvo -> {
+			if(!nodeMap.containsKey(fvo)) return;
+			Node fvoNode = nodeMap.get(fvo);
+				
+			List<Property> requiredProperties = fvoNode.getProperties().stream().filter(Property::isRequired).collect(toList());
+								
+			requiredProperties.stream()
+				.map(Property::getName)
+				.map(this::getPropertyByName)
+				.filter(Objects::nonNull)
+				.forEach(Property::setRequired);
+
+			
+			if(Config.getBoolean("includeAsRequiredIfNotInPost")) {
+				Set<String> fvoProperties = fvoNode.getProperties().stream().map(Property::getName).collect(toSet());
+				
+				Set<Property> additionalRequired = this.properties.stream().filter(p -> !fvoProperties.contains(p.getName())).collect(toSet());
+				
+				additionalRequired.forEach(Property::setRequired);
+				
+			}
+				
+		});
+		
+		if(!isAPIResource()) return;
+		
+		List<String> defaultMandatory = Config.get("includeDefaultMandatoryProperties");	
+		if(!defaultMandatory.isEmpty()) {
+			
+			long found = this.properties.stream()
+								.map(Property::getName)
+								.filter(defaultMandatory::contains)
+								.count();
+			
+			if(found==defaultMandatory.size()) {
+				defaultMandatory.stream()
+						.map(this::getPropertyByName)
+						.filter(Objects::nonNull)
+						.forEach(Property::setRequired);
+			}
+			
+		}
+	}
+	
+	private boolean isAPIResource() {
+		return APIModel.getResources().contains(this.getName());
+	}
+
+	public Property getPropertyByName(String name) {
+		return this.properties.stream().filter(p -> p.getName().contentEquals(name)).findFirst().orElse(null);
 	}
 	
 }

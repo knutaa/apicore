@@ -26,6 +26,8 @@ public class JSONObjectOrArray {
 		
 		JSONObjectOrArray res = new JSONObjectOrArray();
 			
+		Out.println("readJSONObjectOrArray ##: file={}", file);
+
 		String content = null;
 		try {
 			content = Utils.readFile(file);

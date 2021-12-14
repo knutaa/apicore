@@ -61,8 +61,20 @@ public class CoreAPIGraph {
 		
 		this.completeGraph = generateGraph();	
 		
+//		completeGraph.vertexSet().stream()
+//       	.filter(n -> n.getName().contentEquals("PermissionSpecificationRefOrValue"))
+//       	.map(n -> completeGraph.outgoingEdgesOf(n))
+//       	.forEach(e -> Out.debug("init: edge={}", e));
+//
+//		completeGraph.vertexSet().stream()
+//       	.filter(n -> n.getName().contentEquals("PermissionSpecification"))
+//       	.map(n -> completeGraph.outgoingEdgesOf(n))
+//       	.forEach(e -> Out.debug("init: edge={}", e));
+		
 		updateNodeInheritance();
 		
+		updateNodePropertiesFromFVO();
+
 		updateDiscriminators();
 		
 		markRequiredDiscriminators();
@@ -82,6 +94,12 @@ public class CoreAPIGraph {
 	}
 	
 	
+	private void updateNodePropertiesFromFVO() {
+		Set<Node> nodes = this.completeGraph.vertexSet().stream().filter(n-> !n.getName().endsWith("_FVO")).collect(toSet());
+		nodes.forEach(Node::updatePropertiesFromFVO);		
+	}
+
+
 	private void markRequiredDiscriminators() {
 		Set<Edge> edges = this.completeGraph.edgeSet().stream().filter(Edge::isDiscriminator).collect(toSet());
 		
