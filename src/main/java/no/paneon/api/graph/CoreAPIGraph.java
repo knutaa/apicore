@@ -238,17 +238,18 @@ public class CoreAPIGraph {
 		
 		Optional<Node> candidate = getNodeByName(g,definition);
 				
-		if(candidate.isEmpty()) {
-			node = APIModel.isEnumType(definition) ? new EnumNode(coreDefinition) : new Node(coreDefinition);
-			g.addVertex(node);
-			graphNodes.put(coreDefinition, node);
-			
-			if(node instanceof EnumNode) {
-				addEnumNode((EnumNode) node);
-			} else {
-				addProperties(g, node.getName());
-			}
-			
+		if(candidate.isPresent()) return candidate.get();
+		
+		node = APIModel.isEnumType(definition) ? new EnumNode(coreDefinition) : new Node(coreDefinition);
+		g.addVertex(node);
+		graphNodes.put(coreDefinition, node);
+		
+		if(node instanceof EnumNode) {
+			addEnumNode((EnumNode) node);
+		} else {
+			addProperties(g, node.getName());
+		}
+		
 //			if(node.getLocalDiscriminators().size()>1) {
 //				LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
 //				DiscriminatorNode discriminator = new DiscriminatorNode(node.getName() + "_discriminator");
@@ -262,24 +263,21 @@ public class CoreAPIGraph {
 //							g.addEdge(discriminator, to, new Discriminator(discriminator, to));
 //						});
 //			}
-			
-			if(node.getLocalDiscriminators().size()>1) {
-				LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
-				node.getLocalDiscriminators().stream()
-						.filter(label -> !label.contentEquals(node.getName()))
-						.forEach(label -> {
-							Node to = getOrAddNode(g, label);
-							g.addEdge(node, to, new Discriminator(node, to));
-						});
-			}
-			
-			LOG.debug("addNode:: adding node={}", definition);
-			
-		} else {
-			node = candidate.get();
+		
+		if(node.getLocalDiscriminators().size()>1) {
+			LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
+			node.getLocalDiscriminators().stream()
+					.filter(label -> !label.contentEquals(node.getName()))
+					.forEach(label -> {
+						Node to = getOrAddNode(g, label);
+						g.addEdge(node, to, new Discriminator(node, to));
+					});
 		}
 		
+		LOG.debug("addNode:: adding node={}", definition);
+				
 		return node;
+		
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -593,6 +591,8 @@ public class CoreAPIGraph {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addProperties(Graph<Node, Edge> graph, Node from, String typeName, JSONObject properties) {
+		
+		if(properties==null) properties = new JSONObject();
 		
 		LOG.debug("addProperties: typeName={} properties={}", typeName, properties.keySet());
 
