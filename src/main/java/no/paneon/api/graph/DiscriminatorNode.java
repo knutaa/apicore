@@ -22,7 +22,7 @@ public class DiscriminatorNode extends Node {
 		super();
 		this.resource=name;
 		
-		Out.debug("DiscriminatorNode: {}", this);
+		LOG.debug("DiscriminatorNode: {}", this);
 				
 	}
 	

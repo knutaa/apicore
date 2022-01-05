@@ -218,6 +218,8 @@ public class CoreAPIGraph {
 
 		Set<Edge> outgoingFromInline = inlineNodes.stream().map(g::outgoingEdgesOf).flatMap(Set::stream).collect(toSet());
 		
+		LOG.debug("generateGraph: outgoingFromInline=" + outgoingFromInline);
+
 		g.removeAllEdges(outgoingFromInline);
 		
 		return g;
@@ -545,7 +547,7 @@ public class CoreAPIGraph {
 		} else {			
 			Node to = getOrAddNode(g, type); 
 			
-			Predicate<Edge> isAllOfWithToNode = e -> g.getEdgeTarget(e).equals(to);
+			Predicate<Edge> isAllOfWithToNode = e -> e.isAllOf() && g.getEdgeTarget(e).equals(to);
 			
 			boolean hasAllOfEdge = g.edgesOf(node).stream().anyMatch(isAllOfWithToNode);
 			

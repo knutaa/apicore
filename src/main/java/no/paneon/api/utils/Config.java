@@ -962,5 +962,13 @@ public class Config {
 		
 	}
 
+	public static int getInteger(String property, int defaultValue) {
+		int res=defaultValue;
+		if(has(property)) {
+			res=getInteger(property);
+		}
+		return res;
+	}
+
 
 }
