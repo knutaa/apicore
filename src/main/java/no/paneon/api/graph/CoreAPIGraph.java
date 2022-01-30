@@ -1377,6 +1377,47 @@ public class CoreAPIGraph {
 		}
 	}
 
+
+	public static void removeDuplicatedInheritedRelationships(Graph<Node, Edge> graph, Node resourceNode) {
+		Set<String> allNodes = graph.vertexSet().stream().map(Node::getName).collect(toSet());
+		for(Node node : graph.vertexSet()) {
+			Set<String> inheritsFrom = node.getDeepInheritance();
+			inheritsFrom = inheritsFrom.stream().filter(allNodes::contains).collect(toSet());
+			
+			if(!inheritsFrom.isEmpty()) {
+				
+				for(String neighbour : inheritsFrom) {
+					Optional<Node> neighbourNode = CoreAPIGraph.getNodeByName(graph, neighbour);
+					
+					if(neighbourNode.isEmpty()) continue;
+					
+					LOG.debug("node={} inheritsFrom={}", node, inheritsFrom);
+					
+					Set<Edge> edgesFromNode = graph.outgoingEdgesOf(node);
+					
+					Set<Edge> edgesFromNeighbour = graph.outgoingEdgesOf(neighbourNode.get());
+					
+					LOG.debug("node={} edges={}", node, edgesFromNode);
+					LOG.debug("neighbour={} edges={}", neighbour, edgesFromNeighbour);
+					
+					Predicate<Edge> isMatch =  e -> edgesFromNeighbour.stream().anyMatch(e::isEdgeMatch);
+					
+					Set<Edge> redundantEdges = edgesFromNode.stream().filter(isMatch).collect(toSet());
+					
+					if(!redundantEdges.isEmpty()) {
+						LOG.debug("node={} redundantEdges={} ", node, redundantEdges);
+						graph.removeAllEdges(redundantEdges);
+					}
+						
+				}
+
+			}
+			
+			
+		}
+		
+	}
+
 //	private static void replaceAllOfWithReverseAllOfs(Graph<Node, Edge> completeGraph, Graph<Node, Edge> graph, Set<Edge> allOfEdges) {
 //		for(Edge edge : allOfEdges) {
 //			Edge reverse = new AllOfReverse(edge);

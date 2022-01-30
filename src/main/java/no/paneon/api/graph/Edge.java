@@ -110,4 +110,8 @@ public class Edge {
 
 		this.isMarked = value;
 	}
+	
+	public boolean isEdgeMatch(Edge e) {
+		return this.related.equals(e.related) && this.relation.contentEquals(e.relation);
+	}
 }

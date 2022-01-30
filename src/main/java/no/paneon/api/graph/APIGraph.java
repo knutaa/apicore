@@ -111,6 +111,8 @@ public class APIGraph extends CoreAPIGraph {
 			// CoreAPIGraph.simplifyAllOfDiscriminatorPairs(completeGraph, graph, resourceNode);
 		}
 		
+		this.removeDuplicatedInheritedRelationships();
+		
 		this.circles = GraphAlgorithms.cyclicAllCycles(this.graph, this.resourceNode);
 		
 		LOG.debug("init:: #2");
@@ -119,6 +121,7 @@ public class APIGraph extends CoreAPIGraph {
         
 	}
 	
+
 	static final String ITEMS = "items";
 	static final String REF = "$ref";
 	static final String TYPE = "type";
@@ -1127,6 +1130,10 @@ public class APIGraph extends CoreAPIGraph {
 		
 	}
 
+	
+	private void removeDuplicatedInheritedRelationships() {
+		CoreAPIGraph.removeDuplicatedInheritedRelationships(graph, resourceNode);
+	}
 	
 }
 

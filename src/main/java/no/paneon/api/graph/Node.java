@@ -911,6 +911,16 @@ public class Node implements Comparable<Object>  {
 	public Property getPropertyByName(String name) {
 		return this.properties.stream().filter(p -> p.getName().contentEquals(name)).findFirst().orElse(null);
 	}
+
+	public Set<String> getDeepInheritance() {
+		Set<String> inheritance = this.getInheritance();
+		
+		Set<String> indirectInheritance = inheritance.stream().map(Node::getNodeByName).map(Node::getDeepInheritance).flatMap(Set::stream).collect(toSet());
+		
+		inheritance.addAll(indirectInheritance);
+		
+		return inheritance;
+	}
 	
 }
 
