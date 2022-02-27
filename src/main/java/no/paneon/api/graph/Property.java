@@ -3,6 +3,8 @@ package no.paneon.api.graph;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import no.paneon.api.model.APIModel;
@@ -12,6 +14,8 @@ import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
 public class Property {
+
+    static final Logger LOG = LogManager.getLogger(Property.class);
 
 	String name;
 	String type;
@@ -136,4 +140,15 @@ public class Property {
 	public void setRequired() {
 		this.required=true;
 	}
+	
+	private boolean isVendorExtension=false;
+	public void setVendorExtension() {
+		LOG.debug("Property::setVendorExtension: property={}", this.name);
+		this.isVendorExtension=true;
+	}
+
+	public boolean getVendorExtension() {
+		return this.isVendorExtension;
+	}
+	
 }

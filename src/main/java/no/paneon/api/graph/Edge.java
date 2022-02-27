@@ -114,4 +114,15 @@ public class Edge {
 	public boolean isEdgeMatch(Edge e) {
 		return this.related.equals(e.related) && this.relation.contentEquals(e.relation);
 	}
+	
+	private boolean isVendorExtension=false;
+	public void setVendorExtension() {
+		LOG.debug("Edge::setVendorExtension: edge={}", this.relation);
+		this.isVendorExtension=true;
+	}
+
+	public boolean getVendorExtension() {
+		return this.isVendorExtension;
+	}
+	
 }

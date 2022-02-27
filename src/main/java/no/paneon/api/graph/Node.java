@@ -921,6 +921,24 @@ public class Node implements Comparable<Object>  {
 		
 		return inheritance;
 	}
+
+	private boolean isVendorExtension=false;
+	public void setVendorExtension() {
+		this.isVendorExtension=true;
+	}
+
+	public boolean getVendorExtension() {
+		return this.isVendorExtension;
+	}
+
+	public void setVendorAttributeExtension(List<String> extendedAttributes) {
+		
+		LOG.debug("Node:: {} extendedAttributes {}", this.getName(), extendedAttributes);
+		
+		this.properties.stream()
+			.filter(prop -> extendedAttributes.contains(prop.getName()))
+			.forEach(Property::setVendorExtension);
+	}
 	
 }
 
