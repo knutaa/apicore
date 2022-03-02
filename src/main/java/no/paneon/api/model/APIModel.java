@@ -56,6 +56,8 @@ public class APIModel {
 	
 	private static String swaggerSource;
 	
+	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
+
 //	static {    	
 //
 //		formatToType.put("date-time", "DateTime");
@@ -86,6 +88,7 @@ public class APIModel {
 	public APIModel(String filename, File file) {
 		try {
 			InputStream is = new FileInputStream(file);
+			APIModel.setSwaggerSource(filename);
 			setSwagger(Utils.readJSONOrYaml(is));
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from file '" + filename + "'");
@@ -100,6 +103,8 @@ public class APIModel {
 
 	public static void clean() {
 		allDefinitions = new JSONObject();	
+		resourcePropertyMap = new HashMap<>();
+		swagger = null;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -162,6 +167,7 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static void setSwaggerSource(String filename) {
+		LOG.debug("setSwaggerSource: filename={}", filename);
 		swaggerSource = filename;
 	}
 
@@ -529,8 +535,6 @@ public class APIModel {
 		return res;
 	}
 
-	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
-
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getPropertyObjectForResource(String coreResource) {
 		JSONObject res=null;
@@ -766,7 +770,10 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getDefinitions() {
-		if(swagger!=null && allDefinitions.keySet().isEmpty()) {		
+		if(swagger!=null && allDefinitions.keySet().isEmpty()) {	
+			
+			LOG.debug("APIModel::getDefinitions:: get all definitions");
+			
 			JSONObject res=null;
 			if(isOpenAPIv2(swagger))
 				res=swagger.optJSONObject("definitions");
@@ -775,6 +782,9 @@ public class APIModel {
 				if(components!=null) res = components.optJSONObject("schemas");
 			}
 			if(res!=null) allDefinitions = res;
+			
+			LOG.debug("APIModel::getDefinitions:: keys={}", allDefinitions.keySet());
+
 		}
 		return allDefinitions;
 	}
@@ -1273,6 +1283,8 @@ public class APIModel {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static APIModel loadAPI(String filename, File file) {
+		
+		LOG.debug("APIModel::loadAPI:: filename={}", filename);
 		
 		if(file==null) {
 			Out.println("... API file ´" + filename + "´ not found");

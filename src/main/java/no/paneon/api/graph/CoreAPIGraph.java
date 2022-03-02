@@ -9,13 +9,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 import org.apache.logging.log4j.Logger;
-import org.aspectj.weaver.patterns.ThisOrTargetAnnotationPointcut;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.AsSubgraph;
 import org.jgrapht.graph.EdgeReversedGraph;
@@ -25,7 +23,6 @@ import org.jgrapht.traverse.GraphIterator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import no.paneon.api.utils.Utils;
 import no.paneon.api.model.APIModel;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
@@ -246,6 +243,8 @@ public class CoreAPIGraph {
 		g.addVertex(node);
 		graphNodes.put(coreDefinition, node);
 		
+		LOG.debug("getOrAddNode:: adding new node={}", node);
+
 		if(node instanceof EnumNode) {
 			addEnumNode((EnumNode) node);
 		} else {
@@ -335,6 +334,8 @@ public class CoreAPIGraph {
 			}
 		});
 			
+		LOG.debug("addProperties:: node={} allOfObject={}", node, node.getProperties());
+
 		addEdgesForInheritedEnums(g, node);
 			
 	}	

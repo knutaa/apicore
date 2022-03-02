@@ -319,8 +319,13 @@ public class Utils {
 	public static void saveJSON(JSONObject json, String destination) {
 		
 		try {
-			String text = convertJsonToYaml(json);
-			save(text, destination);
+			if(destination.endsWith(".yaml") || destination.endsWith(".yml")) {
+				String text = convertJsonToYaml(json);
+				save(text, destination);
+			} else {
+				String text = json.toString(2);
+				save(text, destination);
+			}
 		} catch(Exception ex) {
 			Out.println("unable to write to file: ", destination);
 			System.exit(1);
