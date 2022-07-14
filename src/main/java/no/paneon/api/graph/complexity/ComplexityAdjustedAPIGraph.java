@@ -815,6 +815,8 @@ public class ComplexityAdjustedAPIGraph {
 
 	    Map<String,Graph<Node,Edge>> graphMap = createGraphsForSubResource(resourceGraph, resourceNode, subGraphsForResource);
 
+		Out.debug("generateSubGraphsFromConfig:: resource={} graphMap={} subGraphsForResource={}",  resource, graphMap.keySet(), subGraphsForResource);
+
 	    this.allGraphs = adjustSubGraphs(resourceNode, resourceGraph, graphMap);
 		
 	}

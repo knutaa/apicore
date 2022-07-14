@@ -1743,16 +1743,23 @@ public class APIModel {
 
 		JSONObject core = getPropertyObjectForResource( coreResource );
 
+		LOG.debug("getMandatoryOptional: resource={} core={}",  resource, core);
+
 		if(core==null) return res;
 
 		LOG.debug("getMandatoryOptional: resource={}",  resource);
 		
 		JSONObject createResource = getDefinition( getReverseResourceMapping(resource) + "_Create");
+		if(createResource==null) createResource = getDefinition( getReverseResourceMapping(resource) + "_FVO");
+		
 		JSONObject inputResource = getDefinition( getReverseResourceMapping(resource) + "Input");
-
+		if(inputResource==null) inputResource = getDefinition( getReverseResourceMapping(resource) + "_MVO");
+		
 		createResource = (createResource!=null) ? createResource : inputResource;
 
 		JSONObject create = getPropertyObjectForResource( createResource );
+
+		LOG.debug("getMandatoryOptional: resource={} create={}",  resource, create);
 
 		Set<String> coreProperties = getPropertyKeys( core );
 		Set<String> createProperties = getPropertyKeys( create );
@@ -1792,8 +1799,9 @@ public class APIModel {
 		JSONObject res = null;
 
 		res = getDefinition( getReverseResourceMapping(resource) + "_Create");
-
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_FVO");
 		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "Input");
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_MVO");
 
 		return res;
 	}
