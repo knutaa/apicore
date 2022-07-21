@@ -1807,7 +1807,9 @@ public class APIModel {
 	}
 
 	public static JSONObject getResourceForPatch(String resource) {
-		return getDefinition( getReverseResourceMapping(resource) + "_Update");
+		JSONObject res = getDefinition( getReverseResourceMapping(resource) + "_Update");
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_MVO");
+		return res;
 	}
 
 
