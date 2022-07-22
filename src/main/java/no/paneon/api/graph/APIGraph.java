@@ -63,7 +63,6 @@ public class APIGraph extends CoreAPIGraph {
 		super(core);
 		
 		this.graph=graph;
-		
 		this.resource = resource;	
 		this.resourceNode = getNode(resource);
 		this.keepTechnicalEdges = keepTechnicalEdges;

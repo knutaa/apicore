@@ -78,15 +78,6 @@ public class CoreAPIGraph {
 		
 		LOG.debug("CoreAPIGraph:: completeGraph={}", completeGraph);
 		
-//		final Node n = this.getNode("QuoteItem");
-//		if(n != null) {
-//			LOG.debug("CoreAPIGraph:: {} = {}", n, this.completeGraph.edgesOf(n).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(n)).collect(Collectors.toSet()));
-//		}
-//		
-//		final Node m = this.getNode("ProductRefOrValue");
-//		if(m != null) {
-//			LOG.debug("CoreAPIGraph:: {} = {}", m, this.completeGraph.edgesOf(m).stream().filter(e -> this.completeGraph.getEdgeSource(e).equals(m)).collect(toSet()));
-//		}
 		
 	}
 	
@@ -891,7 +882,9 @@ public class CoreAPIGraph {
 			// removeIrrelevantDiscriminatorRelationships(graph,node);
 		}
 
-		excludeNodes = excludeNodes.stream().filter(notEnumNode).collect(toSet());
+		excludeNodes = excludeNodes.stream()
+							.filter(notEnumNode)
+							.collect(toSet());
 		
 		LOG.debug("getSubGraphWithInheritance:: node={} excludeNodes={}", node, excludeNodes);
 
