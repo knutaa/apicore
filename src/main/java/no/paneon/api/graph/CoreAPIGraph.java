@@ -153,8 +153,8 @@ public class CoreAPIGraph {
 		
 		LOG.debug("### setNodeInheritance: node={} inheritance={}", node, inheritance);
 		
-		node.inheritance = Optional.of(inheritance);
-		
+		node.addInheritance(inheritance);
+
 	}
 	
 	private Graph<Node, Edge> convertToUnidirectional(Graph<Node, Edge> subGraph) {

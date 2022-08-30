@@ -767,6 +767,11 @@ public class Node implements Comparable<Object>  {
 		if(!this.inheritance.isPresent()) this.inheritance = Optional.of(new HashSet<>());
 		this.inheritance.get().add(type);
 	}
+	
+	public void addInheritance(Set<String> types) {
+		if(!this.inheritance.isPresent()) this.inheritance = Optional.of(new HashSet<>());
+		this.inheritance.get().addAll(types);
+	}
 
 	public Set<String> getInheritance() {
 		if(this.inheritance.isPresent()) 
@@ -918,6 +923,8 @@ public class Node implements Comparable<Object>  {
 		Set<String> indirectInheritance = inheritance.stream().map(Node::getNodeByName).map(Node::getDeepInheritance).flatMap(Set::stream).collect(toSet());
 		
 		inheritance.addAll(indirectInheritance);
+		
+		LOG.debug("getDeepInheritance: resource={} inheritance={}",  this.resource, inheritance);
 		
 		return inheritance;
 	}
