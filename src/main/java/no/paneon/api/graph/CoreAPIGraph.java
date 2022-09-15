@@ -76,12 +76,43 @@ public class CoreAPIGraph {
 		
 		markRequiredDiscriminators();
 		
+		updateCardinalityFromFactoryObjects();
+		
 		LOG.debug("CoreAPIGraph:: completeGraph={}", completeGraph);
 		
 		
 	}
 	
 	
+	private void updateCardinalityFromFactoryObjects() {
+		Set<Node> nodes = this.completeGraph.vertexSet().stream().filter(n-> !n.getName().endsWith("_FVO")).collect(toSet());
+		nodes.forEach(node -> {
+			Optional<Node> fvoNode = this.completeGraph.vertexSet().stream()
+										.filter(fvo -> fvo.getName().contentEquals(node.getName()+"_FVO"))
+										.findFirst();
+			
+			if(fvoNode.isPresent()) {
+				Set<Edge> edges = this.completeGraph.edgesOf(fvoNode.get());
+				edges.forEach(edge -> {
+					String cardinality = edge.cardinality;
+					Node target = this.completeGraph.getEdgeTarget(edge);
+					if(target.getName().endsWith("_FVO")) {
+						String baseTarget = target.getName().replace("_FVO","");
+						Optional<Node> baseTargetNode = CoreAPIGraph.getNodeByName(completeGraph, baseTarget);
+						if(baseTargetNode.isPresent()) target = baseTargetNode.get();
+					}
+					Edge baseEdge = this.completeGraph.getEdge(node, target);
+					
+					LOG.debug("updateCardinalityFromFactoryObjects: node={} target={} baseEdge={} cardinaliry={}",  node, target, baseEdge, cardinality);
+
+					if(baseEdge!=null) baseEdge.cardinality=cardinality;
+				
+				});
+			}
+		});
+	}
+
+
 	private void updateNodePropertiesFromFVO() {
 		Set<Node> nodes = this.completeGraph.vertexSet().stream().filter(n-> !n.getName().endsWith("_FVO")).collect(toSet());
 		nodes.forEach(Node::updatePropertiesFromFVO);		
@@ -630,9 +661,9 @@ public class CoreAPIGraph {
 				Edge edge = APIModel.isEnumType(type) ? 
 								new EdgeEnum(from, propertyName, to, cardinality, isRequired) :
 								new Edge(from, propertyName, to, cardinality, isRequired);
-
-				LOG.debug("addProperties: edge={}", edge);
 			
+				LOG.debug("addProperties: edge={} isRequired={}", edge, isRequired);
+
 				addGraphEdge(graph, from, to, edge);
 
 			} 

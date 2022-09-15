@@ -1247,7 +1247,7 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static boolean isRequired(String resource, String property) {
 		boolean res=false;
-
+		
 		JSONObject definition = getDefinition(resource);
 		if(definition!=null) {	
 			JSONArray required = definition.optJSONArray("required");
@@ -1255,6 +1255,9 @@ public class APIModel {
 			if(required!=null) {
 				res = required.toList().stream().filter(o -> o instanceof String).map(o -> (String)o).anyMatch(s -> s.equals(property));
 			}
+			
+			if(required!=null) LOG.debug("isRequired: resource={} property={} required={} res={}",  resource, property, required, res);
+
 		}
 
 		return res;
