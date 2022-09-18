@@ -22,6 +22,7 @@ import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
 import no.paneon.api.graph.Property;
 import no.paneon.api.model.APIModel;
+import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
@@ -140,11 +141,15 @@ public class ComplexityAdjustedAPIGraph {
 		
 		Predicate<Node> notResourceNode = n -> !n.equals(resourceNode);
 		
+		int discriminatorCutOff = Config.getInteger("maxDiscriminators",4);
+				
 		Set<Node> complexDiscriminators = nodes.stream()
-											.filter(n -> outBoundDiscriminators(graph,n)>2)
+											.filter(n -> outBoundDiscriminators(graph,n)>discriminatorCutOff)
 											.filter(notResourceNode)
 											.collect(toSet());
 		
+		LOG.debug("simplifyGraphForComplexDiscriminators: cutOff={}", discriminatorCutOff);
+
 	    if(!complexDiscriminators.isEmpty()) LOG.debug("simplifyGraphForComplexDiscriminators: resourceNode={} complexDiscriminators={}", resourceNode, complexDiscriminators);
 
 	    complexDiscriminators.retainAll( graph.vertexSet());
@@ -820,7 +825,7 @@ public class ComplexityAdjustedAPIGraph {
 
 	    Map<String,Graph<Node,Edge>> graphMap = createGraphsForSubResource(resourceGraph, resourceNode, subGraphsForResource);
 
-		Out.debug("generateSubGraphsFromConfig:: resource={} graphMap={} subGraphsForResource={}",  resource, graphMap.keySet(), subGraphsForResource);
+		LOG.debug("generateSubGraphsFromConfig:: resource={} graphMap={} subGraphsForResource={}",  resource, graphMap.keySet(), subGraphsForResource);
 
 	    this.allGraphs = adjustSubGraphs(resourceNode, resourceGraph, graphMap);
 		

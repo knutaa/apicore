@@ -32,7 +32,7 @@ public class App {
 		Out.printAlways("... this is the core API library for oas2puml and oastooling ...");
 		System.out.println("....");
 		
-		Out.debug("some test");
+		LOG.debug("some test");
 
 	}
 

@@ -58,11 +58,13 @@ public class CoreAPIGraph {
 		
 		this.completeGraph = generateGraph();	
 		
+		LOG.debug("CoreAPIGraph:: #1 edges={}", completeGraph.edgeSet());
+
 //		completeGraph.vertexSet().stream()
-//       	.filter(n -> n.getName().contentEquals("PermissionSpecificationRefOrValue"))
-//       	.map(n -> completeGraph.outgoingEdgesOf(n))
-//       	.forEach(e -> Out.debug("init: edge={}", e));
-//
+//       	.filter(n -> n.getName().contentEquals("ProductRefOrValue"))
+//       	.map(n -> completeGraph.edgesOf(n))
+//       	.forEach(e -> Out.debug("init: ProductRefOrValue edge={}", e));
+
 //		completeGraph.vertexSet().stream()
 //       	.filter(n -> n.getName().contentEquals("PermissionSpecification"))
 //       	.map(n -> completeGraph.outgoingEdgesOf(n))
@@ -80,6 +82,8 @@ public class CoreAPIGraph {
 		
 		LOG.debug("CoreAPIGraph:: completeGraph={}", completeGraph);
 		
+		LOG.debug("CoreAPIGraph:: #2 edges={}", completeGraph.edgeSet());
+
 		
 	}
 	
@@ -288,12 +292,15 @@ public class CoreAPIGraph {
 //			}
 		
 		if(node.getLocalDiscriminators().size()>1) {
-			LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
+			LOG.debug("getOrAddNode:: non empty local discriminator node={} localDiscriminator={}", node, node.getLocalDiscriminators());
 			node.getLocalDiscriminators().stream()
 					.filter(label -> !label.contentEquals(node.getName()))
 					.forEach(label -> {
-						Node to = getOrAddNode(g, label);
+						String discriminatorReference = APIModel.getDiscriminatorReference(node.getName(),label);
+						
+						Node to = getOrAddNode(g, discriminatorReference);
 						g.addEdge(node, to, new Discriminator(node, to));
+						LOG.debug("getOrAddNode:: add discriminator node={} to={}", node, to);
 					});
 		}
 		
@@ -799,6 +806,8 @@ public class CoreAPIGraph {
 	public static Graph<Node,Edge> getSubGraphWithInheritance(Graph<Node,Edge> origGraph, Node node, Node resource) {
 						
 		LOG.debug("getSubGraphWithInheritance: #000 node={} origGraph isDiscriminator=\n{}",  node, origGraph.edgeSet().stream().filter(Edge::isDiscriminator).map(Object::toString).collect(Collectors.joining("\n")));
+
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} complete edgeSet={}", node, resource, origGraph.edgeSet());
 
 		Set<Node> nodes = getNodesOfSubGraph(origGraph, node);
 		
@@ -1441,6 +1450,16 @@ public class CoreAPIGraph {
 			
 		}
 		
+	}
+
+
+	public static void removeUnreachable(Graph<Node, Edge> graph, Node node) {
+		Set<Node> reachables = CoreAPIGraph.getReachable(graph, node);
+		Set<Node> remove = graph.vertexSet().stream().filter(n -> !reachables.contains(n)).collect(toSet());
+		
+		LOG.debug("removeUnreachable: node={} reachables={} remove={}", node, reachables, remove);
+		
+		graph.removeAllVertices(remove);
 	}
 
 //	private static void replaceAllOfWithReverseAllOfs(Graph<Node, Edge> completeGraph, Graph<Node, Edge> graph, Set<Edge> allOfEdges) {

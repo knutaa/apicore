@@ -88,6 +88,9 @@ public class APIGraph extends CoreAPIGraph {
 	}
 	
 	private void init() {
+		
+        LOG.debug("APIGraph: resource={} edges={}", resource, graph.edgeSet());
+
 		this.required = new HashMap<>();
 
 		this.processedSwagger = new ArrayList<>();
@@ -117,7 +120,9 @@ public class APIGraph extends CoreAPIGraph {
 		LOG.debug("init:: #2");
 		
         LOG.debug("APIGraph: resource={} #2 graph={}", resource, graph.vertexSet());
-        
+     
+        LOG.debug("APIGraph: resource={} edges={}", resource, graph.edgeSet());
+
 	}
 	
 

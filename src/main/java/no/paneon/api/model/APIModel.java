@@ -198,6 +198,7 @@ public class APIModel {
 	private static final String NOTIFICATIONS = "notifications";
 
 	private static final String ALLOF = "allOf";
+	private static final String ONEOF = "oneOf";
 
 	private static final String DISCRIMINATOR = "discriminator";
 	private static final String MAPPING = "mapping";
@@ -604,6 +605,11 @@ public class APIModel {
 		return getDefinitions(coreResource, ALLOF);
 	}
 
+	@LogMethod(level=LogLevel.DEBUG) 
+	public static JSONArray getOneOfForResource(String coreResource) {
+		return getDefinitions(coreResource, ONEOF);
+	}
+	
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getPropertyObjectForResource(JSONObject resource) {
 		if(resource!=null && resource.has(PROPERTIES)) resource=resource.optJSONObject(PROPERTIES);
@@ -2142,6 +2148,21 @@ public class APIModel {
 
 		return res;
 
+	}
+
+	public static String getDiscriminatorReference(String node, String discriminator) {
+		String res="";
+		JSONObject def = APIModel.getDefinition(node);
+		if(def!=null) def = def.optJSONObject(DISCRIMINATOR);
+		if(def!=null) def = def.optJSONObject(MAPPING);
+		if(def!=null) res = def.optString(discriminator);
+
+		String parts[] = res.split("/");
+		res=parts[parts.length-1];
+		
+		LOG.debug("getDiscriminatorReference: node={} discriminator={} res={}", node, discriminator, res);
+		
+		return res;
 	}
 
 

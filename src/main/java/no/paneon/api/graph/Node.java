@@ -122,7 +122,8 @@ public class Node implements Comparable<Object>  {
 
 			addPropertyDetails(Property.BASE);									
 			addAllOfs(visibility);
-							
+			// addOneOfs(visibility);
+			
 		}
 				
 	}
@@ -278,7 +279,9 @@ public class Node implements Comparable<Object>  {
 		if(def!=null) {
 			LOG.debug("Node::getInlineDefinition resource={} def={}" , resource, def.toString() );
 			
-			if(def.has(ENUM)) {
+			if(def.has(DISCRIMINATOR)) {
+				res = "";
+			} else if(def.has(ENUM)) {
 				res = "";
 			} else if(def.has(PROPERTIES)) {
 				res = "";
@@ -531,6 +534,27 @@ public class Node implements Comparable<Object>  {
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
+	private void addOneOfs(Property.Visibility visibility) {		
+		JSONArray oneOfs = APIModel.getOneOfForResource(this.resource);
+		addOneOfs(oneOfs, visibility);
+		
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	private void addOneOfs(JSONArray oneOfs, Property.Visibility visibility) {
+		
+		LOG.debug("addOneOfs: node={} addOneOfs={}", this, oneOfs.toString(2));
+
+		oneOfs.forEach(oneOf -> {
+			if(oneOf instanceof JSONObject) {
+				JSONObject definition = (JSONObject) oneOf;
+				addOneOfObject(definition, visibility);
+			}
+		});
+				
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(JSONArray allOfs, Property.Visibility visibility) {
 		
 		LOG.debug("addAllOfs: node={} addAllOfs={}", this, allOfs.toString(2));
@@ -587,6 +611,23 @@ public class Node implements Comparable<Object>  {
 		if(definition.has(ALLOF)) {
 			addAllOfs(definition.optJSONArray(ALLOF), visibility);
 		}
+	}
+	
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public void addOneOfObject(JSONObject definition, Property.Visibility visibility) {
+		
+		LOG.debug("addOneOfObject: node={} definition={}", this, definition);
+
+		if(definition.has(REF)) {
+			String type = APIModel.getTypeByReference(definition.optString(REF));
+				
+			if(Config.getBoolean(INCLUDE_INHERITED)) {
+				JSONObject obj = APIModel.getDefinitionBySchemaObject(definition);
+				addAllOfObject(obj,Property.VISIBLE_INHERITED);
+			}	
+		}
+	
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
