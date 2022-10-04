@@ -523,13 +523,13 @@ public class Node implements Comparable<Object>  {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(Property.Visibility visibility) {
-//		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
-//			JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
-//			addAllOfs(allOfs, visibility);
-//		}
+		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
+			JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
+			addAllOfs(allOfs, visibility);
+		}
 		
-		JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
-		addAllOfs(allOfs, visibility);
+//		JSONArray allOfs = APIModel.getAllOfForResource(this.resource);
+//		addAllOfs(allOfs, visibility);
 		
 	}
 	
@@ -624,7 +624,7 @@ public class Node implements Comparable<Object>  {
 				
 			if(Config.getBoolean(INCLUDE_INHERITED)) {
 				JSONObject obj = APIModel.getDefinitionBySchemaObject(definition);
-				addAllOfObject(obj,Property.VISIBLE_INHERITED);
+				addOneOfObject(obj,Property.VISIBLE_INHERITED);
 			}	
 		}
 	
@@ -694,6 +694,22 @@ public class Node implements Comparable<Object>  {
 		return this.properties;
 	}
 
+	public List<Property> getInheritedProperties(Graph<Node, Edge> graph) {
+		List<Property> res = new LinkedList<>();
+		List<Node> related = graph.edgesOf(this).stream().filter(Edge::isAllOf).map(e->e.related).collect(toList());
+		
+		LOG.debug("getInheritedProperties:: node={} related={}", this.getName(), related);
+		
+		related.forEach(n -> {
+			if(n==this) return;
+			res.addAll( n.getInheritedProperties(graph));
+			res.addAll( n.getProperties());
+		});
+		
+		return res;
+		
+	}
+	
 	public List<OtherProperty> getOtherProperties() {
 		return this.otherProperties;
 	}
@@ -979,14 +995,24 @@ public class Node implements Comparable<Object>  {
 		return this.isVendorExtension;
 	}
 
-	public void setVendorAttributeExtension(List<String> extendedAttributes) {
+	public void setVendorAttributeExtension(List<String> extensionAttributes) {
 		
-		LOG.debug("Node:: {} extendedAttributes {}", this.getName(), extendedAttributes);
+		LOG.debug("Node:: {} extendedAttributes {}", this.getName(), extensionAttributes);
 		
 		this.properties.stream()
-			.filter(prop -> extendedAttributes.contains(prop.getName()))
+			.filter(prop -> extensionAttributes.contains(prop.getName()))
 			.forEach(Property::setVendorExtension);
 	}
+
+	List<String> discriminatorExtension = new LinkedList<>();
+	public void setVendorDiscriminatorExtension(List<String> discriminators) {
+		this.discriminatorExtension=discriminators;
+	}
+
+	public List<String> getDiscriminatorExtension() {
+		return this.discriminatorExtension;
+	}
+
 	
 }
 

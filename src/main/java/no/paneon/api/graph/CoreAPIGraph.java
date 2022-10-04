@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -70,6 +71,8 @@ public class CoreAPIGraph {
 //       	.map(n -> completeGraph.outgoingEdgesOf(n))
 //       	.forEach(e -> Out.debug("init: edge={}", e));
 		
+		addOrphanEnums();
+		
 		updateNodeInheritance();
 		
 		updateNodePropertiesFromFVO();
@@ -87,7 +90,43 @@ public class CoreAPIGraph {
 		
 	}
 	
-	
+	@LogMethod(level=LogLevel.DEBUG)
+	private void addOrphanEnums() {
+  	    List<String> orphans = Config.getOrphanEnums();
+  	    LOG.debug("## addOrphanEnums(): orphans={}", orphans);
+  	    if(Config.getIncludeOrphanEnums()) {
+  	    	JSONObject orphanEnums = Config.getConfig("orphan-enums-by-resource");
+  	    	
+  	    	orphanEnums.keySet().stream().forEach(resource -> {
+  	    		
+  	    		if(orphanEnums.optJSONArray(resource)==null) return;
+  	    		
+  	    		Node node = this.getNode(resource);
+  	    		List<String> enums = orphanEnums.getJSONArray(resource).toList().stream().map(Object::toString).collect(toList());
+  	    		
+  	    		if(enums.isEmpty()) {
+  	    			enums = this.enumNodes.entrySet().stream().filter(v -> {
+  	    				 return this.completeGraph.incomingEdgesOf(v.getValue()).isEmpty();
+  	    			}).map(m->m.getValue()).map(EnumNode::getName).collect(toList());
+  	    		}
+  	    		
+  	  	  	    LOG.debug("## addOrphanEnums: resource={} orphanEnums={}", resource, enums);
+
+  	    		enums.forEach(e -> {
+  	    			Node orphanNode = this.getNode(e);
+  	    			if(orphanNode!=null) {
+  	    		 	    Edge edge = new EdgeEnum(node,"", orphanNode,"",false);
+  	  	    	  	    this.completeGraph.addEdge(node, orphanNode, edge);
+  	  	    	 
+  	    			}
+
+  	    		});
+  	    	});
+  	    }
+				
+	}
+
+
 	private void updateCardinalityFromFactoryObjects() {
 		Set<Node> nodes = this.completeGraph.vertexSet().stream().filter(n-> !n.getName().endsWith("_FVO")).collect(toSet());
 		nodes.forEach(node -> {
@@ -109,8 +148,15 @@ public class CoreAPIGraph {
 					
 					LOG.debug("updateCardinalityFromFactoryObjects: node={} target={} baseEdge={} cardinaliry={}",  node, target, baseEdge, cardinality);
 
-					if(baseEdge!=null) baseEdge.cardinality=cardinality;
-				
+					if(baseEdge!=null) {
+						baseEdge.cardinality=cardinality;
+						Property p = node.getPropertyByName(baseEdge.relation);
+						if(p!=null && !p.getCardinality().contentEquals((cardinality))) {
+							LOG.debug("updateCardinalityFromFactoryObjects: update property cardinality node={} edge_cardinality={} property_cardinalit={}", node.getName(), cardinality, p.getCardinality());
+							p.setCardinality(cardinality);
+						}
+					}
+					
 				});
 			}
 		});
@@ -1460,6 +1506,33 @@ public class CoreAPIGraph {
 		LOG.debug("removeUnreachable: node={} reachables={} remove={}", node, reachables, remove);
 		
 		graph.removeAllVertices(remove);
+	}
+
+	public static Set<Edge> getNonInheritedEdges(Graph<Node, Edge> graph, Node node) {
+		Set<Edge> res = new HashSet<>();
+
+		Set<Edge> inheritedEdges = getInheritedEdges(graph,node);
+		graph.edgesOf(node).forEach(edge -> {
+			boolean inherited = inheritedEdges.stream().anyMatch(e -> e.related==edge.related);
+			if(!inherited) res.add(edge);
+		});
+		
+		LOG.debug("getNonInheritedEdges: node={} res={}", node, res);
+
+		return res;
+	}
+
+	private static Set<Edge> getInheritedEdges(Graph<Node, Edge> graph, Node node) {
+		Set<Edge> res = new HashSet<>();
+		
+		Set<Edge> outboundAllOfs = graph.outgoingEdgesOf(node).stream().filter(Edge::isAllOf).collect(toSet());
+		
+		outboundAllOfs.forEach(edge -> {
+			res.addAll( getInheritedEdges(graph, edge.related));
+			res.addAll( graph.edgesOf(edge.related) );
+		});
+		
+		return res;
 	}
 
 //	private static void replaceAllOfWithReverseAllOfs(Graph<Node, Edge> completeGraph, Graph<Node, Edge> graph, Set<Edge> allOfEdges) {

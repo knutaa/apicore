@@ -39,6 +39,7 @@ public class ComplexityAdjustedAPIGraph {
 	
 	static final int GRAPH_PRUNE_MIN_SIZE = 10;
 	static final String REF_OR_VALUE = "RefOrValue";
+	static final String GRAPH_PRUNE_NONINHERIT_LIMIT = "graphPruneNonInheritLimit";
 	
 	boolean keepTechnicalEdges;
 	
@@ -374,6 +375,16 @@ public class ComplexityAdjustedAPIGraph {
 		if(!optSubResource.isPresent() || !optRootToPrune.isPresent()) return res;
 		
 		if(rootOfGraphToRemove.contentEquals(resource)) return res;
+		
+		if(!optRootToPrune.isPresent()) return res;
+
+		Set<Edge> outgoingFromRoot = CoreAPIGraph.getNonInheritedEdges(originalGraph,optSubResource.get());
+		boolean isTooSimple = outgoingFromRoot.size()<=Config.getInteger(GRAPH_PRUNE_NONINHERIT_LIMIT, 4);
+		
+		LOG.debug("removeContainedSubgraph: rootOfGraphToPrune={} outgoingFromRoot.size()={} isTooSimple={}",  
+				rootOfGraphToPrune, outgoingFromRoot.size(), isTooSimple);
+
+		if(isTooSimple) return res;
 		
 		Node subResource = optSubResource.get();
 		

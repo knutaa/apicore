@@ -96,7 +96,7 @@ public class Property {
 	}
 	
 	public String toString() {
-		return name + " : " + type + " required:" + required;
+		return name + " : " + type + " required:" + required + " visibility:" + this.visibility;
 	}
 	
 	List<String> values = new LinkedList<>();
@@ -149,6 +149,10 @@ public class Property {
 
 	public boolean getVendorExtension() {
 		return this.isVendorExtension;
+	}
+
+	public void setCardinality(String val) {
+		this.cardinality=val;
 	}
 	
 }

@@ -15,7 +15,9 @@ public class APISubGraph extends APIGraph {
 		LOG.debug("APISubGraph; node={}", node);
 		
 		Optional<Node> n = CoreAPIGraph.getNodeByName(graph, node);
-		Optional<Node> parentNode = CoreAPIGraph.getNodeByName(graph, node);
+		Optional<Node> parentNode = CoreAPIGraph.getNodeByName(graph, parent);
+
+		LOG.debug("APISubGraph; node={} parentNode={}", node, parentNode);
 
 		if(n.isPresent() && parentNode.isPresent()) {
 			Node source=parentNode.get();

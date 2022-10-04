@@ -124,5 +124,14 @@ public class Edge {
 	public boolean getVendorExtension() {
 		return this.isVendorExtension;
 	}
+
+	private boolean isCardinalityExtension=false;
+	public void setCardinalityExtension() {
+		this.isCardinalityExtension=true;
+	}
+
+	public boolean getCardinalityExtension() {
+		return this.isCardinalityExtension;
+	}
 	
 }
