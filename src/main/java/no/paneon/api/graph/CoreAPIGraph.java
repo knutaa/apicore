@@ -73,6 +73,20 @@ public class CoreAPIGraph {
 		
 		addOrphanEnums();
 		
+		if(Config.getBoolean("removeInheritedAllOfEdges")) {
+			completeGraph.vertexSet().forEach(node -> {
+				node.getInheritance().forEach(inherits -> {
+					Optional<Node> inheritsNode = CoreAPIGraph.getNodeByName(completeGraph, inherits);
+					if(inheritsNode.isPresent()) {
+						completeGraph.outgoingEdgesOf(node).stream()
+							.filter(Edge::isAllOf)
+							.map(completeGraph::removeEdge);
+					}
+				});
+				node.clearInheritance();
+			});
+		}
+
 		updateNodeInheritance();
 		
 		updateNodePropertiesFromFVO();
@@ -86,7 +100,7 @@ public class CoreAPIGraph {
 		LOG.debug("CoreAPIGraph:: completeGraph={}", completeGraph);
 		
 		LOG.debug("CoreAPIGraph:: #2 edges={}", completeGraph.edgeSet());
-
+		
 		
 	}
 	

@@ -1013,6 +1013,10 @@ public class Node implements Comparable<Object>  {
 		return this.discriminatorExtension;
 	}
 
+	public void clearInheritance() {
+		this.inheritance = Optional.empty();
+	}
+
 	
 }
 
