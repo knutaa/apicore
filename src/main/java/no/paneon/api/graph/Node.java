@@ -48,7 +48,8 @@ public class Node implements Comparable<Object>  {
 	List<String> enums; 
 	
 	Optional<Set<String>> inheritance;
-	
+	Set<String> actualInheritance;
+
 	// Set<String> discriminatorMapping;
 	Set<String> localDiscriminatorMapping;
 
@@ -77,19 +78,21 @@ public class Node implements Comparable<Object>  {
 	
 	protected Node() {
 		
-		properties = new LinkedList<>();
-		placements = new EnumMap<>(Place.class);
+		this.properties = new LinkedList<>();
+		this.placements = new EnumMap<>(Place.class);
 		
-		otherProperties = new LinkedList<>();
+		this.otherProperties = new LinkedList<>();
 		
-		enums = new LinkedList<>();
+		this.enums = new LinkedList<>();
 		
-		inheritance = Optional.empty();
+		this.inheritance = Optional.empty();
 		//discriminatorMapping = new HashSet<>();
-		externalDiscriminatorMapping = Optional.empty();
+		this.externalDiscriminatorMapping = Optional.empty();
 		
-		localDiscriminatorMapping = new HashSet<>();
+		this.localDiscriminatorMapping = new HashSet<>();
 		
+		this.actualInheritance = new HashSet<>();
+
 		// inheritedDiscriminatorMapping = new HashSet<>();
 
 	}
@@ -1014,9 +1017,25 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public void clearInheritance() {
+		if(this.inheritance.isPresent()) this.actualInheritance.addAll(this.inheritance.get());
 		this.inheritance = Optional.empty();
 	}
 
+	public Set<String> getActualInheritance() {
+		Set<String> res = this.actualInheritance;
+		res.addAll(this.getInheritance());
+		return res;
+	}
+
+	List<String> inheritanceExtension = new LinkedList<>();
+	public void setVendorInheritanceExtension(List<String> inheritance) {
+		LOG.debug("setVendorInheritanceExtension: node={} inheritance={}", this.getName(), inheritance);
+		this.inheritanceExtension=inheritance;
+	}
+	
+	public List<String> getInheritanceExtension() {
+		return this.inheritanceExtension;
+	}
 	
 }
 
