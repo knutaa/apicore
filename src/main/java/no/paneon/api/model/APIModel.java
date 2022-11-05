@@ -54,6 +54,8 @@ public class APIModel {
 	private static String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
 	private static String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
 	
+	private static String RESOURCE_MAPPING = "resourceMapping";
+	
 	private static String swaggerSource;
 	
 	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
@@ -75,17 +77,22 @@ public class APIModel {
 //	}
 
 	private APIModel() {
+		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
+		reverseMapping = generateReverseMapping(resourceMapping);
 	}
 
 	public APIModel(JSONObject api) {
+		this();
 		setSwagger(api);
 	}
 
 	private APIModel(String swaggerSource) {
+		this();
 		setSwagger(Utils.readJSONOrYaml(swaggerSource));
 	}
 
 	public APIModel(String filename, File file) {
+		this();
 		try {
 			InputStream is = new FileInputStream(file);
 			APIModel.setSwaggerSource(filename);
@@ -169,6 +176,10 @@ public class APIModel {
 	public static void setSwaggerSource(String filename) {
 		LOG.debug("setSwaggerSource: filename={}", filename);
 		swaggerSource = filename;
+		
+		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
+		reverseMapping = generateReverseMapping(resourceMapping);
+		
 	}
 
 	private static final String FORMAT = "format";
@@ -230,6 +241,7 @@ public class APIModel {
 				.map(APIModel::getResourceFromResponse)
 				.flatMap(List::stream)
 				.distinct()
+				// .map(APIModel::getMappedResource)
 				.collect(toList());
 
 		LOG.debug("getCoreResources:: {}", res);
@@ -975,7 +987,9 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getAllDefinitions() {
-		return getDefinitions().keySet().stream().collect(toList());
+		return getDefinitions().keySet().stream()
+				// 2022-11-04 .map(APIModel::getMappedResource)
+				.collect(toList());
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1650,7 +1664,7 @@ public class APIModel {
 				.flatMap(List::stream)
 				.map(APIModel::getResourceFromResponse)
 				.flatMap(List::stream)
-				.map(APIModel::getMappedResource)
+				// 2022-11-04 .map(APIModel::getMappedResource)
 				.collect(Collectors.toList());
 
 	}
@@ -1658,8 +1672,11 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getMappedResource(String resource) {
 		String res=resource;
+		LOG.debug("getMappedResource: resource={} resourceMapping={}", resource, resourceMapping);
+
 		if(resourceMapping!=null && resourceMapping.has(resource) && resourceMapping.optString(resource)!=null) {
 			res = resourceMapping.getString(resource);
+			LOG.debug("getMappedResource: resource={} res={}", resource, res);
 		}
 		return res;
 	}
@@ -1677,6 +1694,8 @@ public class APIModel {
 	public static JSONObject generateReverseMapping(JSONObject map) {
 		JSONObject res = new JSONObject();
 
+		if(map==null) return res;
+		
 		for(String key : map.keySet()) {
 			if(map.optString(key)!=null) {
 				res.put(map.getString(key), key);
@@ -2033,7 +2052,7 @@ public class APIModel {
 						.flatMap(List::stream)
 						.map(APIModel::getResourceFromResponse)
 						.flatMap(List::stream)
-						.map(APIModel::getMappedResource)
+						// 2022-11-04 .map(APIModel::getMappedResource)
 						.collect(Collectors.toList());
 
 				for(String resource : resources) {
