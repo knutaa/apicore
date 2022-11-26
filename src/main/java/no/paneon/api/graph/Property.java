@@ -138,6 +138,7 @@ public class Property {
 	}
 	
 	public void setRequired() {
+		LOG.debug("Property::setRequired: property={}", this.name);
 		this.required=true;
 	}
 	
@@ -155,4 +156,24 @@ public class Property {
 		this.cardinality=val;
 	}
 	
+	private boolean isRequiredExtension=false;
+	public void setRequiredExtension() {
+		LOG.debug("Property::setRequiredExtension: property={}", this.name);
+		this.isRequiredExtension=true;
+	}
+
+	public boolean getRequiredExtension() {
+		return this.isRequiredExtension;
+	}
+
+	private boolean isTypeExtension=false;
+	public void setTypeExtension() {
+		LOG.debug("Property::setTypeExtension: property={}", this.name);
+		this.isTypeExtension=true;
+	}
+
+	public boolean getTypeExtension() {
+		return this.isTypeExtension;
+	}
+
 }

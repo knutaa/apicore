@@ -696,7 +696,13 @@ public class CoreAPIGraph {
 		
 		for(String propertyName : properties.keySet()) {
 						
-			JSONObject property = properties.getJSONObject(propertyName);
+			JSONObject property = properties.optJSONObject(propertyName);
+			
+			if(property==null) {
+				Out.printAlways("... ERROR: expecting property {} to be a JSON object, found {}", propertyName, properties.get(propertyName).getClass());
+				continue; 
+			}
+			
 			String type = APIModel.getTypeName(property);
 
 			String coreType = APIModel.removePrefix(type);

@@ -134,4 +134,13 @@ public class Edge {
 		return this.isCardinalityExtension;
 	}
 	
+	private boolean isRequiredExtension=false;
+	public void setRequiredExtension(boolean value) {
+		this.isRequiredExtension=value;
+	}
+
+	public boolean getRequiredExtension() {
+		return this.isRequiredExtension;
+	}
+	
 }

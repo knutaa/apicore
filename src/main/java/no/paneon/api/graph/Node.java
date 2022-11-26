@@ -459,6 +459,14 @@ public class Node implements Comparable<Object>  {
 		
 					boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
 					
+					if(isRequired) {
+						LOG.debug("addPropertyDetails: node={} property={} isRequired={} contains={}", 
+								this, propName,
+								APIModel.isRequired(this.resource, propName),
+								required.contains(propName));
+
+					}
+					
 					if(!seen) {
 						Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 						
@@ -487,8 +495,9 @@ public class Node implements Comparable<Object>  {
 					if(APIModel.isEnumType(type) && !enums.contains(coreType)) {
 						enums.add(coreType);
 					}
+					
 				} else {
-					Out.printAlways("... unexpected property in " + propObj.toString());
+					Out.printAlways("... ERROR: expecting property {} to be a JSON object, found {}", propName, propObj.get(propName).getClass());
 				}	
 			}
 		} 
@@ -1007,6 +1016,22 @@ public class Node implements Comparable<Object>  {
 			.forEach(Property::setVendorExtension);
 	}
 
+	public void setVendorAttributeExtension(String propName, boolean required, boolean type) {
+		
+		LOG.debug("Node:: {} setVendorAttributeExtension {} {}", this.getName(), propName, required);
+
+		Property p = this.getPropertyByName(propName);
+		if(p!=null) {
+			p.setVendorExtension();
+			if(required) p.setRequiredExtension();
+			if(type) p.setTypeExtension();
+
+		}
+		
+		LOG.debug("setVendorAttributeExtension: node={} p={} property={} required={}",  this.getName(), p, propName, required);
+		
+	}
+	
 	List<String> discriminatorExtension = new LinkedList<>();
 	public void setVendorDiscriminatorExtension(List<String> discriminators) {
 		this.discriminatorExtension=discriminators;

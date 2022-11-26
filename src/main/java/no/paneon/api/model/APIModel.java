@@ -1274,10 +1274,10 @@ public class APIModel {
 
 			if(required!=null) {
 				res = required.toList().stream().filter(o -> o instanceof String).map(o -> (String)o).anyMatch(s -> s.equals(property));
-			}
-			
-			if(required!=null) LOG.debug("isRequired: resource={} property={} required={} res={}",  resource, property, required, res);
+				
+				LOG.debug("isRequired: resource={} property={} required={} res={}",  resource, property, required, res);
 
+			}
 		}
 
 		return res;
