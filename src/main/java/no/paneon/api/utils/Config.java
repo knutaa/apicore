@@ -40,7 +40,7 @@ public class Config {
 
     private static final Logger LOG = LogManager.getLogger(Config.class);
 
-    private static final List<String> configFiles = new LinkedList<>();
+    private static List<String> configFiles = new LinkedList<>();
     
     private static final String NEWLINE = "\n";
 
@@ -82,6 +82,10 @@ public class Config {
 	}
 	
     private static boolean initStatus = false;
+    
+    public static void reset() {
+    	configFiles = new LinkedList<>();
+    }
     
     public static void init() {
     	if(initStatus) return;

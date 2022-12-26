@@ -1,6 +1,7 @@
 package no.paneon.api.graph.complexity;
 
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
@@ -35,9 +36,9 @@ public class Complexity {
 	Node resource;
 	
 	Map<Node, Integer> nodeComplexity;
-	
-	public Complexity(Graph<Node,Edge> graph, Node resource) {
-		this.graph = CoreAPIGraph.getSubGraphWithInheritance(graph, resource, resource);
+	 
+	public Complexity(Collection<String> allResources, Graph<Node,Edge> graph, Node resource) {
+		this.graph = CoreAPIGraph.getSubGraphWithInheritance(allResources, graph, resource, resource);
 		this.resource = resource;
 		this.nodeComplexity = new HashMap<>();
 

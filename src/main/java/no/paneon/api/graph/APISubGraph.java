@@ -1,5 +1,6 @@
 package no.paneon.api.graph;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 
@@ -9,8 +10,8 @@ import no.paneon.api.utils.Out;
 
 public class APISubGraph extends APIGraph {
 
-	public APISubGraph(CoreAPIGraph core, Graph<Node,Edge> graph, String parent, String node, boolean keepTechnicalEdges) {
-		super(core, graph, node, keepTechnicalEdges);
+	public APISubGraph(Collection<String> allResources, String mainResource, CoreAPIGraph core, Graph<Node,Edge> graph, String parent, String node, boolean keepTechnicalEdges) {
+		super(allResources, mainResource, core, graph, node, keepTechnicalEdges);
 		
 		LOG.debug("APISubGraph; node={}", node);
 		

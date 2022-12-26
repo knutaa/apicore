@@ -509,6 +509,7 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	private Set<String> getAllDiscriminators() {
 		if(allDiscriminators.isEmpty()) {
+			allDiscriminators = Optional.of( new HashSet<>() );
 			allDiscriminators = Optional.of( Node.getAllDiscriminatorsHelper(this));
 		}
 		return allDiscriminators.get();
@@ -986,7 +987,14 @@ public class Node implements Comparable<Object>  {
 		return this.properties.stream().filter(p -> p.getName().contentEquals(name)).findFirst().orElse(null);
 	}
 
+	Optional<Set<String>> deepInheritance = Optional.empty();
+
 	public Set<String> getDeepInheritance() {
+		
+		if(!deepInheritance.isEmpty()) return deepInheritance.get();
+		
+		deepInheritance = deepInheritance.of(new HashSet<>());
+		
 		Set<String> inheritance = this.getInheritance();
 		
 		Set<String> indirectInheritance = inheritance.stream().map(Node::getNodeByName).map(Node::getDeepInheritance).flatMap(Set::stream).collect(toSet());
@@ -994,6 +1002,8 @@ public class Node implements Comparable<Object>  {
 		inheritance.addAll(indirectInheritance);
 		
 		LOG.debug("getDeepInheritance: resource={} inheritance={}",  this.resource, inheritance);
+		
+		deepInheritance = deepInheritance.of(inheritance);
 		
 		return inheritance;
 	}

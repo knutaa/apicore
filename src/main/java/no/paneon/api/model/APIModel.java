@@ -56,25 +56,16 @@ public class APIModel {
 	
 	private static String RESOURCE_MAPPING = "resourceMapping";
 	
+	private static String FLATTEN_INHERITANCE = "expandInherited";
+	
 	private static String swaggerSource;
 	
 	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
 
-//	static {    	
-//
-//		formatToType.put("date-time", "DateTime");
-//		formatToType.put("date", "Date");
-//		formatToType.put("float", "Float");
-//		formatToType.put("uri", "Uri");
-//		formatToType.put("url", "Url");
-//
-//		typeMapping.put("integer", "Integer");
-//		typeMapping.put("string", "String");
-//		typeMapping.put("boolean", "Boolean");
-//		typeMapping.put("number", "Number");
-//
-//
-//	}
+    private static boolean firstAPImessage=true;
+
+    private static Map<String,Counter> operationCounter = null;
+
 
 	private APIModel() {
 		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
@@ -112,12 +103,17 @@ public class APIModel {
 		allDefinitions = new JSONObject();	
 		resourcePropertyMap = new HashMap<>();
 		swagger = null;
+		firstAPImessage=true;
+		operationCounter = null;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static void setSwagger(JSONObject api) {
-		swagger = api;
 		
+		clean();
+		
+		swagger = api;
+
 		LOG.debug("setSwagger:: keys={}", swagger.keySet());
 
 		rearrangeDefinitions(swagger);
@@ -127,7 +123,7 @@ public class APIModel {
 	private static void rearrangeDefinitions(JSONObject api) {
 		
 		LOG.debug("rearrangeDefinitions:: keys={}", api.keySet());
-
+		
 		for(String type : getAllDefinitions() ) {
 			JSONObject definition = getDefinition(type);
 			
@@ -559,7 +555,7 @@ public class APIModel {
 			
 			LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res);
 
-			if(res!=null) {	
+			if(res!=null && !res.isEmpty() && Config.getBoolean(FLATTEN_INHERITANCE)) {	
 				JSONObject allOfs = getFlattenAllOfs(coreResource);
 				res = mergeJSON(res,allOfs);
 				
@@ -574,13 +570,21 @@ public class APIModel {
 		return res;
 	}
 
+	static Map<String,JSONObject> flattened = new HashMap<>();
+	
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getFlattenAllOfs(String resource) {
+		LOG.debug("getFlattenAllOfs: resource={}", resource);
+		
+		if(flattened.containsKey(resource)) return flattened.get(resource);
+		
+		flattened.put(resource, new JSONObject());
+		
 		final JSONObject target = new JSONObject();
 		JSONObject definition = getDefinition(resource);
 		if(definition!=null && definition.has(ALLOF)) {
 			JSONArray allofs = definition.optJSONArray(ALLOF);
-			if(allofs!=null) {
+			if(allofs!=null && !allofs.isEmpty()) {
 				allofs.forEach(allof -> {
 					if(allof instanceof JSONObject) {
 						JSONObject allOfDefinition = (JSONObject) allof;
@@ -600,6 +604,9 @@ public class APIModel {
 				});
 			}
 		}
+		
+		flattened.put(resource, target);
+		
 		return target;
 	}
 	
@@ -885,7 +892,6 @@ public class APIModel {
 		return res;
 	}
 
-	private static boolean firstAPImessage=true;
 	private static void setSeenAPImessage() {
 		firstAPImessage=false;
 	}
@@ -2011,9 +2017,6 @@ public class APIModel {
 		return getDefinition(resource, DISCRIMINATOR, MAPPING);
 
 	}
-
-
-	private static Map<String,Counter> operationCounter = null;
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Set<String> getResourcesByOperation(String operation) {

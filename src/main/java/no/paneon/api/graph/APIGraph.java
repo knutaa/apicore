@@ -40,6 +40,7 @@ public class APIGraph extends CoreAPIGraph {
     static final Logger LOG = LogManager.getLogger(APIGraph.class);
     
 	String resource;
+	String mainResource;
 	 
     List<String> processedSwagger;
 
@@ -51,6 +52,8 @@ public class APIGraph extends CoreAPIGraph {
 	Collection<String> simpleTypesNames;
 	Collection<String> baseTypesNames;
 
+	Collection<String> allResources;
+	
 	Graph<Node,Edge> graph;
 	
 	Node resourceNode;
@@ -59,13 +62,15 @@ public class APIGraph extends CoreAPIGraph {
 	
 	boolean keepTechnicalEdges;
 	
-	public APIGraph(CoreAPIGraph core, Graph<Node,Edge> graph, String resource, Boolean keepTechnicalEdges) {
+	public APIGraph(Collection<String> allResources, String mainResource, CoreAPIGraph core, Graph<Node,Edge> graph, String resource, Boolean keepTechnicalEdges) {
 		super(core);
 		
+		this.mainResource=mainResource;
 		this.graph=graph;
 		this.resource = resource;	
 		this.resourceNode = getNode(resource);
 		this.keepTechnicalEdges = keepTechnicalEdges;
+		this.allResources = allResources;
 		
 	    Set<Node> discriminatorNodes = this.graph.vertexSet().stream().filter(Node::isDiscriminatorNode).collect(toSet());
 
@@ -81,8 +86,10 @@ public class APIGraph extends CoreAPIGraph {
 		this.resource = resource;
 		this.resourceNode = getNode(resource);
 		
-		this.graph = getSubGraphWithInheritance(this.completeGraph, this.resourceNode, this.resourceNode);
+		this.graph = getSubGraphWithInheritance(this.allResources, this.completeGraph, this.resourceNode, this.resourceNode);
 
+		CoreAPIGraph.cleanDiscriminatorEdges(this.graph, this.mainResource);
+		
 		init();
 		
 	}

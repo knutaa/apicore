@@ -62,6 +62,10 @@ public class Edge {
 		return this.related;
 	}
 	
+	public Node getNode() {
+		return this.node;
+	}
+	
 	public boolean isInheritance() {
 		boolean isInheritance = isOneOf() || isAllOf() || isDiscriminator();
 		return isInheritance && !flattenedInheritance();

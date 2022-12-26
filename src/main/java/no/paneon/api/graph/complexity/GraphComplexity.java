@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 
 import java.util.stream.Collectors;
@@ -37,12 +38,12 @@ public class GraphComplexity {
 	Graph<Node,Edge> graph;
 	Node resource;
 	
-	Map<Node, Integer> nodeComplexity;
+	Map<Node,Integer> nodeComplexity;
 	
 	public GraphComplexity(Graph<Node,Edge> graph, Node resource) {
 		this.graph = graph;	
 		this.resource = resource;
-		this.nodeComplexity = new HashMap<>();
+		this.nodeComplexity = new TreeMap<>();
 
 	}
 	
@@ -101,6 +102,12 @@ public class GraphComplexity {
 								    (oldValue, newValue) -> oldValue, LinkedHashMap::new));
 				
 		LOG.debug("computeGraphComplexity: node={} nodeComplexity={}", this.resource, nodeComplexity);
+		
+//		if(nodeComplexity.containsKey(resource)) {
+//			Integer comp = nodeComplexity.get(resource);
+//			nodeComplexity.remove(resource);
+//			nodeComplexity.put(resource, comp);
+//		}
 		
 		return nodeComplexity;
 	}

@@ -3,6 +3,7 @@ package no.paneon.api.graph;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +53,14 @@ public class CoreAPIGraph {
     
 	Graph<Node,Edge> completeGraph;
 	
+	List<String> allResources = new LinkedList<>();
+	
 	public CoreAPIGraph() {
+		this(new LinkedList<>());
+	}
+	
+	public CoreAPIGraph(List<String> allResources) {
+		this.allResources = allResources;
 		this.graphNodes = new HashMap<>();
 		this.enumNodes = new HashMap<>();
 		this.enumMapping = new HashMap<>();
@@ -87,6 +95,10 @@ public class CoreAPIGraph {
 			});
 		}
 
+		LOG.debug("CoreAPIGraph:: final edges={}", completeGraph.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+
+		LOG.debug("CoreAPIGraph:: edges={}", completeGraph.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+
 		updateNodeInheritance();
 		
 		updateNodePropertiesFromFVO();
@@ -101,7 +113,8 @@ public class CoreAPIGraph {
 		
 		LOG.debug("CoreAPIGraph:: #2 edges={}", completeGraph.edgeSet());
 		
-		
+		LOG.debug("CoreAPIGraph:: final edges={}", completeGraph.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -293,11 +306,16 @@ public class CoreAPIGraph {
 
 		LOG.debug("generateGraph: g=" + g);
 		
+		LOG.debug("CoreAPIGraph:: final edges={}", g.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+
 		Predicate<Node> isNotInline = n -> !n.getInline().isBlank();
 		
-		Set<Node> inlineNodes = g.vertexSet().stream().filter(isNotInline).collect(toSet());
-		
-		LOG.debug("generateGraph: inline nodes=" + inlineNodes);
+		Set<Node> inlineNodes = g.vertexSet().stream()
+									.filter(isNotInline)
+									.filter(n -> !this.allResources.contains(n.getName()))
+									.collect(toSet());
+				
+		LOG.debug("generateGraph: inline nodes={} allResources={}", inlineNodes, this.allResources);
 
 		Set<Edge> outgoingFromInline = inlineNodes.stream().map(g::outgoingEdgesOf).flatMap(Set::stream).collect(toSet());
 		
@@ -305,6 +323,8 @@ public class CoreAPIGraph {
 
 		g.removeAllEdges(outgoingFromInline);
 		
+		LOG.debug("generateGraph: edges=" + g.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
+
 		return g;
 			
 	}
@@ -366,6 +386,8 @@ public class CoreAPIGraph {
 		
 		LOG.debug("addNode:: adding node={}", definition);
 				
+		LOG.debug("getOrAddNode:: node={} edges={}", node, g.edgesOf(node).stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+
 		return node;
 		
 	}
@@ -387,12 +409,17 @@ public class CoreAPIGraph {
 		LOG.debug("addProperties: coreDefinition={} node={}", coreDefinition, node);
 
 		JSONObject properties = APIModel.getPropertyObjectForResource(definition);
+		
+		LOG.debug("addProperties: node={} properties={}", node, properties.keySet());
+
 		addProperties(g, node, definition, properties);			
 		
 		LOG.debug("addProperties: g={}", g);
 
 		JSONArray allOfs = APIModel.getAllOfForResource(definition);
 		
+		LOG.debug("addProperties: node={} allOfs={}", node, allOfs);
+
 		allOfs.forEach(allOf -> {
 			if(allOf instanceof JSONObject) {
 				JSONObject allOfObject = (JSONObject) allOf;
@@ -641,10 +668,15 @@ public class CoreAPIGraph {
 			
 			boolean hasAllOfEdge = g.edgesOf(node).stream().anyMatch(isAllOfWithToNode);
 			
+			LOG.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
+
 			if(!hasAllOfEdge) {
 				Edge edge = new AllOf(node, to);
 				addGraphEdge(g, node, to, edge);		
 				LOG.debug("processAllOfReference:: adding edge={}", edge);	
+				
+				LOG.debug("processAllOfReference:: node={} edges={}", node, g.outgoingEdgesOf(node));	
+
 			}
 			
 		}
@@ -659,9 +691,13 @@ public class CoreAPIGraph {
 		if(!enumsAdded.isEmpty()) {
 			LOG.debug("adding enums for node={} enums={}",  node, enumsAdded); 
 			enumsAdded.forEach(property -> {
-				Node to = graphNodes.get(property.getType());
-				Edge edge = new EdgeEnum(node, property.name, to, property.cardinality, property.required);
-				addGraphEdge(g, node, to, edge);		
+				Node to = getOrAddNode(g, property.type); // graphNodes.get(property.getType());
+				if(to!=null) {
+					Edge edge = new EdgeEnum(node, property.name, to, property.cardinality, property.required);
+					addGraphEdge(g, node, to, edge);	
+				} else {
+					Out.printAlways("ERROR: Missing enum definition for resource {} property {}", node, property);
+				}
 			});
 		}		
 	}
@@ -869,7 +905,7 @@ public class CoreAPIGraph {
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
-	public static Graph<Node,Edge> getSubGraphWithInheritance(Graph<Node,Edge> origGraph, Node node, Node resource) {
+	public static Graph<Node,Edge> getSubGraphWithInheritance(Collection<String> allResources, Graph<Node,Edge> origGraph, Node node, Node resource) {
 						
 		LOG.debug("getSubGraphWithInheritance: #000 node={} origGraph isDiscriminator=\n{}",  node, origGraph.edgeSet().stream().filter(Edge::isDiscriminator).map(Object::toString).collect(Collectors.joining("\n")));
 
@@ -886,6 +922,18 @@ public class CoreAPIGraph {
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} vertexSet={}", node, resource, graph.vertexSet());
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} edgeSet={}", node, resource, graph.edgeSet());
 		
+		Set<Edge> inheritanceFromNode = graph.incomingEdgesOf(node).stream()
+											.filter(Edge::isInheritance)
+											.collect(toSet());
+		
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} inheritanceFromNode={}", node, resource, inheritanceFromNode);
+
+		Set<Node> subclassesBy = inheritanceFromNode.stream().map(Edge::getNode).filter(n -> allResources.contains((n.getName()))).collect(Collectors.toSet());
+		
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} subclassesBy={}", node, resource, subclassesBy);
+
+		graph.removeAllVertices(subclassesBy);
+
 		Set<Node> simpleTypes = graph.vertexSet().stream()
 				.filter(Node::isSimpleType)
 				.collect(toSet());
@@ -1511,8 +1559,7 @@ public class CoreAPIGraph {
 						
 				}
 
-			}
-			
+			}	
 			
 		}
 		
@@ -1555,16 +1602,62 @@ public class CoreAPIGraph {
 		return res;
 	}
 
-//	private static void replaceAllOfWithReverseAllOfs(Graph<Node, Edge> completeGraph, Graph<Node, Edge> graph, Set<Edge> allOfEdges) {
-//		for(Edge edge : allOfEdges) {
-//			Edge reverse = new AllOfReverse(edge);
-//			
-//			completeGraph.addEdge(graph.getEdgeTarget(edge), graph.getEdgeSource(edge), reverse);
-//			
-//			graph.addEdge(graph.getEdgeTarget(edge), graph.getEdgeSource(edge), reverse);
-//		}
-//		graph.removeAllEdges(allOfEdges);
-//	}	
+	public static Graph<Node, Edge> cleanExplicitResources(Graph<Node, Edge> graph, List<String> allResources, String resource) {
+		LOG.debug("cleanExplicitResources:: node={} allResources={}", resource, allResources);
+		
+		Predicate<Edge> isResourceNode = e -> allResources.contains(e.getRelated().getName()); 
+		Predicate<Edge> isNotResource  = e -> !e.getRelated().getName().contentEquals(resource);
+
+		Set<Edge> discriminatorEdges = graph.edgeSet().stream()
+										.filter(Edge::isDiscriminator)
+										.filter(isResourceNode)
+										.filter(isNotResource)
+										.collect(Collectors.toSet());
+				
+		LOG.debug("cleanExplicitResources:: ALL disriminatorEdges={}", 
+				graph.edgeSet().stream()
+				.filter(Edge::isDiscriminator).collect(Collectors.toSet()));
+
+		LOG.debug("cleanExplicitResources:: disriminatorEdges={}", discriminatorEdges);
+
+		graph.removeAllEdges(discriminatorEdges);
+
+		return graph;
+	}
+
+	public static Graph<Node, Edge> cleanDiscriminatorEdges(Graph<Node, Edge> graph, String resource) {
+		LOG.debug("cleanDiscriminatorEdges:: node={}", resource);
+		
+		Predicate<Edge> isResourceNode = e -> e.getRelated().getName().contentEquals(resource);
+		
+		Predicate<Edge> isNotResourceNode = isResourceNode.negate();
+
+		Set<Node> nodesWithDiscriminatorEdgesToResource = graph.edgeSet().stream()
+															.filter(Edge::isDiscriminator)
+															.filter(isResourceNode)
+															.map(Edge::getNode)
+															.collect(Collectors.toSet());
+		
+		Set<Edge> discriminatorEdges = new HashSet<>();
+		
+		for(Node node : nodesWithDiscriminatorEdgesToResource) {
+			Set<Edge> edges = graph.edgesOf(node).stream()
+					.filter(Edge::isDiscriminator)
+					// .filter(isNotResourceNode)
+					.collect(Collectors.toSet());
+			
+			LOG.debug("cleanDiscriminatorEdges:: resource={} node={} edges={}", resource, node, graph.edgesOf(node));
+
+			discriminatorEdges.addAll( edges );
+		}
+		
+		LOG.debug("cleanDiscriminatorEdges:: resource={} nodes={} disriminatorEdges={}", resource, nodesWithDiscriminatorEdgesToResource, discriminatorEdges);
+
+		graph.removeAllEdges(discriminatorEdges);
+
+		return graph;
+	}
+
 
 }
 
