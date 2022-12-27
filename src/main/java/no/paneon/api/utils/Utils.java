@@ -25,6 +25,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -1128,4 +1129,21 @@ public class Utils {
 		}
 	}
 
+	@LogMethod(level=LogLevel.TRACE)
+	public static List<String> getFiles(String fileType, String ... dirArgs) {
+		
+		String dir = Arrays.asList(dirArgs).stream().collect(Collectors.joining("/"));
+		
+    	List<String> res = Stream.of(new File(dir).listFiles())
+					        .filter(file -> !file.isDirectory())
+					        .map(File::getName)
+					        .filter(f -> f.endsWith(fileType))
+					        .collect(Collectors.toList());
+    	
+    	return res;
+    	
+	}
+
+	
+	
 }
