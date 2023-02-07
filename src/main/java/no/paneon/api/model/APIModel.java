@@ -411,10 +411,16 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static boolean isSimpleType(String type) {
-		boolean res=true;
 		JSONObject definition = getDefinition(type);
-
 		LOG.debug("isSimpleType: type={} definition={}", type, definition);
+		return isSimpleType(definition);
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isSimpleType(JSONObject definition) {
+		boolean res=true;
+
+		LOG.debug("isSimpleType: definition={}", definition);
 
 		if(definition!=null) {
 			if(definition.has(TYPE)) {
@@ -442,7 +448,7 @@ public class APIModel {
 			}
 		} 
 		
-		LOG.debug("isSimpleType: type={} res={}", type, res);
+		LOG.debug("isSimpleType: res={}", res);
 
 		return res;
 	}
@@ -451,11 +457,19 @@ public class APIModel {
 	public static boolean isCustomSimple(String type) {
 		boolean res=false;
 		JSONObject definition = getDefinition(type);
+//
+//		if(definition!=null) {
+//			// res = definition.has(TYPE) && ARRAY.contentEquals(definition.optString(TYPE));
+//			APIModel.is
+//			// res = res || definition.has(ALLOF);
+//		}
+		
+		res = APIModel.isArrayType(type);
+		if(res) {
+			JSONObject property = APIModel.getDefinition(type);
+			type = APIModel.getTypeName(property);
 
-		if(definition!=null) {
-			res = definition.has(TYPE) && ARRAY.contentEquals(definition.optString(TYPE));
-
-			// res = res || definition.has(ALLOF);
+			res = APIModel.isSimpleType(type) || APIModel.isArrayType(type);
 		}
 		
 		LOG.debug("isCustomSimple: type={} res={} definition={}", type, res, definition);
@@ -2184,6 +2198,17 @@ public class APIModel {
 		
 		LOG.debug("getDiscriminatorReference: node={} discriminator={} res={}", node, discriminator, res);
 		
+		return res;
+	}
+
+	public static boolean isArrayType(String type) {
+		boolean res=false;
+		JSONObject definition = getDefinition(type);
+		
+		if(definition!=null && definition.optString(TYPE).contentEquals(ARRAY) && definition.optJSONObject(ITEMS)!=null && definition.optJSONObject(ITEMS).has(REF)) res=true;
+		
+		LOG.debug("isArrayType: type={} res={} definition={}", type, res, definition);
+
 		return res;
 	}
 

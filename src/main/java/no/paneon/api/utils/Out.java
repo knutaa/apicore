@@ -1,5 +1,8 @@
 package no.paneon.api.utils;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -44,5 +47,15 @@ public class Out {
 	
 	public static void debug(String format, Object ...args) {
 		LOG.log(AspectLogger.VERBOSE, format, args);
+	}
+
+	static Set<String> printedOnce = new HashSet<>();
+	public static void printOnce(String format,  Object ...args) {
+		format = format.replace("{}", "%s");		
+		String res = format.formatted(args);
+		if(!printedOnce.contains(res)) {
+			printedOnce.add(res);
+			printAlways(res);
+		}
 	}
 }

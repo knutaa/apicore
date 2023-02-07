@@ -48,6 +48,7 @@ public class Property {
 		this.visibility = visibility;
 		
 		this.isEnum = APIModel.isEnumType(type);
+				
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)

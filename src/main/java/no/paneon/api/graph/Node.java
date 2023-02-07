@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
@@ -26,6 +27,7 @@ import org.json.JSONObject;
 import no.paneon.api.model.APIModel;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
+import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
@@ -111,16 +113,25 @@ public class Node implements Comparable<Object>  {
 
 		this.inline = getInlineDefinition();
 		
+		if(!this.inline.isEmpty()) LOG.debug("#1 inline={}" , this.inline );
+
 		Optional<JSONObject> optExpanded = getExpandedJSON();
 		
 		if(optExpanded.isPresent() && !optExpanded.get().isEmpty()) {
+			
+			if(!this.inline.isEmpty()) LOG.debug("#2 inline='{}'" , this.inline );
+
 			this.inline = convertExpanded(optExpanded.get());
 			
 			LOG.debug("Node::getExpandedJSON resource={} optExpanded={}" , resource, optExpanded.get().toString(2) );
-			LOG.debug("inline={}" , this.inline );
+			if(!this.inline.isEmpty()) LOG.debug("#2 inline='{}'" , this.inline );
 
-		} else {
+		} 
+		
+		if(this.inline.isEmpty()) {
 			
+			LOG.debug("#3 resource={} inline='{}'" , resource, this.inline );
+
 			Property.Visibility visibility = Config.getBoolean(INCLUDE_INHERITED) ? Property.VISIBLE_INHERITED : Property.HIDDEN_INHERITED;
 
 			addPropertyDetails(Property.BASE);									
@@ -165,8 +176,16 @@ public class Node implements Comparable<Object>  {
 	}
 
 	private String getInlineDefinition() {
+		String res="";
 		JSONObject def = APIModel.getDefinition(this.resource);
-		return getInlineDefinition(def);
+		if(APIModel.isArrayType(this.resource) && !APIModel.isSimpleType(def)) 
+			res="";
+		else 
+			res = getInlineDefinition(def);
+		
+		if(!res.isEmpty()) LOG.debug("getInlineDefinition: type={} res={}",  this.resource, res);
+		
+		return res;
 	}
 	
 
@@ -191,6 +210,14 @@ public class Node implements Comparable<Object>  {
 		if(obj.has(ENUM) || obj.has(PROPERTIES) || obj.has(DISCRIMINATOR) ) return res;
 		// if(obj.has(ENUM) ) return res;
 
+		List<String> inlineException = Config.get("inlineException");
+		Predicate<String> endsWith = x -> resource.endsWith(x);
+		boolean exception = inlineException.stream().anyMatch(endsWith);
+		
+		if(exception) Out.debug("Node::getExpandedJSON resource={} exception={}" , resource, exception );
+
+		if(exception) return res;
+		
 		if(obj.has(REF)) {
 			JSONObject refDef = APIModel.getDefinitionBySchemaObject(obj);
 			res = getExpandedJSON(refDef);
@@ -279,6 +306,14 @@ public class Node implements Comparable<Object>  {
 	private String getInlineDefinition(JSONObject def) {
 		String res = "";
 		
+		List<String> inlineException = Config.get("inlineException");
+		Predicate<String> endsWith = x -> resource.endsWith(x);
+		boolean exception = inlineException.stream().anyMatch(endsWith);
+		
+		if(exception) LOG.debug("Node::getInlineDefinition resource={} exception={}" , resource, exception );
+
+		if(exception) return res;
+
 		if(def!=null) {
 			LOG.debug("Node::getInlineDefinition resource={} def={}" , resource, def.toString() );
 			
@@ -306,8 +341,7 @@ public class Node implements Comparable<Object>  {
 				if(!res.isEmpty()) {
 					String cardinality = getCardinality(array, res);
 					res = res + cardinality;
-				}
-				
+				}			
 
 			} else if(def.has(ITEMS)) {				
 				String cardinality = APIModel.getCardinality(def, false);
@@ -341,7 +375,7 @@ public class Node implements Comparable<Object>  {
 			}
 		}
 		
-		if(!res.isBlank()) LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
+		if(!res.isBlank()) Out.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
 
 		return res;
 		
@@ -438,6 +472,18 @@ public class Node implements Comparable<Object>  {
 			
 		if(definition!=null) LOG.debug("addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
 
+		if(APIModel.isArrayType(definition)) Out.debug("## addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
+
+		if(APIModel.isArrayType(definition) && !APIModel.isSimpleType(definition)) {
+			Out.printAlways("addPropertyDetails: ARRAY handled as relationship definition=" + definition.toString(2) );
+			return;
+		} 
+		
+		if(APIModel.isArrayType(propObj) && !APIModel.isSimpleType(propObj)) {
+			Out.printAlways("addPropertyDetails: ARRAY handled as relationship propObj=" + propObj.toString(2) );
+			return;
+		} 
+		
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.optString(TYPE))) {
 			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
@@ -450,9 +496,20 @@ public class Node implements Comparable<Object>  {
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
 				if(property!=null) {
-					String type = APIModel.type(property);
-		
+					String type = APIModel.type(property);		
 					String coreType = APIModel.removePrefix(type);
+					
+					if(property.has(REF) && APIModel.isArrayType(type)) {
+						LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
+						
+						property = APIModel.getDefinition(type);
+
+						type = APIModel.getTypeName(property);
+						coreType = APIModel.removePrefix(type);
+
+						LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
+					} 
+
 					
 					boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
 					String cardinality = APIModel.getCardinality(property, isRequired);
@@ -487,6 +544,7 @@ public class Node implements Comparable<Object>  {
 						}
 						
 						properties.add( propDetails );
+						
 					} else {
 						LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
 
@@ -497,8 +555,9 @@ public class Node implements Comparable<Object>  {
 					}
 					
 				} else {
-					Out.printAlways("... ERROR: expecting property {} to be a JSON object, found {}", propName, propObj.get(propName).getClass());
-				}	
+					String className = Utils.getLastPart(propObj.get(propName).getClass().toString(), ".");
+					Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propName, this.getName(), className);
+				}
 			}
 		} 
 

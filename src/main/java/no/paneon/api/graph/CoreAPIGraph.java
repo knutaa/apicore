@@ -28,6 +28,7 @@ import org.json.JSONObject;
 import no.paneon.api.model.APIModel;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
+import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
@@ -734,18 +735,34 @@ public class CoreAPIGraph {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
 			
+			LOG.debug("## addProperties: propertyName={} properties={}", propertyName, property);
+
 			if(property==null) {
-				Out.printAlways("... ERROR: expecting property {} to be a JSON object, found {}", propertyName, properties.get(propertyName).getClass());
+				String className = Utils.getLastPart(properties.get(propertyName).getClass().toString(), ".");
+				Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propertyName, from.getName(), className);
 				continue; 
 			}
 			
 			String type = APIModel.getTypeName(property);
-
 			String coreType = APIModel.removePrefix(type);
 
 			LOG.debug("addProperties: from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
 			LOG.debug("addProperties: from={} propertyName={} type={} isSimpleType={}", from, propertyName, type, APIModel.isSimpleType(type));
 
+			boolean isArrayType=false;
+			if(property.has(REF) && APIModel.isArrayType(type)) {
+				LOG.debug("addProperties: isArrayType from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
+				
+				property = APIModel.getDefinition(type);
+
+				type = APIModel.getTypeName(property);
+				coreType = APIModel.removePrefix(type);
+
+				LOG.debug("addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));
+				isArrayType=true;
+				
+			} 
+			
 			if(!APIModel.isSimpleType(type) || APIModel.isEnumType(type)) {
 				
 				Node to = getOrAddNode(graph, coreType);

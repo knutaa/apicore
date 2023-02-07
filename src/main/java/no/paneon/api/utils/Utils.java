@@ -1144,6 +1144,13 @@ public class Utils {
     	
 	}
 
+	public static String getLastPart(String str, String separator) {
+		if(separator.contentEquals(".")) separator = "\\.";
+		String parts[] = str.split(separator);
+		
+		return parts.length>0 ? parts[parts.length-1] : str;
+	}
+
 	
 	
 }
