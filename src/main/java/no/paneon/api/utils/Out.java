@@ -52,7 +52,7 @@ public class Out {
 	static Set<String> printedOnce = new HashSet<>();
 	public static void printOnce(String format,  Object ...args) {
 		format = format.replace("{}", "%s");		
-		String res = format.formatted(args);
+		String res = String.format(format,args);
 		if(!printedOnce.contains(res)) {
 			printedOnce.add(res);
 			printAlways(res);
