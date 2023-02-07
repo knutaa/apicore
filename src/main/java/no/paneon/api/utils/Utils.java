@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -373,6 +374,12 @@ public class Utils {
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static boolean copyFile(String sourceFile, String destinationFile) {
+		boolean NOT_OVERWRITE=false;
+		return copyFile(sourceFile,destinationFile,NOT_OVERWRITE);
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static boolean copyFile(String sourceFile, String destinationFile, boolean overwrite) {
 
 		File source = new File(sourceFile);
 	    File dest = new File(destinationFile);
@@ -382,7 +389,7 @@ public class Utils {
 	    	return true;
 	    }
 
-	    if(dest.exists()) {
+	    if(dest.exists() && !overwrite) {
 	    	Out.println("... file '" + destinationFile + "' exists - not overwritten" );
 	    	return true;
 	    }
@@ -390,7 +397,9 @@ public class Utils {
 		try {
 			createDirectory(destinationFile);
 
-		    Files.copy(source.toPath(), dest.toPath() );	
+			CopyOption options = StandardCopyOption.REPLACE_EXISTING;
+			
+		    Files.copy(source.toPath(), dest.toPath(), options );	
 		    
 		    return true;
 		
