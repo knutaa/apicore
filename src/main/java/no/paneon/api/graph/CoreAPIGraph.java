@@ -51,7 +51,8 @@ public class CoreAPIGraph {
     static final String SET_DISCRIMINATOR_DEFAULT = "setDiscriminatorDefault";
     
     static final String REF = "$ref";
-    
+    static final String ITEMS = "items";
+
 	Graph<Node,Edge> completeGraph;
 	
 	List<String> allResources = new LinkedList<>();
@@ -334,6 +335,18 @@ public class CoreAPIGraph {
 	private void addNodesAndEnums(Graph<Node, Edge> g) {
 		APIModel.getAllDefinitions().forEach(node -> getOrAddNode(g,node));
 		
+		if(APIModel.getAllDefinitions().size()!=g.vertexSet().size()) {
+
+			final Set<String> graphNodes = g.vertexSet().stream().map(Node::getName).collect(Collectors.toSet());
+			Set<String> newNodes = APIModel.getAllDefinitions().stream().filter(n -> !graphNodes.contains(n)).collect(Collectors.toSet());
+					
+			LOG.debug("addNodesAndEnums: NEW graphNodes={} definitions={}", graphNodes, APIModel.getAllDefinitions());
+			LOG.debug("addNodesAndEnums: NEW definitions={} graph={}", APIModel.getAllDefinitions().size(), g.vertexSet().size());
+
+			// newNodes.forEach(node -> getOrAddNode(g,node));
+			if(newNodes.size()>0) addNodesAndEnums(g);
+		}
+		
 		LOG.debug("addNodesAndEnums: nodes={}", g.vertexSet());
 	}
 	
@@ -349,6 +362,10 @@ public class CoreAPIGraph {
 		node = APIModel.isEnumType(definition) ? new EnumNode(coreDefinition) : new Node(coreDefinition);
 		g.addVertex(node);
 		graphNodes.put(coreDefinition, node);
+		
+		if(!APIModel.getAllDefinitions().contains(node.getName())) {
+			Out.debug("... ISSUE missing node={} in API model", node);
+		}
 		
 		LOG.debug("getOrAddNode:: adding new node={}", node);
 
@@ -406,17 +423,11 @@ public class CoreAPIGraph {
 		String coreDefinition = APIModel.removePrefix(definition);
 
 		Node node = getOrAddNode(g,coreDefinition);
-
-		LOG.debug("addProperties: coreDefinition={} node={}", coreDefinition, node);
-
+		
 		JSONObject properties = APIModel.getPropertyObjectForResource(definition);
 		
-		LOG.debug("addProperties: node={} properties={}", node, properties.keySet());
-
 		addProperties(g, node, definition, properties);			
 		
-		LOG.debug("addProperties: g={}", g);
-
 		JSONArray allOfs = APIModel.getAllOfForResource(definition);
 		
 		LOG.debug("addProperties: node={} allOfs={}", node, allOfs);
@@ -750,6 +761,19 @@ public class CoreAPIGraph {
 			LOG.debug("addProperties: from={} propertyName={} type={} isSimpleType={}", from, propertyName, type, APIModel.isSimpleType(type));
 
 			boolean isArrayType=false;
+			if(property.has(REF) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
+				String externalRef = property.optString(REF);
+				LOG.debug("### addProperties: isExternalReference from={} ref={}", from, externalRef);
+
+			}
+			
+			if(property.has(ITEMS) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
+				JSONObject items = property.optJSONObject(ITEMS);
+				String externalRef = items.optString(REF);
+				LOG.debug("#### addProperties: isExternalReference from={} ref={}", from, externalRef);
+
+			}
+			
 			if(property.has(REF) && APIModel.isArrayType(type)) {
 				LOG.debug("addProperties: isArrayType from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
 				

@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1158,6 +1159,23 @@ public class Utils {
 		String parts[] = str.split(separator);
 		
 		return parts.length>0 ? parts[parts.length-1] : str;
+	}
+
+	public static String getRelativeFile(String baseFilename, String relativeFilename) {
+		String baseDirectory=new File(baseFilename).getParent();
+		String res=baseDirectory + "/" + relativeFilename;
+		
+		Path path = Path.of(res);
+		boolean exists = Files.exists(path);
+				
+		if(!exists) {
+			Out.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
+	
+		}
+		
+		LOG.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
+
+		return res;
 	}
 
 	

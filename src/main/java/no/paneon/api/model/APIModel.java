@@ -65,8 +65,7 @@ public class APIModel {
     private static boolean firstAPImessage=true;
 
     private static Map<String,Counter> operationCounter = null;
-
-
+    
 	private APIModel() {
 		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
 		reverseMapping = generateReverseMapping(resourceMapping);
@@ -77,9 +76,10 @@ public class APIModel {
 		setSwagger(api);
 	}
 
-	private APIModel(String swaggerSource) {
+	private APIModel(String source) {
 		this();
-		setSwagger(Utils.readJSONOrYaml(swaggerSource));
+		setSwagger(Utils.readJSONOrYaml(source));
+		swaggerSource=source;
 	}
 
 	public APIModel(String filename, File file) {
@@ -88,8 +88,13 @@ public class APIModel {
 			InputStream is = new FileInputStream(file);
 			APIModel.setSwaggerSource(filename);
 			setSwagger(Utils.readJSONOrYaml(is));
+			swaggerSource=filename;
+
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from file '" + filename + "'");
+			Out.println("... error=" + ex.getLocalizedMessage());
+			ex.printStackTrace();
+
 			System.exit(0);
 		}
 		
@@ -522,13 +527,94 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getTypeByReference(String ref) {
 		String[] parts=ref.split("/");
-		return parts[parts.length-1];
+		String type = parts[parts.length-1];
+				
+		if(isExternalReference(ref)) {
+			JSONObject external=getExternal(ref);
+			
+			if(external!=null) {
+				JSONObject definition=getExternalDefinition(external,ref);
+				LOG.debug("getTypeByReference: ref={} type={} definition={}",  ref, type, definition);
+	
+				addDefinition(ref, definition);
+				addLocalReferences(external,definition);
+				addExternalReferences(definition);
+	
+				LOG.debug("getTypeByReference: ref={} type={}",  ref, type);
+			}
+		}
+		
+		return type;
+		
+	}
+
+	private static void addLocalReferences(JSONObject external, JSONObject definition) {
+		if(definition==null) return;
+		
+		Set<String> properties = definition.keySet().stream().collect(Collectors.toSet());
+		
+		for(String property : properties) {
+			
+			boolean isProperRef=property.contentEquals(REF) && definition.has(REF);
+			
+			if(isProperRef) {
+				try {
+					isProperRef = definition.getString(REF)!=null;
+				} catch(Exception e) {
+					isProperRef = false;
+				}
+			}
+			
+			if(isProperRef) {
+				String ref=definition.optString(property);
+				
+				if(!isExternalReference(ref)) {
+					String queryRef=ref.replace("#/","/");
+					Object externalDefinition=external.query(queryRef);
+
+					if(externalDefinition!=null) {
+						JSONObject obj=(JSONObject)externalDefinition;
+						LOG.debug("APIModel::addLocalReferences:: ref={} externalDefinition={}", definition.get(property), externalDefinition);
+						addDefinition(ref,obj);
+						addExternalReferences(obj);
+						addLocalReferences(external,obj);
+												
+					} else {
+						LOG.debug("APIModel::addLocalReferences:: ref={} external={}", ref, external.keySet());
+						LOG.debug("APIModel::addLocalReferences:: external={}", external.toString(2) );
+
+					}
+				}
+				
+			} else if(definition.optJSONObject(property)!=null) {
+				addLocalReferences(external,definition.optJSONObject(property));
+				
+			} else if(definition.optJSONArray(property)!=null) {
+				JSONArray array=definition.optJSONArray(property);
+				if(array!=null) {
+					for(int i=0; i<array.length(); i++) {
+						addLocalReferences(external,array.optJSONObject(i));
+					}
+				}
+			}
+		}
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	static JSONObject getDefinitionByReference(String ref) {
 		JSONObject res = new JSONObject();
 
+		int hashIndex = ref.indexOf("#/");
+		if(hashIndex>0) {
+			String externalSource=ref.substring(0, hashIndex);
+			Out.debug("getDefinitionByReference: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
+			
+			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
+			
+			Out.debug("getDefinitionByReference: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
+
+		}
+		
 		String[] parts=ref.split("/");
 
 		if(parts[0].contentEquals("#")) res = swagger;
@@ -813,6 +899,8 @@ public class APIModel {
 			
 			LOG.debug("APIModel::getDefinitions:: get all definitions");
 			
+			addExternalReferences(swagger);
+			
 			JSONObject res=null;
 			if(isOpenAPIv2(swagger))
 				res=swagger.optJSONObject("definitions");
@@ -820,6 +908,7 @@ public class APIModel {
 				JSONObject components = swagger.optJSONObject("components");
 				if(components!=null) res = components.optJSONObject("schemas");
 			}
+			
 			if(res!=null) allDefinitions = res;
 			
 			LOG.debug("APIModel::getDefinitions:: keys={}", allDefinitions.keySet());
@@ -828,6 +917,211 @@ public class APIModel {
 		return allDefinitions;
 	}
 
+
+	public static void addExternalReferences(JSONObject api) {
+		if(api==null || api.isEmpty()) return;
+		
+		Set<String> properties = api.keySet().stream().collect(Collectors.toSet());
+		
+		for(String property : properties) {
+			
+			LOG.debug("APIModel::addExternalReferences:: property={}", property);
+
+			if(property.contentEquals(REF)) {
+				String ref=api.optString(property);
+				if(isExternalReference(ref)) {
+					JSONObject external=getExternal(ref);
+					JSONObject externalDefinition=getExternalDefinition(ref);
+					if(externalDefinition!=null) {
+						LOG.debug("APIModel::addExternalReferences:: ref={} externalDefinition={}", api.get(property), externalDefinition);
+						addDefinition(ref,externalDefinition);
+						addExternalReferences(externalDefinition);
+						addLocalReferences(external,externalDefinition);
+					}
+					String localRef=ref.substring(ref.indexOf("#/"));	
+					api.put(REF,localRef);
+				}
+				
+			} else if(api.optJSONObject(property)!=null) {
+				 addExternalReferences(api.optJSONObject(property));
+			} else if(api.optJSONArray(property)!=null) {
+				JSONArray array=api.optJSONArray(property);
+				for(int i=0; i<array.length(); i++) {
+					addExternalReferences(array.optJSONObject(i));
+				}
+			}
+		}
+		
+	}
+
+	private static void addDefinition(String ref, JSONObject definition) {
+		String localRef=ref.substring(ref.indexOf("#/"));
+		
+		if(swagger!=null) {
+			String parts[] = localRef.replace("#/", "").split("/");
+		
+			LOG.debug("addDefinition: localRef={} parts={}",  localRef, parts);
+			JSONObject target=swagger;
+			if(parts.length>1) {
+				for(int idx=0; idx<parts.length-1; idx++) {
+					
+					if(target==null) break;
+					
+					String part=parts[idx];
+					
+					if(!target.has(part)) {
+						target.put(part,new JSONObject());
+						LOG.debug("addDefinition: add part={}",  part);
+	
+					}
+					
+					target=target.optJSONObject(part);
+					
+				}
+				
+				if(target!=null) {
+					String type=parts[parts.length-1];
+					
+					if(target.has(type)) {
+						String currentDef=target.get(type).toString();
+						
+						removeExternalReferencePart(definition);
+						
+						String newDef=definition.toString();
+						if(!currentDef.contentEquals(newDef)) {
+							Out.printAlways("... definition for type={} already seen",  type);
+							Out.printAlways("... already seen as {}", currentDef);
+							Out.printAlways("... new defintion as {}", newDef);
+						}
+
+					} else {
+						target.put(type,  definition);
+						allDefinitions.put(type, definition);
+
+						LOG.debug("addDefinition: put type={} target={}",  type, target.keySet());
+					}
+					
+				}
+			}
+
+		}
+	}
+
+	private static void removeExternalReferencePart(JSONObject definition) {
+		if(definition==null) return;
+		if(definition.has(REF)) {
+			String ref=definition.optString(REF);
+			if(isExternalReference(ref)) {
+				ref=ref.substring(ref.indexOf("#/"));
+				definition.put(REF,ref);
+			}
+		} else {
+			Set<String> properties = definition.keySet().stream().collect(Collectors.toSet());
+			for(String property : properties) {
+				if(definition.optJSONObject(property)!=null) {
+					removeExternalReferencePart(definition.optJSONObject(property));
+				} else if(definition.optJSONArray(property)!=null) {
+					removeExternalReferencePart(definition.optJSONArray(property));
+				}
+			}
+		}
+	}
+
+	private static void removeExternalReferencePart(JSONArray array) {
+		if(array==null) return;
+		
+		for(int i=0; i<array.length(); i++) {
+			if(array.optJSONObject(i)!=null) {
+				removeExternalReferencePart(array.optJSONObject(i));
+			} else if(array.optJSONArray(i)!=null) {
+				removeExternalReferencePart(array.optJSONArray(i));
+			}
+		}		
+	}
+
+	private static JSONObject getExternalDefinition(String ref) {
+		JSONObject res=null;
+		int hashIndex = ref.indexOf("#/");
+		if(hashIndex>0) {
+			String externalSource=ref.substring(0, hashIndex);
+			LOG.debug("getExternalDefinition: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
+			
+			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
+			
+			LOG.debug("getExternalDefinition: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
+			
+			if(candidateExternalSource!=null) {
+				JSONObject externalDefinitions=Utils.readJSONOrYaml(candidateExternalSource);
+				
+				String localRef=ref.substring(hashIndex);
+				LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+
+				Object definition=externalDefinitions.optQuery(localRef);
+				
+				LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+
+				if(definition!=null) res=(JSONObject)definition;
+			}
+
+		}
+		
+		if(res==null) {
+			Out.printAlways("... unable to locate definition for external reference {}",  ref);
+		}
+		
+		return res;
+		
+	}
+
+	private static JSONObject getExternalDefinition(JSONObject external, String ref) {
+		JSONObject res=null;
+		int hashIndex = ref.indexOf("#/");
+		if(hashIndex>0) {
+			String localRef=ref.substring(hashIndex);
+			LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+
+			Object definition=external.optQuery(localRef);
+				
+			LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+
+			if(definition!=null) res=(JSONObject)definition;
+
+		}
+		
+		if(res==null) {
+			Out.printAlways("... unable to locate definition for external reference {}",  ref);
+		}
+		
+		return res;
+		
+	}
+
+	
+	private static JSONObject getExternal(String ref) {
+		JSONObject res=null;
+		int hashIndex = ref.indexOf("#/");
+		if(hashIndex>0) {
+			String externalSource=ref.substring(0, hashIndex);
+			LOG.debug("getExternalDefinition: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
+			
+			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
+			
+			LOG.debug("getExternalDefinition: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
+			
+			if(candidateExternalSource!=null) {
+				res=Utils.readJSONOrYaml(candidateExternalSource);
+			}
+
+		}
+				
+		return res;
+		
+	}
+		
+	public static boolean isExternalReference(String ref) {
+		int hashIndex=ref.indexOf("#/");
+		return hashIndex>0;
+	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getPaths(String resource, String operation) {
@@ -1257,7 +1551,13 @@ public class APIModel {
 			property = property.optJSONObject(ITEMS);
 			return getReference(property);
 		} else {
-			return property.getString(REF).replaceAll(".*/([A-Za-z0-9.]*)", "$1");
+			String ref=property.optString(REF);
+			if(isExternalReference(ref)) {
+				addExternalReferences(property);
+				Out.debug("getReference: addExternalReferences ref={}", ref);
+
+			}
+			return ref.replaceAll(".*/([A-Za-z0-9.]*)", "$1");
 		}
 	}	
 

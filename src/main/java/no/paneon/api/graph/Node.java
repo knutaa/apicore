@@ -491,6 +491,9 @@ public class Node implements Comparable<Object>  {
 			List<String> required = new LinkedList<>();
 			if(definition!=null) {
 				required = Config.getListAsObject(definition, REQUIRED).stream().map(Object::toString).collect(toList());
+				
+				APIModel.addExternalReferences(definition);
+
 			}
 			
 			for(String propName : propObj.keySet()) {
@@ -498,7 +501,7 @@ public class Node implements Comparable<Object>  {
 				if(property!=null) {
 					String type = APIModel.type(property);		
 					String coreType = APIModel.removePrefix(type);
-					
+								
 					if(property.has(REF) && APIModel.isArrayType(type)) {
 						LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
 						
@@ -580,6 +583,7 @@ public class Node implements Comparable<Object>  {
 		
 		res.addAll( resource.getInheritance().stream()
 								.map(Node::getNodeByName)
+								.filter(Objects::nonNull)
 								.map(Node::getAllDiscriminators)
 								.flatMap(Set::stream)
 								.collect(toSet()) );
@@ -1056,7 +1060,11 @@ public class Node implements Comparable<Object>  {
 		
 		Set<String> inheritance = this.getInheritance();
 		
-		Set<String> indirectInheritance = inheritance.stream().map(Node::getNodeByName).map(Node::getDeepInheritance).flatMap(Set::stream).collect(toSet());
+		Set<String> indirectInheritance = inheritance.stream()
+												.map(Node::getNodeByName)
+												.filter(Objects::nonNull)
+												.map(Node::getDeepInheritance)
+												.flatMap(Set::stream).collect(toSet());
 		
 		inheritance.addAll(indirectInheritance);
 		
