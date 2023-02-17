@@ -491,10 +491,15 @@ public class APIModel {
 	public static boolean isArrayType(JSONObject property) {
 		boolean res=false;
 
-		if(property!=null && property.has(TYPE)) {
-			String jsonType = property.optString(TYPE);
-			if(jsonType!=null) res = jsonType.equals(ARRAY);
+		try {
+			if(property!=null && property.has(TYPE)) {
+				String jsonType = property.getString(TYPE);
+				if(jsonType!=null) res = jsonType.equals(ARRAY);
+			}
+		} catch(Exception e) {
+			res=false;
 		}
+		
 		return res;
 	}
 
@@ -1437,7 +1442,7 @@ public class APIModel {
 
 		} else if(property.has(TYPE)) {
 
-			String type = property.optString(TYPE);
+			String type = property.getString(TYPE);
 			if(typeMapping.containsKey(type)) {
 				res = typeMapping.get(type);
 			} else if(Config.getTypeMapping().containsKey(type)) {
@@ -1467,7 +1472,7 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getTypeName(JSONObject property) {
 
-		String res;
+		String res=null;
 		if(property==null) {
 			res = "";
 		} else if(property.has(ITEMS)) {
@@ -1475,10 +1480,15 @@ public class APIModel {
 			res = getTypeName(property);
 		} else if(property.has(REF)) {
 			res = getReference(property); 
-		} else {
-			res = property.optString(TYPE);
+		} else if(property.has(TYPE)){
+			res = property.getString(TYPE);
 		}
 
+		if(res==null) {
+			Out.printAlways("... ERROR: Missing type information in '{}' ({})", property, Utils.getBaseFileName(swaggerSource));
+			System.exit(1);
+		}
+		
 		return res;
 	}
 
@@ -1712,7 +1722,7 @@ public class APIModel {
 
 		LOG.debug("getCustomPuml: definition={} minItems={} maxItems={}", definition, minItems, maxItems);
 
-		if(definition.has(TYPE) && ARRAY.contentEquals(definition.optString(TYPE)) && definition.has(ITEMS)) {
+		if(definition.has(TYPE) && ARRAY.contentEquals(definition.getString(TYPE)) && definition.has(ITEMS)) {
 
 			minItems = APIModel.updateMinMaxItems(definition, minItems, "minItems");
 			maxItems = APIModel.updateMinMaxItems(definition, maxItems, "maxItems");
@@ -1732,7 +1742,7 @@ public class APIModel {
 
 		} else if(definition.has(TYPE)) {
 
-			String type = definition.optString(TYPE);
+			String type = definition.getString(TYPE);
 			if(typeMapping.containsKey(type)) {
 				res.append( typeMapping.get(type) );
 			} else {
@@ -1855,7 +1865,7 @@ public class APIModel {
 
 				if(definition==null) continue;
 
-				if(definition.has(TYPE) && ARRAY.contentEquals(definition.optString(TYPE)) && definition.has(ITEMS)) {
+				if(definition.has(TYPE) && ARRAY.contentEquals(definition.getString(TYPE)) && definition.has(ITEMS)) {
 					definition = definition.optJSONObject(ITEMS);
 				}
 
@@ -2505,7 +2515,7 @@ public class APIModel {
 		boolean res=false;
 		JSONObject definition = getDefinition(type);
 		
-		if(definition!=null && definition.optString(TYPE).contentEquals(ARRAY) && definition.optJSONObject(ITEMS)!=null && definition.optJSONObject(ITEMS).has(REF)) res=true;
+		if(definition!=null && definition.has(TYPE) && definition.optString(TYPE).contentEquals(ARRAY) && definition.optJSONObject(ITEMS)!=null && definition.optJSONObject(ITEMS).has(REF)) res=true;
 		
 		LOG.debug("isArrayType: type={} res={} definition={}", type, res, definition);
 

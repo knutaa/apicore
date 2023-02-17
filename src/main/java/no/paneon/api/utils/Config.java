@@ -99,7 +99,7 @@ public class Config {
     		} 
     		
     		for(String file : configFiles) {
-    			Out.println("... adding configuration from file " + file);
+    			Out.println("... adding configuration from file " + Utils.getBaseFileName(file));
 
     			is = Utils.openFileStream(workingDirectory, file);
     			

@@ -170,7 +170,7 @@ public class Node implements Comparable<Object>  {
 			}
 			
 		} else if(obj.has(TYPE)) {
-			res = obj.optString(TYPE);
+			res = obj.getString(TYPE);
 		}
 		return res;
 	}
@@ -375,7 +375,7 @@ public class Node implements Comparable<Object>  {
 			}
 		}
 		
-		if(!res.isBlank()) Out.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
+		if(!res.isBlank()) LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
 
 		return res;
 		
@@ -427,7 +427,7 @@ public class Node implements Comparable<Object>  {
 			} 
 		}
 		
-		if(res.isBlank()) res = def.optString(TYPE);
+		if(res.isBlank() && def.has(TYPE)) res = def.getString(TYPE);
 		
 		return res;
 	}
@@ -484,7 +484,7 @@ public class Node implements Comparable<Object>  {
 			return;
 		} 
 		
-		if(propObj.has(TYPE) && ARRAY.equals(propObj.optString(TYPE))) {
+		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE))) {
 			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
 			
