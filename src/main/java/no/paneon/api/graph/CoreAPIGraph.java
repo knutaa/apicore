@@ -364,7 +364,7 @@ public class CoreAPIGraph {
 		graphNodes.put(coreDefinition, node);
 		
 		if(!APIModel.getAllDefinitions().contains(node.getName())) {
-			Out.debug("... ISSUE missing node={} in API model", node);
+			LOG.debug("... ISSUE missing node={} in API model ({}) ({})", node, coreDefinition, APIModel.getSource());
 		}
 		
 		LOG.debug("getOrAddNode:: adding new node={}", node);
@@ -404,7 +404,7 @@ public class CoreAPIGraph {
 		
 		LOG.debug("addNode:: adding node={}", definition);
 				
-		LOG.debug("getOrAddNode:: node={} edges={}", node, g.edgesOf(node).stream().map(Edge::toString).collect(Collectors.joining("\n")) );
+		if(node.getName().contentEquals("String")) LOG.debug("getOrAddNode:: node={} edges={}", node, g.edgesOf(node).stream().map(Edge::toString).collect(Collectors.joining("\n")) );
 
 		return node;
 		
@@ -448,6 +448,8 @@ public class CoreAPIGraph {
 						String type = APIModel.getTypeName(obj);
 
 						// if(type==null || type.isEmpty()) type=definition;
+						
+						if(type.isEmpty()) return;
 						
 						LOG.debug("addProperties:: allOf: resource={} type={} obj={}", definition, type, obj);
 						

@@ -66,6 +66,10 @@ public class APIModel {
 
     private static Map<String,Counter> operationCounter = null;
     
+    public static String getSource() {
+    	return swaggerSource;
+    }
+    
 	private APIModel() {
 		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
 		reverseMapping = generateReverseMapping(resourceMapping);
@@ -1485,8 +1489,9 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			Out.printAlways("... ERROR: Missing type information in '{}' ({})", property, Utils.getBaseFileName(swaggerSource));
-			System.exit(1);
+			Out.printOnce("... Possible issue: No type information in '{}' ({})", property, Utils.getBaseFileName(swaggerSource));
+			// System.exit(1);
+			res="";
 		}
 		
 		return res;
