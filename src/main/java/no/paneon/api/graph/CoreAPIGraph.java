@@ -444,7 +444,9 @@ public class CoreAPIGraph {
 					JSONObject obj = APIModel.getPropertyObjectBySchemaObject(allOfObject);
 					LOG.debug("addProperties:: allOf: resource={} obj={}", definition, obj);
 
-					if(obj!=null) {
+					if(obj.isEmpty()) return;
+					
+					if(obj!=null ) {
 						String type = APIModel.getTypeName(obj);
 
 						// if(type==null || type.isEmpty()) type=definition;
@@ -747,6 +749,8 @@ public class CoreAPIGraph {
 		for(String propertyName : properties.keySet()) {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
+			
+			if(property.isEmpty()) continue;
 			
 			LOG.debug("## addProperties: propertyName={} properties={}", propertyName, property);
 

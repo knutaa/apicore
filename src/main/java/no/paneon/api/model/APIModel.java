@@ -476,9 +476,10 @@ public class APIModel {
 		res = APIModel.isArrayType(type);
 		if(res) {
 			JSONObject property = APIModel.getDefinition(type);
+			
 			type = APIModel.getTypeName(property);
 
-			res = !type.isEmpty() && APIModel.isSimpleType(type) || APIModel.isArrayType(type);
+			res = !property.isEmpty() && !type.isEmpty() && APIModel.isSimpleType(type) || APIModel.isArrayType(type);
 		}
 		
 		LOG.debug("isCustomSimple: type={} res={} definition={}", type, res, definition);

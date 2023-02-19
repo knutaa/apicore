@@ -498,6 +498,9 @@ public class Node implements Comparable<Object>  {
 			
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
+				
+				if(property.isEmpty()) continue;
+				
 				if(property!=null) {
 					String type = APIModel.type(property);		
 					
