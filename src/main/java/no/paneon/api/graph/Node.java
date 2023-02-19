@@ -500,6 +500,9 @@ public class Node implements Comparable<Object>  {
 				JSONObject property = propObj.optJSONObject(propName);
 				if(property!=null) {
 					String type = APIModel.type(property);		
+					
+					// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} cproperty={}", type, property );						
+
 					String coreType = APIModel.removePrefix(type);
 								
 					if(property.has(REF) && APIModel.isArrayType(type)) {
@@ -513,6 +516,9 @@ public class Node implements Comparable<Object>  {
 						LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
 					} 
 
+					// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
+
+					if(type.isEmpty()) continue;
 					
 					boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
 					String cardinality = APIModel.getCardinality(property, isRequired);

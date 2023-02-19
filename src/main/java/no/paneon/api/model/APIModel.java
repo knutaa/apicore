@@ -478,7 +478,7 @@ public class APIModel {
 			JSONObject property = APIModel.getDefinition(type);
 			type = APIModel.getTypeName(property);
 
-			res = APIModel.isSimpleType(type) || APIModel.isArrayType(type);
+			res = !type.isEmpty() && APIModel.isSimpleType(type) || APIModel.isArrayType(type);
 		}
 		
 		LOG.debug("isCustomSimple: type={} res={} definition={}", type, res, definition);
@@ -1456,7 +1456,8 @@ public class APIModel {
 			}
 
 		} else {
-			res = property.toString(); // should not really happen
+			Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+			res = "{}"; // property.toString(); // should not really happen
 		}
 
 		return res;
@@ -1489,9 +1490,9 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			Out.printOnce("... Possible issue: No type information in '{}' ({})", property, Utils.getBaseFileName(swaggerSource));
+			Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
 			// System.exit(1);
-			res="";
+			res="{}";
 		}
 		
 		return res;

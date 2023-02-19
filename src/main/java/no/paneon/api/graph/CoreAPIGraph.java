@@ -757,6 +757,9 @@ public class CoreAPIGraph {
 			}
 			
 			String type = APIModel.getTypeName(property);
+			
+			if(type.isEmpty()) continue;
+			
 			String coreType = APIModel.removePrefix(type);
 
 			LOG.debug("addProperties: from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
@@ -788,6 +791,10 @@ public class CoreAPIGraph {
 				isArrayType=true;
 				
 			} 
+			
+			// if(propertyName.contentEquals("itemTotalPrice")) Out.debug("addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));
+
+			if(type.isEmpty()) continue;
 			
 			if(!APIModel.isSimpleType(type) || APIModel.isEnumType(type)) {
 				
