@@ -442,7 +442,7 @@ public class CoreAPIGraph {
 					processAllOfReference(g, allOfObject, node);					
 				} else {
 					JSONObject obj = APIModel.getPropertyObjectBySchemaObject(allOfObject);
-					Out.debug("addProperties:: allOf: resource={} obj={}", definition, obj);
+					LOG.debug("addProperties:: allOf: resource={} obj={}", definition, obj);
 
 					if(obj.isEmpty()) return;
 					
@@ -811,8 +811,6 @@ public class CoreAPIGraph {
 				
 			} 
 			
-			// if(propertyName.contentEquals("itemTotalPrice")) Out.debug("addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));
-
 			if(type.isEmpty()) continue;
 			
 			if(!APIModel.isSimpleType(type) || APIModel.isEnumType(type)) {
