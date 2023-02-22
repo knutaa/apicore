@@ -20,7 +20,9 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jgrapht.Graph;
+import org.jgrapht.graph.AsSubgraph;
 
+import no.paneon.api.graph.APIGraph;
 import no.paneon.api.graph.CoreAPIGraph;
 import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
@@ -49,6 +51,7 @@ public class ComplexityAdjustedAPIGraph {
 	
 	public ComplexityAdjustedAPIGraph(CoreAPIGraph graph, boolean keepTechnicalEdges) {
 		this.graph = graph;
+		
 		this.allGraphs = new HashMap<>();		
 		this.resources = new HashSet<>();
 		this.keepTechnicalEdges = keepTechnicalEdges;
@@ -74,10 +77,12 @@ public class ComplexityAdjustedAPIGraph {
 	    
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(allResources, graph.getCompleteGraph(), resourceNode, resourceNode);
 
+		LOG.debug("generateSubGraphsForResource:: resource={} resourceGraph={}",  resource, resourceGraph.vertexSet().size() );
+		
 	    resourceGraph = CoreAPIGraph.cleanExplicitResources(resourceGraph, allResources, resource);
 	    resourceGraph = CoreAPIGraph.cleanDiscriminatorEdges(resourceGraph, resource);
 
-		LOG.debug("generateSubGraphsFromConfig:: resource={} resourceGraph={}",  resource, resourceGraph.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
+		LOG.debug("generateSubGraphsForResource:: resource={} resourceGraph={}",  resource, resourceGraph.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
 
 	    LOG.debug("### generateSubGraphsForResource: resource={} complete vertices={}", resource, graph.getCompleteGraph().vertexSet());
 
@@ -97,9 +102,12 @@ public class ComplexityAdjustedAPIGraph {
 		String resource = resourceNode.getName();
 			    
 		LOG.debug("createSubGraphsGraphFromComplexity: #0 node={} resourceGraph={}",  resource, resourceGraph.vertexSet());
+		LOG.debug("createSubGraphsGraphFromComplexity: #0 node={} resourceGraph={}",  resource, resourceGraph.vertexSet().size());
 
 	    boolean isSimplified = simplifyGraphForComplexDiscriminators(resourceGraph, resourceNode);
 	    
+		LOG.debug("createSubGraphsGraphFromComplexity: #00 node={} resourceGraph={}",  resource, resourceGraph.vertexSet().size());
+
 	    LOG.debug("createSubGraphsGraphFromComplexity: resource={} isSimplified={} resourceGraph={}" , resource, isSimplified, resourceGraph.vertexSet());
 
 	    GraphComplexity analyser = new GraphComplexity(resourceGraph, resourceNode);
@@ -115,6 +123,8 @@ public class ComplexityAdjustedAPIGraph {
 	    Map<String,Graph<Node,Edge>> graphMap = new LinkedHashMap<>();
 	    
 		LOG.debug("createSubGraphsGraphFromComplexity: node={} complexity={}",  resource, complexity.keySet());
+
+		LOG.debug("createSubGraphsGraphFromComplexity: #1 node={} resourceGraph={}",  resource, resourceGraph.vertexSet().size());
 
 	    if(complexity.isEmpty()) {    	
 	    	graphMap.put(resource, resourceGraph);
@@ -135,7 +145,8 @@ public class ComplexityAdjustedAPIGraph {
 	    		Graph<Node,Edge> subGraph = CoreAPIGraph.getSubGraphWithInheritance(allResources, resourceGraph, node, resourceNode);
 	    		
 	    		LOG.debug("createSubGraphsGraphFromComplexity: #2 node={} subGraph nodes={}",  node, subGraph.vertexSet());
-	    		LOG.debug("createSubGraphsGraphFromComplexity: #2 node={} subGraph edges={}",  node, subGraph.edgeSet());
+//	    		LOG.debug("createSubGraphsGraphFromComplexity: #2 node={} subGraph edges={}",  node, 
+//	    				subGraph.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")));
 
 	    		isSimplified = simplifyGraphForComplexDiscriminators(subGraph, node);
 	    	    
@@ -174,13 +185,37 @@ public class ComplexityAdjustedAPIGraph {
 
 	    complexDiscriminators.retainAll( graph.vertexSet());
 	    
+		LOG.debug("simplifyGraphForComplexDiscriminators: complexDiscriminators={}", complexDiscriminators);
+
 	    for(Node n : complexDiscriminators) {
 	    	if(!graph.containsVertex(n)) continue;
 	    	
 	    	Set<Node> outbound = graph.outgoingEdgesOf(n).stream().filter(Edge::isDiscriminator).map(graph::getEdgeTarget).collect(toSet());
+	    		    	
+	    	LOG.debug("simplifyGraphForComplexDiscriminators: resourceNode={} remove={}", resourceNode, outbound);
+
+	    	Set<Node> retainDirectNeighbours = APIGraph.getOutboundNeighbours(graph, resourceNode);
+	    	
+	    	outbound.removeAll(retainDirectNeighbours);
+	    	
+	    	if(!retainDirectNeighbours.contains(n)) outbound.add(n);
 	    	
 	    	LOG.debug("simplifyGraphForComplexDiscriminators: resourceNode={} remove={}", resourceNode, outbound);
+
+	    	// check if there are containing nodes and discriminator relationships
+	    	Set<Node> retain = new HashSet<>();
+	    	outbound.forEach(node -> {
+	    		Set<Node> from = APIGraph.getInboundNeighbours(graph, node);
+	    		for(Node q : from) {
+	    			Set<Edge> edges = graph.outgoingEdgesOf(q);
+	    			if(edges.size()>1 && edges.size()<=discriminatorCutOff) retain.add(node);
+	    		}
+	    	});
 	    	
+	    	outbound.removeAll(retain);
+	    	
+	    	LOG.debug("simplifyGraphForComplexDiscriminators: final resourceNode={} remove={}", resourceNode, outbound);
+
 	    	graph.removeAllVertices(outbound);
 
 	    	res = res || !outbound.isEmpty();
@@ -911,6 +946,9 @@ public class ComplexityAdjustedAPIGraph {
 	
     private Map<String, Map<String,Graph<Node,Edge>>> adjustSubGraphs(Collection<String> allResources, Node resourceNode, Graph<Node, Edge> resourceGraph, Map<String, Graph<Node, Edge>> graphMap) {
     	
+	    LOG.debug("##1 adjustSubGraphs: resource={} vertexSet={}" , resourceNode, resourceGraph.vertexSet() );
+	    LOG.debug("##1 adjustSubGraphs: resource={} edges={}" , resourceNode, resourceGraph.edgeSet() );
+
 	    LOG.debug("## adjustSubGraphs: resource={} graphMap={}" , resourceNode.getName(), graphMap.keySet() );
 
     	Map<String, Map<String,Graph<Node,Edge>>> res = new HashMap<>();

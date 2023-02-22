@@ -86,7 +86,7 @@ public class GraphComplexity {
 			   !longestPath.containsKey(node) ||
 			   (!node.equals(resource) && isSimplePrefixGraph(graph,node))) continue;
 			
-			int complexityContribution = computeComplexityContribution(graph, node, shortestPath.get(node), longestPath.get(node));
+			int complexityContribution = computeComplexityContribution(this.graph, node, shortestPath.get(node), longestPath.get(node));
 			
 			if(complexityContribution>minimum+MIN_COMPLEXITY || this.resource.equals(node)) nodeComplexity.put(node, complexityContribution);
 					

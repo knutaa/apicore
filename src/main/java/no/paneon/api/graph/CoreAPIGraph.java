@@ -442,7 +442,7 @@ public class CoreAPIGraph {
 					processAllOfReference(g, allOfObject, node);					
 				} else {
 					JSONObject obj = APIModel.getPropertyObjectBySchemaObject(allOfObject);
-					LOG.debug("addProperties:: allOf: resource={} obj={}", definition, obj);
+					Out.debug("addProperties:: allOf: resource={} obj={}", definition, obj);
 
 					if(obj.isEmpty()) return;
 					
@@ -655,8 +655,13 @@ public class CoreAPIGraph {
 		String type = APIModel.getTypeByReference(allOfObject.optString(REF));
 		
 		boolean flattenInheritance = isBasicInheritanceType(type) || isPatternInheritance(type);
-		
+
+//		Out.debug("processAllOfReference:: type={} node={} isBasicInheritanceType={} isPatternInheritance={}", 
+//				type, node, isBasicInheritanceType(type), isPatternInheritance(type));	
+
 		LOG.debug("processAllOfReference:: type={} node={}", type, node);	
+
+		LOG.debug("processAllOfReference:: type={} node={} flattenInheritance={}", type, node, flattenInheritance);	
 
 		flattenInheritance = flattenInheritance && !APIModel.isEnumType(type);
 		
@@ -684,7 +689,7 @@ public class CoreAPIGraph {
 			
 			boolean hasAllOfEdge = g.edgesOf(node).stream().anyMatch(isAllOfWithToNode);
 			
-			LOG.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
+//			Out.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
 
 			if(!hasAllOfEdge) {
 				Edge edge = new AllOf(node, to);
@@ -720,12 +725,22 @@ public class CoreAPIGraph {
 
 	private static boolean isBasicInheritanceType(String type) {
 		final List<String> inheritance = Config.get(INHERITANCE);
-		return inheritance.contains(type);
+		
+		boolean res = inheritance.contains(type);
+		
+		if(res) LOG.debug("isBasicInheritanceType: type={} inheritance={}", type, inheritance);
+
+		return res;
 	}
 
 	private static boolean isPatternInheritance(String type) {
 		final List<String> patterns = Config.get(INHERITANCE_PATTERN);
-		return patterns.stream().anyMatch(pattern -> type.matches(pattern));
+		
+		boolean res = patterns.stream().anyMatch(pattern -> type.matches(pattern));
+		
+		if(res) LOG.debug("isPatternInheritance: type={} patterns={}", type, patterns);
+
+		return res;
 	}
 	
 	public static boolean isPatternInheritance(Node type) {
@@ -772,7 +787,7 @@ public class CoreAPIGraph {
 			boolean isArrayType=false;
 			if(property.has(REF) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
 				String externalRef = property.optString(REF);
-				LOG.debug("### addProperties: isExternalReference from={} ref={}", from, externalRef);
+				LOG.debug("### addProperties: isExternalReference propertyName={} from={} ref={}", propertyName, from, externalRef);
 
 			}
 			
@@ -964,6 +979,7 @@ public class CoreAPIGraph {
 		LOG.debug("getSubGraphWithInheritance: #000 node={} origGraph isDiscriminator=\n{}",  node, origGraph.edgeSet().stream().filter(Edge::isDiscriminator).map(Object::toString).collect(Collectors.joining("\n")));
 
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} complete edgeSet={}", node, resource, origGraph.edgeSet());
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={}", node, resource);
 
 		Set<Node> nodes = getNodesOfSubGraph(origGraph, node);
 		
@@ -1123,6 +1139,8 @@ public class CoreAPIGraph {
 		
 		LOG.debug("## getSubGraphWithInheritance:: node={} subGraph={}", node, 
 				subGraph.vertexSet().stream().filter(n -> n.getName().contains("ProductRef")).collect(toSet()));
+
+		LOG.debug("## getSubGraphWithInheritance:: node={} before remove subGraph={}", node, subGraph.vertexSet());
 
 		remove=true;
 		while(remove) {
