@@ -7,6 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
@@ -773,12 +775,39 @@ public class Utils {
 
 
 	@LogMethod(level=LogLevel.TRACE)
+	public static InputStream getSource(String source, List<String> directories) throws Exception {
+		InputStream res=null;
+						
+		URI uri = new URI(source);
+		boolean isWeb = Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+		
+		Out.debug("getSource::isWeb={} url={}",  isWeb, source);
+
+		if(isWeb) {
+			try {
+			   URL url = uri.toURL(); 
+			   res = url.openStream();
+			} catch (Exception e) {
+				// returning null;
+			}
+		} else {
+			try {
+				res = new FileInputStream(source);
+			} catch(Exception ex) {
+				// returning null
+			}
+		}
+		
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
 	public static File getFile(String fileName, List<String> directories) throws Exception {
 		File res=null;
 						
 		directories.add("");
 		
-		LOG.debug("directories={}",  directories);
+		Out.debug("directories={}",  directories);
 
 		boolean found=false;
 		Iterator<String> iter = directories.iterator();
@@ -1082,20 +1111,44 @@ public class Utils {
     }
 	
 	@LogMethod(level=LogLevel.TRACE)
-	public static JSONObject readYamlAsJSON(String fileName, boolean errorOK) throws AppException {
+	public static JSONObject readYamlAsJSON(String source, boolean errorOK) throws AppException {
 		try {
-			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
-	        File file = new File(path);
-	        String yaml = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-	        String json = convertYamlToJson(yaml);
-	        return new JSONObject(json); 
+			if(isWebSource(source)) {
+				URI uri = new URI(source);
+				URL url = uri.toURL(); 
+				InputStream is = url.openStream();
+			    String yaml = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+		        String json = convertYamlToJson(yaml);
+		        return new JSONObject(json); 
+		        
+			} else {
+				String path = source.replaceFirst("^~", System.getProperty("user.home"));
+		        File file = new File(path);
+		        String yaml = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+		        String json = convertYamlToJson(yaml);
+		        return new JSONObject(json); 
+			}
+			
 		} catch(Exception ex) {
+			Out.debug("readYamlAsJSON::source={} exception={}", source, ex.getLocalizedMessage() );
+			ex.printStackTrace();
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
 			if(!errorOK) throw(new AppException());
 			return new JSONObject();
 		}
     }
 	
+	private static boolean isWebSource(String source) {
+		boolean res=false;
+		try {
+			URI uri = new URI(source);
+			res = Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+		} catch(Exception e) {
+			// ignore
+		}
+		return res;
+	}
+
 	@LogMethod(level=LogLevel.TRACE)
 	public static String convertJsonToYaml(JSONObject json) throws AppException {
 		try {
@@ -1162,20 +1215,45 @@ public class Utils {
 	}
 
 	public static String getRelativeFile(String baseFilename, String relativeFilename) {
-		String baseDirectory=new File(baseFilename).getParent();
-		String res=baseDirectory + "/" + relativeFilename;
 		
-		Path path = Path.of(res);
-		boolean exists = Files.exists(path);
+		LOG.debug("getRelativeFile: baseFilename={} relativeFilename={} exists={}", baseFilename, relativeFilename);
+
+		String res = "";
+		if(isWebSource(baseFilename)) {
+			try {
+				res = baseFilename;
 				
-		if(!exists) {
-			Out.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
-	
-		}
+				URI uri = new URI(baseFilename);
+				String path = uri.getPath();
+				
+				String newPath = getRelativeFile(path, relativeFilename);
+				res = res.replace(path, newPath);
+				
+				LOG.debug("getRelativeFile: WEB res={}", res);
+
+			} catch(Exception e) {
+				// ignore
+			}
+			
+			
+		} else {
+			String baseDirectory=new File(baseFilename).getParent();
+			res=baseDirectory + "/" + relativeFilename;
+			
+			Path path = Path.of(res);
+			boolean exists = Files.exists(path);
+					
+			if(!exists) {
+				LOG.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
 		
-		LOG.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
+			}
+				
+		}
+
+		LOG.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res);
 
 		return res;
+
 	}
 
 	

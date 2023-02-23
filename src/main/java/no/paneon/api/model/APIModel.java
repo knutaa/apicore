@@ -86,6 +86,23 @@ public class APIModel {
 		swaggerSource=source;
 	}
 
+	public APIModel(String source, InputStream is) {
+		this();
+		try {
+			APIModel.setSwaggerSource(source);
+			setSwagger(Utils.readJSONOrYaml(is));
+			swaggerSource=source;
+
+		} catch(Exception ex) {
+			Out.println("... unable to read API specification from source '" + source + "'");
+			Out.println("... error=" + ex.getLocalizedMessage());
+			// ex.printStackTrace();
+
+			System.exit(0);
+		}
+		
+	}
+	
 	public APIModel(String filename, File file) {
 		this();
 		try {
@@ -97,7 +114,7 @@ public class APIModel {
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from file '" + filename + "'");
 			Out.println("... error=" + ex.getLocalizedMessage());
-			ex.printStackTrace();
+			// ex.printStackTrace();
 
 			System.exit(0);
 		}
@@ -559,7 +576,7 @@ public class APIModel {
 	}
 
 	private static void addLocalReferences(JSONObject external, JSONObject definition) {
-		if(definition==null) return;
+		if(definition==null || external==null) return;
 		
 		Set<String> properties = definition.keySet().stream().collect(Collectors.toSet());
 		
@@ -580,7 +597,12 @@ public class APIModel {
 				
 				if(!isExternalReference(ref)) {
 					String queryRef=ref.replace("#/","/");
+					
+					LOG.debug("APIModel::addLocalReferences:: queryRef={} external={}", queryRef, external );
+
 					Object externalDefinition=external.query(queryRef);
+
+					LOG.debug("APIModel::addLocalReferences:: ref={} queryRef={} externalDefinition={}", ref, queryRef, externalDefinition );
 
 					if(externalDefinition!=null) {
 						JSONObject obj=(JSONObject)externalDefinition;
@@ -999,9 +1021,9 @@ public class APIModel {
 						
 						String newDef=definition.toString();
 						if(!currentDef.contentEquals(newDef)) {
-							Out.printAlways("... definition for type={} already seen",  type);
-							Out.printAlways("... already seen as {}", currentDef);
-							Out.printAlways("... new defintion as {}", newDef);
+							Out.printOnce("... definition for type={} already seen",  type);
+							Out.printOnce("... already seen as {}", currentDef);
+							Out.printOnce("... new defintion as {}", newDef);
 						}
 
 					} else {
@@ -1107,19 +1129,42 @@ public class APIModel {
 	}
 
 	
+	static Map<String,JSONObject> externals = new HashMap<>();
+	
 	private static JSONObject getExternal(String ref) {
 		JSONObject res=null;
+		
+		String keys[] = ref.split("#/");
+		String key = keys[0];
+		
+		if(externals.containsKey(key)) {
+			res=externals.get(key);
+			
+			Out.debug("getExternal: key={} keys={} res={}",  ref, externals.keySet(), res);
+
+//			Object obj = res.query("#/" + keys[1]);
+//			if(obj!=null) res = (JSONObject) obj;
+			
+			return res;
+		}
+		
 		int hashIndex = ref.indexOf("#/");
 		if(hashIndex>0) {
 			String externalSource=ref.substring(0, hashIndex);
-			LOG.debug("getExternalDefinition: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
+			LOG.debug("getExternal: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
 			
 			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
-			
-			LOG.debug("getExternalDefinition: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
-			
+						
 			if(candidateExternalSource!=null) {
+				
+				Out.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
+
 				res=Utils.readJSONOrYaml(candidateExternalSource);
+				externals.put(key, res);
+				
+//				Object obj = res.query("#/" + keys[1]);
+//				if(obj!=null) res = (JSONObject) obj;
+				
 			}
 
 		}
@@ -1668,6 +1713,31 @@ public class APIModel {
 
 	}
 
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static APIModel loadAPI(String source, InputStream is) {
+		
+		LOG.debug("APIModel::loadAPI:: source={}", source);
+		
+		if(is==null) {
+			Out.println("... API file ´" + source + "´ not found");
+			System.exit(0);
+			
+		} 
+
+		try {
+			return new APIModel(source, is);
+			
+		} catch(Exception ex) {
+			Out.printAlways("... error processing API specification: exception=" + ex.getLocalizedMessage() );
+			System.exit(1);
+		}
+
+		return null;
+
+	}
+
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getPropertyObjectBySchemaObject(JSONObject obj) {
 		JSONObject res = getDefinitionBySchemaObject(obj);
