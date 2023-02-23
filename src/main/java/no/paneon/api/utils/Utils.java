@@ -195,8 +195,8 @@ public class Utils {
 	        }
 	        
 		} catch(Exception e) {
-			Out.println("... unable to read file: : error: " + e.getLocalizedMessage() );
-			e.printStackTrace();
+			Out.println("... unable to read source: : error: " + e.getLocalizedMessage() );
+			// e.printStackTrace();
 			System.exit(0);
 		}
 		return res;
@@ -693,6 +693,9 @@ public class Utils {
 	@LogMethod(level=LogLevel.TRACE)
 	public static List<String> extractResourcesFromRules(String rulesFile) {
 		List<String> res = new LinkedList<>();
+		
+		if(rulesFile==null) return res;
+		
 		try {
 			JSONObject rules = readYamlAsJSON(rulesFile,true);
 			Iterator<String> iter = rules.keySet().iterator();
@@ -779,9 +782,9 @@ public class Utils {
 		InputStream res=null;
 						
 		URI uri = new URI(source);
-		boolean isWeb = Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+		boolean isWeb = uri.getScheme()!=null && Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
 		
-		Out.debug("getSource::isWeb={} url={}",  isWeb, source);
+		LOG.debug("getSource::isWeb={} url={}",  isWeb, source);
 
 		if(isWeb) {
 			try {
@@ -807,7 +810,7 @@ public class Utils {
 						
 		directories.add("");
 		
-		Out.debug("directories={}",  directories);
+		LOG.debug("directories={}",  directories);
 
 		boolean found=false;
 		Iterator<String> iter = directories.iterator();
