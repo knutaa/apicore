@@ -970,7 +970,7 @@ public class APIModel {
 				String ref=api.optString(property);
 				if(isExternalReference(ref)) {
 					JSONObject external=getExternal(ref);
-					JSONObject externalDefinition=getExternalDefinition(ref);
+					JSONObject externalDefinition=getExternalDefinition(external,ref);
 					if(externalDefinition!=null) {
 						LOG.debug("APIModel::addExternalReferences:: ref={} externalDefinition={}", api.get(property), externalDefinition);
 						addDefinition(ref,externalDefinition);
@@ -1078,7 +1078,7 @@ public class APIModel {
 		}		
 	}
 
-	private static JSONObject getExternalDefinition(String ref) {
+	private static JSONObject getExternalDefinition_old(String ref) {
 		JSONObject res=null;
 		int hashIndex = ref.indexOf("#/");
 		if(hashIndex>0) {
@@ -1151,37 +1151,30 @@ public class APIModel {
 		if(externals.containsKey(key)) {
 			res=externals.get(key);
 			
-			LOG.debug("getExternal: key={} keys={} res={}",  ref, externals.keySet(), res);
+			LOG.debug("getExternal: FOUND key={} keys={} ",  key, externals.keySet());
 
-//			Object obj = res.query("#/" + keys[1]);
-//			if(obj!=null) res = (JSONObject) obj;
-			
-			return res;
-		}
+		} else {
 		
-		int hashIndex = ref.indexOf("#/");
-		if(hashIndex>0) {
-			
-			String externalSource=ref.substring(0, hashIndex);
-			
-			Out.printOnce("... retrieve external source {}",  externalSource);
+			int hashIndex = ref.indexOf("#/");
+			if(hashIndex>0) {
+				
+				String externalSource=ref.substring(0, hashIndex);
+				
+				Out.printOnce("... retrieve external source {}",  externalSource);
 
-			LOG.debug("getExternal: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
-			
-			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
-						
-			if(candidateExternalSource!=null) {
-				
-				LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
-
-				res=Utils.readJSONOrYaml(candidateExternalSource);
-				externals.put(key, res);
-				
-//				Object obj = res.query("#/" + keys[1]);
-//				if(obj!=null) res = (JSONObject) obj;
-				
+				LOG.debug("... retrieve external source {} key={} keys={}",  externalSource, key, externals.keySet());
+					
+				String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);							
+				if(candidateExternalSource!=null) {				
+					LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
+	
+					res=Utils.readJSONOrYaml(candidateExternalSource);
+					
+					externals.put(key, res);
+									
+				}
+	
 			}
-
 		}
 				
 		return res;

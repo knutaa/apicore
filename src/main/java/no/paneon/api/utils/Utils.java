@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
@@ -35,6 +36,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.FileImageInputStream;
 import javax.imageio.stream.ImageInputStream;
+import javax.net.ssl.HttpsURLConnection;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -163,15 +165,16 @@ public class Utils {
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
-	public static JSONObject readJSONOrYaml(String file) {
+	public static JSONObject readJSONOrYaml(String source) {
 		JSONObject res = null;
 		try {
-			if(file.endsWith(".yaml") || file.endsWith(".yml")) 
-				res = readYamlAsJSON(file,false);
-			else
-				res = readJSON(file,false);
+			if(source.endsWith(".yaml") || source.endsWith(".yml")) {
+				res = readYamlAsJSON(source,false);
+			} else {
+				res = readJSON(source,false);
+			}
 		} catch(Exception e) {
-			Out.println("... unable to read file " + getBaseFileName(file) + " (error: " + e.getLocalizedMessage() + ")");
+			Out.println("... unable to read file " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -786,10 +789,18 @@ public class Utils {
 		
 		LOG.debug("getSource::isWeb={} url={}",  isWeb, source);
 
+		LOG.debug("getSource::HostnameVerifier={}",  HttpsURLConnection.getDefaultHostnameVerifier());
+		LOG.debug("getSource::SSLSocketFactory={}",  HttpsURLConnection.getDefaultSSLSocketFactory());
+
 		if(isWeb) {
 			try {
 			   URL url = uri.toURL(); 
-			   res = url.openStream();
+			   
+			   URLConnection con = url.openConnection();
+			   
+			   res = con.getInputStream();
+					   
+			   // res = url.openStream();
 			} catch (Exception e) {
 				// returning null;
 			}
@@ -1116,25 +1127,30 @@ public class Utils {
 	@LogMethod(level=LogLevel.TRACE)
 	public static JSONObject readYamlAsJSON(String source, boolean errorOK) throws AppException {
 		try {
+			String yaml;
+			
 			if(isWebSource(source)) {
+				LOG.debug("readYamlAsJSON::source={}", source );
+
 				URI uri = new URI(source);
 				URL url = uri.toURL(); 
-				InputStream is = url.openStream();
-			    String yaml = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-		        String json = convertYamlToJson(yaml);
-		        return new JSONObject(json); 
-		        
+				URLConnection conn = url.openConnection();
+				InputStream is = conn.getInputStream();
+			    yaml = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+		        		        
 			} else {
 				String path = source.replaceFirst("^~", System.getProperty("user.home"));
 		        File file = new File(path);
-		        String yaml = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-		        String json = convertYamlToJson(yaml);
-		        return new JSONObject(json); 
+		        yaml = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+
 			}
 			
+	        String json = convertYamlToJson(yaml);
+	        return new JSONObject(json); 
+
 		} catch(Exception ex) {
 			Out.debug("readYamlAsJSON::source={} exception={}", source, ex.getLocalizedMessage() );
-			ex.printStackTrace();
+			// ex.printStackTrace();
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
 			if(!errorOK) throw(new AppException());
 			return new JSONObject();
