@@ -99,7 +99,7 @@ public class APIModel {
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from source '" + source + "'");
 			Out.println("... error=" + ex.getLocalizedMessage());
-			// ex.printStackTrace();
+			ex.printStackTrace();
 
 			System.exit(0);
 		}
@@ -977,7 +977,7 @@ public class APIModel {
 						addExternalReferences(externalDefinition);
 						addLocalReferences(external,externalDefinition);
 					}
-					String localRef=ref.substring(ref.indexOf("#/"));	
+					String localRef=getExternalReference(ref); //ref.substring(ref.indexOf("#/"));	
 					api.put(REF,localRef);
 				}
 				
@@ -994,7 +994,8 @@ public class APIModel {
 	}
 
 	private static void addDefinition(String ref, JSONObject definition) {
-		String localRef=ref.substring(ref.indexOf("#/"));
+		//String localRef=ref.substring(ref.indexOf("#/"));
+		String localRef=getExternalReference(ref);
 		
 		if(swagger!=null) {
 			String parts[] = localRef.replace("#/", "").split("/");
@@ -1078,58 +1079,101 @@ public class APIModel {
 		}		
 	}
 
-	private static JSONObject getExternalDefinition_old(String ref) {
-		JSONObject res=null;
-		int hashIndex = ref.indexOf("#/");
-		if(hashIndex>0) {
-			String externalSource=ref.substring(0, hashIndex);
-			LOG.debug("getExternalDefinition: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
-			
-			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
-			
-			LOG.debug("getExternalDefinition: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
-			
-			if(candidateExternalSource!=null) {
-				JSONObject externalDefinitions=Utils.readJSONOrYaml(candidateExternalSource);
-				
-				String localRef=ref.substring(hashIndex);
-				LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
-
-				Object definition=externalDefinitions.optQuery(localRef);
-				
-				LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
-
-				if(definition!=null) res=(JSONObject)definition;
-			}
-
-		}
-		
-		if(res==null) {
-			Out.printAlways("... unable to locate definition for external reference {}",  ref);
-		}
-		
-		return res;
-		
-	}
+//	private static JSONObject getExternalDefinition_old(String ref) {
+//		JSONObject res=null;
+//		if(isExternalReference(ref)) {
+//			String externalSource=getExternalReference(ref); // ref.substring(0, hashIndex);
+//			LOG.debug("getExternalDefinition: ref={} externalSoure={} source={}",  ref, externalSource, swaggerSource);
+//			
+//			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
+//			
+//			LOG.debug("getExternalDefinition: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
+//			
+//			if(candidateExternalSource!=null) {
+//				JSONObject externalDefinitions=Utils.readJSONOrYaml(candidateExternalSource);
+//				
+//				String localRef=getLocalPart(ref);
+//				if(localRef!=null && !localRef.isEmpty()) {
+//					LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+//
+//					Object definition=externalDefinitions.optQuery(localRef);
+//				
+//					LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+//
+//					if(definition!=null) res=(JSONObject)definition;
+//				
+//				} else {
+//					res=externalDefinitions;
+//				}
+//				
+//			}
+//
+//		}
+//		
+//		if(res==null) {
+//			Out.printAlways("... unable to locate definition for external reference {}",  ref);
+//		}
+//		
+//		return res;
+//		
+//	}
 	
+	private static String getLocalPart(String ref) {
+		String res=null;
+		int hashIndex=ref.indexOf("#/");
+		if(hashIndex>0) {
+			res=ref.substring(hashIndex);
+		}
+		return res;
+	}
+
+	private static String getExternalReference(String ref) {
+		int hashIndex=ref.indexOf("#/");
+		if(hashIndex>0) {
+			return ref.substring(0, hashIndex);
+		} else if(ref.indexOf("#")<0) {
+			return ref;
+		} else {
+			Out.printAlways("... ERROR: Unable to determine external reference from '{}'", ref);
+			System.exit(0);
+		}
+		return null;
+	}
+
 	private static JSONObject getExternalDefinition(JSONObject external, String ref) {
 		JSONObject res=null;
 		
 		if(externalDefinitions.containsKey(ref)) return externalDefinitions.get(ref);
 		
-		int hashIndex = ref.indexOf("#/");
-		if(hashIndex>0) {
-			String localRef=ref.substring(hashIndex);
-			LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+		if(isExternalReference(ref)) {
+			// String localRef=getExternalReference(ref);
+			
+			Out.debug("getExternalDefinition: ref={} external={}",  ref, external);
 
-			Object definition=external.optQuery(localRef);
-				
-			LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+			String localRef=getLocalPart(ref);
+			if(localRef!=null && !localRef.isEmpty()) {
+				Out.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
 
-			if(definition!=null) {
-				res=(JSONObject)definition;
-				externalDefinitions.put(ref,res);
+				Object definition=external.optQuery(localRef);
+			
+				LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+
+				if(definition!=null) res=(JSONObject)definition;
+			
+			} else {
+				res=external;
 			}
+			
+//			LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+//
+//			Object definition=external.optQuery(localRef);
+//				
+//			LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
+//
+//			if(definition!=null) {
+//				res=(JSONObject)definition;
+//				externalDefinitions.put(ref,res);
+//			}
 
 		}
 		
@@ -1145,8 +1189,9 @@ public class APIModel {
 	private static JSONObject getExternal(String ref) {
 		JSONObject res=null;
 		
-		String keys[] = ref.split("#/");
-		String key = keys[0];
+//		String keys[] = ref.split("#/");
+//		String key = keys[0];
+		String key = getKey(ref);
 		
 		if(externals.containsKey(key)) {
 			res=externals.get(key);
@@ -1155,10 +1200,11 @@ public class APIModel {
 
 		} else {
 		
-			int hashIndex = ref.indexOf("#/");
-			if(hashIndex>0) {
-				
-				String externalSource=ref.substring(0, hashIndex);
+			// int hashIndex = ref.indexOf("#/");
+			// if(hashIndex>0) {
+			String externalSource = APIModel.getExternalReference(ref);
+			if(externalSource!=null && !externalSource.isEmpty()) {	
+				// String externalSource=ref.substring(0, hashIndex);
 				
 				Out.printOnce("... retrieve external source {}",  externalSource);
 
@@ -1166,7 +1212,7 @@ public class APIModel {
 					
 				String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);							
 				if(candidateExternalSource!=null) {				
-					LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
+					Out.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
 	
 					res=Utils.readJSONOrYaml(candidateExternalSource);
 					
@@ -1181,9 +1227,13 @@ public class APIModel {
 		
 	}
 		
+	private static String getKey(String ref) {
+		return getExternalReference(ref);
+	}
+
 	public static boolean isExternalReference(String ref) {
 		int hashIndex=ref.indexOf("#/");
-		return hashIndex>0;
+		return hashIndex>0 || ref.indexOf('#')<0;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1700,11 +1750,11 @@ public class APIModel {
 		LOG.debug("APIModel::loadAPI:: filename={}", filename);
 		
 		if(file==null) {
-			Out.println("... API file ´" + filename + "´ not found");
+			Out.println("... API file '" + filename + "' not found");
 			System.exit(0);
 			
 		} else if(!file.exists()) {
-			Out.println("... API file ´" + filename + "´ does not exist");
+			Out.println("... API file '" + filename + "' does not exist");
 			System.exit(0);
 			
 		}
@@ -1728,7 +1778,7 @@ public class APIModel {
 		LOG.debug("APIModel::loadAPI:: source={}", source);
 		
 		if(is==null) {
-			Out.println("... API source ´" + source + "´ not found");
+			Out.println("... API source '" + source + "' not found");
 			System.exit(0);
 			
 		} 
