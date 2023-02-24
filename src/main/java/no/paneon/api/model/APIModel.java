@@ -1728,7 +1728,7 @@ public class APIModel {
 		LOG.debug("APIModel::loadAPI:: source={}", source);
 		
 		if(is==null) {
-			Out.println("... API file ´" + source + "´ not found");
+			Out.println("... API source ´" + source + "´ not found");
 			System.exit(0);
 			
 		} 

@@ -801,7 +801,9 @@ public class Utils {
 			   res = con.getInputStream();
 					   
 			   // res = url.openStream();
-			} catch (Exception e) {
+			} catch (Exception ex) {
+				Out.debug("ERROR: {}",  ex.getLocalizedMessage());
+				ex.printStackTrace();
 				// returning null;
 			}
 		} else {
