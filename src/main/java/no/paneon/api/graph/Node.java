@@ -69,6 +69,8 @@ public class Node implements Comparable<Object>  {
 	static final String NULLABLE = "nullable";
 	static final String REQUIRED = "required";
 
+	static final String TITLE = "title";
+
 	static final String DISCRIMINATOR = "discriminator";
 	
 	static final String DESCRIPTION = "description";
@@ -117,6 +119,8 @@ public class Node implements Comparable<Object>  {
 
 		Optional<JSONObject> optExpanded = getExpandedJSON();
 		
+		LOG.debug("Node optExpanded={}" , optExpanded );
+
 		if(optExpanded.isPresent() && !optExpanded.get().isEmpty()) {
 			
 			if(!this.inline.isEmpty()) LOG.debug("#2 inline='{}'" , this.inline );
@@ -452,6 +456,7 @@ public class Node implements Comparable<Object>  {
 	private void addPropertyDetails(Property.Visibility visibility) {
 		JSONObject propObj = APIModel.getPropertyObjectForResource(this.resource);
 		addPropertyDetails(propObj, visibility, null);
+		
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -484,6 +489,8 @@ public class Node implements Comparable<Object>  {
 			return;
 		} 
 		
+		LOG.debug("addPropertyDetails obj={}", propObj);
+
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE))) {
 			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
@@ -496,80 +503,97 @@ public class Node implements Comparable<Object>  {
 
 			}
 			
+			LOG.debug("addPropertyDetails: properties={}" , propObj.keySet() );
+
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
 				
-				if(property.isEmpty()) continue;
-				
-				if(property!=null) {
-					String type = APIModel.type(property);		
-					
-					// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} cproperty={}", type, property );						
-
-					String coreType = APIModel.removePrefix(type);
+				LOG.debug("addPropertyDetails: property={} definition={}" , propName, property );
 								
-					if(property.has(REF) && APIModel.isArrayType(type)) {
-						LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
-						
-						property = APIModel.getDefinition(type);
-
-						type = APIModel.getTypeName(property);
-						coreType = APIModel.removePrefix(type);
-
-						LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
-					} 
-
-					// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
-
-					if(type.isEmpty()) continue;
-					
-					boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
-					String cardinality = APIModel.getCardinality(property, isRequired);
-		
-					boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
-					
-					if(isRequired) {
-						LOG.debug("addPropertyDetails: node={} property={} isRequired={} contains={}", 
-								this, propName,
-								APIModel.isRequired(this.resource, propName),
-								required.contains(propName));
-
-					}
-					
-					if(!seen) {
-						Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
-						
-						LOG.debug("addPropertyDetails: node={} property={} " , this, propDetails );
-
-						if(property.has(ENUM)) {
-							
-							List<Object> elements = Config.getListAsObject(property,ENUM);
-
-							propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()) );
-
-							LOG.debug("addPropertyDetails: property={} values={}" , propName, propDetails.getValues() );
-
-							boolean candidateNullable = elements.stream().anyMatch(Objects::isNull);
-							
-							if(property.optBoolean(NULLABLE) && candidateNullable) propDetails.setNullable();
-
-						}
-						
-						properties.add( propDetails );
-						
-					} else {
-						LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
-
-					}
-					
-					if(APIModel.isEnumType(type) && !enums.contains(coreType)) {
-						enums.add(coreType);
-					}
-					
-				} else {
+				if(property==null) {
+					// Out.printOnce(".. empty property {}" , propName);
 					String className = Utils.getLastPart(propObj.get(propName).getClass().toString(), ".");
 					Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propName, this.getName(), className);
+					continue;
 				}
+	
+				if(property.has(TITLE)) {
+					Out.printOnce(".. found unexpected EMBEDDED {}", property.optString(TITLE));
+				} 
+	
+				
+				LOG.debug("addPropertyDetails: property={} isEmpty={}" , propName, property.isEmpty() );
+
+				if(property.isEmpty()) continue;
+
+				String type = APIModel.type(property);		
+				
+				LOG.debug("addPropertyDetails: property={} type={}" , propName, type );
+
+				// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} cproperty={}", type, property );						
+
+				String coreType = APIModel.removePrefix(type);
+					
+				LOG.debug("addPropertyDetails: property={} coreType={}" , propName, coreType );
+
+				if(property.has(REF) && APIModel.isArrayType(type)) {
+					LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
+					
+					property = APIModel.getDefinition(type);
+
+					type = APIModel.getTypeName(property);
+					coreType = APIModel.removePrefix(type);
+
+					LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
+				} 
+
+				// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
+
+				if(type.isEmpty()) continue;
+				
+				boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
+				String cardinality = APIModel.getCardinality(property, isRequired);
+	
+				boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
+				
+				if(isRequired) {
+					LOG.debug("addPropertyDetails: node={} property={} isRequired={} contains={}", 
+							this, propName,
+							APIModel.isRequired(this.resource, propName),
+							required.contains(propName));
+
+				}
+				
+				if(!seen) {
+					Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
+					
+					LOG.debug("addPropertyDetails: node={} property={} " , this, propDetails );
+
+					if(property.has(ENUM)) {
+						
+						List<Object> elements = Config.getListAsObject(property,ENUM);
+
+						propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()) );
+
+						LOG.debug("addPropertyDetails: property={} values={}" , propName, propDetails.getValues() );
+
+						boolean candidateNullable = elements.stream().anyMatch(Objects::isNull);
+						
+						if(property.optBoolean(NULLABLE) && candidateNullable) propDetails.setNullable();
+
+					}
+					
+					properties.add( propDetails );
+					
+				} else {
+					LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
+
+				}
+				
+				if(APIModel.isEnumType(type) && !enums.contains(coreType)) {
+					enums.add(coreType);
+				}
+				
 			}
 		} 
 

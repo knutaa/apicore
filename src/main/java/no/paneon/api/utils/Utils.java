@@ -174,7 +174,7 @@ public class Utils {
 				res = readJSON(source,false);
 			}
 		} catch(Exception e) {
-			Out.println("... unable to read file " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
+			Out.println("... unable to read source " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -1113,14 +1113,40 @@ public class Utils {
 	private static final String EXCEPTION_MESSAGE  = "exeption: {}";
 	
 	@LogMethod(level=LogLevel.TRACE)
-	public static JSONObject readJSON(String fileName, boolean errorOK) throws AppException {
+	public static JSONObject readJSON(String source, boolean errorOK) throws AppException {
+		
+		String content;
+
 		try {
-			String path = fileName.replaceFirst("^~", System.getProperty("user.home"));
-	        File file = new File(path);
-	        String content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-	        return new JSONObject(content); 
+						
+			if(isWebSource(source)) {
+				LOG.debug("readJSON::source={}", source );
+
+				URI uri = new URI(source);
+				URL url = uri.toURL(); 
+				URLConnection conn = url.openConnection();
+				InputStream is = conn.getInputStream();
+			    content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+		        		        
+			} else {
+				String path = source.replaceFirst("^~", System.getProperty("user.home"));
+		        File file = new File(path);
+		        content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+
+			}
+	        
 		} catch(Exception ex) {
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
+			LOG.debug("readJSON: exception={}", ex.getLocalizedMessage() );
+			if(!errorOK) throw(new AppException());
+			return new JSONObject();
+		}
+		
+		try {
+			return new JSONObject(content); 
+			
+		} catch(Exception ex) {
+			Out.printAlways("... error when reading JSON: {}", ex.getLocalizedMessage() );
 			if(!errorOK) throw(new AppException());
 			return new JSONObject();
 		}
@@ -1237,7 +1263,7 @@ public class Utils {
 
 	public static String getRelativeFile(String baseFilename, String relativeFilename) {
 		
-		LOG.debug("getRelativeFile: baseFilename={} relativeFilename={} exists={}", baseFilename, relativeFilename);
+		LOG.debug("getRelativeFile: baseFilename={} relativeFilename={}", baseFilename, relativeFilename);
 
 		String res = "";
 		if(isWebSource(baseFilename)) {
@@ -1250,7 +1276,7 @@ public class Utils {
 				String newPath = getRelativeFile(path, relativeFilename);
 				res = res.replace(path, newPath);
 				
-				LOG.debug("getRelativeFile: WEB res={}", res);
+				LOG.debug("getRelativeFile: WEB path={} newPath={} res={}", path, newPath, res);
 
 			} catch(Exception e) {
 				// ignore
@@ -1259,11 +1285,17 @@ public class Utils {
 			
 		} else {
 			String baseDirectory=new File(baseFilename).getParent();
-			res=baseDirectory + "/" + relativeFilename;
-			
+			if(!baseDirectory.endsWith("/")) {
+				res=baseDirectory + "/" + relativeFilename;
+			} else {
+				res=baseDirectory + relativeFilename;
+			}
+				
 			Path path = Path.of(res);
 			boolean exists = Files.exists(path);
 					
+			LOG.debug("getRelativeFile: NOT web baseDirectory={} path={} res={}", baseDirectory, path, res);
+
 			if(!exists) {
 				LOG.debug("getRelativeFile: relativeFilename={} candidate={} exists={}", relativeFilename, res, exists);
 		

@@ -1,0 +1,103 @@
+{
+  "properties": {
+    "@baseType": {
+      "description": "Indicates the base type of the resource. Here can be 'ProductOrder'.",
+      "type": "string"
+    },
+    "@schemaLocation": {
+      "description": "A link to the schema describing this REST resource.",
+      "type": "string"
+    },
+    "@type": {
+      "description": "Indicates the type of resource. Here can be 'ProductOrder'.",
+      "type": "string"
+    },
+    "expectedCompletionDate": {
+      "description": "Expected delivery date amended by the provider.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "externalId": {
+      "description": "Id given by the consumer and only understandable by him (to facilitate his searches afterwards).",
+      "type": "string"
+    },
+    "href": {
+      "description": "Hyperlink to access the order.",
+      "type": "string"
+    },
+    "id": {
+      "description": "ID created on repository side (OM system)",
+      "type": "string"
+    },
+    "orderDate": {
+      "description": "Date when the order was created.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "orderItem": {
+      "items": {
+        "description": "Order items.",
+        "properties": {
+          "@baseType": {
+            "description": "Indicates the base type of resource. Here can be 'ProductOrderItem'.",
+            "type": "string"
+          },
+          "@schemaLocation": {
+            "description": "An URL to the schema describing this REST resource.",
+            "type": "string"
+          },
+          "@type": {
+            "description": "Indicates the type of resource. Here can be 'ProductOrderItem'.",
+            "type": "string"
+          },
+          "action": {
+            "description": "Action to be performed on the product.",
+            "enum": [
+              "add",
+              "modify",
+              "noChange",
+              "delete"
+            ],
+            "type": "string"
+          },
+    
+          "id": {
+            "description": "Identifier of the line item.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requestedCompletionDate": {
+      "description": "Requested delivery date from the requestor perspective.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "requestedStartDate": {
+      "description": "Order start date wished by the requestor.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "state": {
+      "description": "Product Order State Type.",
+      "enum": [
+        "acknowledged",
+        "inProgress",
+        "cancelled",
+        "completed",
+        "rejected",
+        "pending",
+        "pendingCancellation",
+        "held",
+        "failed",
+        "partial"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object",
+  "title": "ProductOrder"
+}

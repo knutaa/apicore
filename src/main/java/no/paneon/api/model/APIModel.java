@@ -57,7 +57,40 @@ public class APIModel {
 	private static String RESOURCE_MAPPING = "resourceMapping";
 	
 	private static String FLATTEN_INHERITANCE = "expandInherited";
+	private static String TITLE = "title";
+	private static final String FORMAT = "format";
+	private static final String TYPE = "type";
+	private static final String ARRAY = "array";
+	private static final String OBJECT = "object";
+	private static final String REF = "$ref";
+	private static final String ITEMS = "items";
+	private static final String PATHS = "paths";
+	private static final String PROPERTIES = "properties";
+	private static final String ENUM = "enum";
+	private static final String RESPONSES = "responses";
+	private static final String SCHEMA = "schema";
+	private static final String DESCRIPTION = "description";
 	
+	private static final String REQUESTBODY = "requestBody";
+
+	private static final String MIN_ITEMS = "minItems";
+	private static final String MAX_ITEMS = "maxItems";
+
+	private static final String REQUIRED = "required";
+
+	private static final String EXAMPLE  = "example";
+	private static final String EXAMPLES = "examples";
+	private static final String VALUE    = "value";
+
+	private static final String NOTIFICATIONS = "notifications";
+
+	private static final String ALLOF = "allOf";
+	private static final String ONEOF = "oneOf";
+
+	private static final String DISCRIMINATOR = "discriminator";
+	private static final String MAPPING = "mapping";
+
+	private static final String NEWLINE = "\n";
 	private static String swaggerSource;
 	
 	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
@@ -150,7 +183,97 @@ public class APIModel {
 		LOG.debug("setSwagger:: keys={}", swagger.keySet());
 
 		rearrangeDefinitions(swagger);
+		
+		refactorEmbeddedTitles();
 
+	}
+
+	private static void refactorEmbeddedTitles() {
+		LOG.debug("refactorEmbeddedTitles");
+
+		getAllDefinitions().forEach(APIModel::refactorEmbeddedTitles);
+		
+//		
+//		for(String type : getAllDefinitions() ) {
+//			JSONObject definition = getDefinition(type);
+//			for(String property : APIModel.getProperties(type) ) {
+//				JSONObject propObj = APIModel.getPropertySpecification(type, property);
+//				if(propObj.has(TITLE)) {
+//					String title=propObj.optString(TITLE);
+//					LOG.debug("refactorEmbeddedTitles::embedded {}",  title);
+//					String ref=addResource(title,propObj);
+//					Out.debug("refactorEmbeddedTitles::embedded {} ref={}",  title, ref);
+//
+//					resetWithReference(propObj,ref);
+//		
+//				} else if(propObj.has(ITEMS)) {
+//					JSONObject items=propObj.optJSONObject(ITEMS);
+//					if(items!=null && items.has(TITLE) && propObj.optString(TYPE).contentEquals(ARRAY)) {
+//						String title=items.optString(TITLE);
+//						Out.debug("refactorEmbeddedTitles::embedded ARRAY title={}", title);
+//						Out.debug("refactorEmbeddedTitles::embedded obj={}", propObj.toString(2));
+//
+//					}
+//
+//				}
+//			}
+//		}
+	}
+	
+	private static void refactorEmbeddedTitles(String type) {
+		LOG.debug("refactorEmbeddedTitles resource={}", type);
+
+		JSONObject definition = getDefinition(type);
+		for(String property : APIModel.getProperties(type) ) {
+			JSONObject propObj = APIModel.getPropertySpecification(type, property);
+			if(propObj.has(TITLE)) {
+				String title=propObj.optString(TITLE);
+				LOG.debug("refactorEmbeddedTitles::embedded {}",  title);
+				String ref=addResource(title,propObj);
+				LOG.debug("refactorEmbeddedTitles::embedded {} ref={}",  title, ref);
+
+				resetWithReference(propObj,ref);
+				
+				refactorEmbeddedTitles(title);
+				
+			} else if(propObj.has(ITEMS)) {
+				JSONObject items=propObj.optJSONObject(ITEMS);
+				if(items!=null && items.has(TITLE) && propObj.optString(TYPE).contentEquals(ARRAY)) {
+					String title=items.optString(TITLE);
+					LOG.debug("refactorEmbeddedTitles::embedded ARRAY title={}", title);
+					LOG.debug("refactorEmbeddedTitles::embedded obj={}", propObj.toString(2));
+
+					String ref=addResource(title,items);
+					resetWithReference(items,ref);
+					refactorEmbeddedTitles(title);
+
+				}
+
+			}
+		}
+	}
+
+
+	private static void resetWithReference(JSONObject obj, String ref) {
+		final Set<String> keys = obj.keySet().stream().collect(Collectors.toSet());
+		for(String key : keys) {
+			obj.remove(key);
+		}
+		obj.put(REF, ref);
+	}
+
+	private static String addResource(String title, JSONObject obj) {
+		obj = new JSONObject(obj.toString());
+		JSONObject embedded = swagger.optJSONObject("embedded");
+		if(embedded==null) {
+			swagger.put("embedded", new JSONObject());
+			embedded = swagger.optJSONObject("embedded");
+		}
+		embedded.put(title, obj); // SIMPLE
+		allDefinitions.put(title, obj);
+		
+		return "#/embedded/" + title;
+		
 	}
 
 	private static void rearrangeDefinitions(JSONObject api) {
@@ -211,39 +334,6 @@ public class APIModel {
 		
 	}
 
-	private static final String FORMAT = "format";
-	private static final String TYPE = "type";
-	private static final String ARRAY = "array";
-	private static final String OBJECT = "object";
-	private static final String REF = "$ref";
-	private static final String ITEMS = "items";
-	private static final String PATHS = "paths";
-	private static final String PROPERTIES = "properties";
-	private static final String ENUM = "enum";
-	private static final String RESPONSES = "responses";
-	private static final String SCHEMA = "schema";
-	private static final String DESCRIPTION = "description";
-	
-	private static final String REQUESTBODY = "requestBody";
-
-	private static final String MIN_ITEMS = "minItems";
-	private static final String MAX_ITEMS = "maxItems";
-
-	private static final String REQUIRED = "required";
-
-	private static final String EXAMPLE  = "example";
-	private static final String EXAMPLES = "examples";
-	private static final String VALUE    = "value";
-
-	private static final String NOTIFICATIONS = "notifications";
-
-	private static final String ALLOF = "allOf";
-	private static final String ONEOF = "oneOf";
-
-	private static final String DISCRIMINATOR = "discriminator";
-	private static final String MAPPING = "mapping";
-
-	private static final String NEWLINE = "\n";
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getResources() {
@@ -654,12 +744,21 @@ public class APIModel {
 
 		}
 		
-		String[] parts=ref.split("/");
+		LOG.debug("getDefinitionByReference: ref={}",  ref );
 
-		if(parts[0].contentEquals("#")) res = swagger;
+		if(ref.startsWith("#")) {
+			String[] parts=ref.split("/");
+	
+			if(parts[0].contentEquals("#")) res = swagger;
+	
+			for(int idx=1; idx<parts.length; idx++) {
+				if(res.has(parts[idx])) res = res.optJSONObject(parts[idx]);
+			}
+			
+			Out.debug("getDefinitionByReference: ref={} res={}",  ref, res );
 
-		for(int idx=1; idx<parts.length; idx++) {
-			if(res.has(parts[idx])) res = res.optJSONObject(parts[idx]);
+		} else {
+			res = APIModel.getExternal(ref);
 		}
 
 		if(res.has(REF)) res = getDefinitionByReference(res.optString(REF));
@@ -925,6 +1024,12 @@ public class APIModel {
 			res = null;
 		}
 
+		if(res!=null) {
+			if(res.has(REF)) {
+				res = getDefinitionByReference(res.getString(REF));
+			}
+		}
+		
 		LOG.debug("getDefinition: node={} res={}", node, res!=null? res.toString() : null);
 
 		return res;	
@@ -967,7 +1072,7 @@ public class APIModel {
 			LOG.debug("APIModel::addExternalReferences:: property={}", property);
 
 			if(property.contentEquals(REF)) {
-				String ref=api.optString(property);
+				String ref=api.getString(property);
 				if(isExternalReference(ref)) {
 					JSONObject external=getExternal(ref);
 					JSONObject externalDefinition=getExternalDefinition(external,ref);
@@ -981,6 +1086,8 @@ public class APIModel {
 					api.put(REF,localRef);
 				}
 				
+			} else if(property.contentEquals(PROPERTIES)) {
+				//
 			} else if(api.optJSONObject(property)!=null) {
 				 addExternalReferences(api.optJSONObject(property));
 			} else if(api.optJSONArray(property)!=null) {
@@ -1129,7 +1236,7 @@ public class APIModel {
 
 	private static String getExternalReference(String ref) {
 		int hashIndex=ref.indexOf("#/");
-		if(hashIndex>0) {
+		if(hashIndex>=0) {
 			return ref.substring(0, hashIndex);
 		} else if(ref.indexOf("#")<0) {
 			return ref;
@@ -1148,11 +1255,11 @@ public class APIModel {
 		if(isExternalReference(ref)) {
 			// String localRef=getExternalReference(ref);
 			
-			Out.debug("getExternalDefinition: ref={} external={}",  ref, external);
+			LOG.debug("getExternalDefinition: ref={} external={}",  ref, external);
 
 			String localRef=getLocalPart(ref);
 			if(localRef!=null && !localRef.isEmpty()) {
-				Out.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
+				LOG.debug("getExternalDefinition: ref={} localRef={}",  ref, localRef);
 
 				Object definition=external.optQuery(localRef);
 			
@@ -1186,11 +1293,11 @@ public class APIModel {
 	}
 
 		
+	static Set<String> seenRefs = new HashSet<>();
+	
 	private static JSONObject getExternal(String ref) {
 		JSONObject res=null;
 		
-//		String keys[] = ref.split("#/");
-//		String key = keys[0];
 		String key = getKey(ref);
 		
 		if(externals.containsKey(key)) {
@@ -1199,9 +1306,16 @@ public class APIModel {
 			LOG.debug("getExternal: FOUND key={} keys={} ",  key, externals.keySet());
 
 		} else {
-		
-			// int hashIndex = ref.indexOf("#/");
-			// if(hashIndex>0) {
+				
+			if(seenRefs.contains(ref) && !externals.isEmpty()) {
+				Out.debug("getExternal: RECURSIVE ref={}", ref );
+				Out.debug("getExternal: externals keys={}", externals.keySet() );
+
+				return new JSONObject();
+			}
+
+			seenRefs.add(ref);
+
 			String externalSource = APIModel.getExternalReference(ref);
 			if(externalSource!=null && !externalSource.isEmpty()) {	
 				// String externalSource=ref.substring(0, hashIndex);
@@ -1211,8 +1325,11 @@ public class APIModel {
 				LOG.debug("... retrieve external source {} key={} keys={}",  externalSource, key, externals.keySet());
 					
 				String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);							
-				if(candidateExternalSource!=null) {				
-					Out.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
+				if(candidateExternalSource!=null) {		
+					
+					// candidateExternalSource = candidateExternalSource.replace("0//", "0/");
+					
+					LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
 	
 					res=Utils.readJSONOrYaml(candidateExternalSource);
 					
@@ -1223,6 +1340,8 @@ public class APIModel {
 			}
 		}
 				
+		LOG.debug("getExternal: ref={} res={}",  ref, res);
+
 		return res;
 		
 	}
@@ -1520,49 +1639,56 @@ public class APIModel {
 
 		String res="";
 
-		if(property==null) {
-			return res;
-		} else if(property.has(FORMAT)) {
-			String format = property.getString(FORMAT);
-			String formatMapping = formatToType.get(format);
-
-			if(formatMapping!=null) {
-				res=formatMapping;
-
-			} else if (Config.getFormatToType().containsKey(format)) {
-				res = Config.getFormatToType().get(format);
-
-			} else {
-				if(!typeWarnings.contains(format)) {
-					Out.debug("... format: {} has no mapping, using type and format", format);
-					typeWarnings.add(format);
+		try {
+			if(property==null) {
+				return res;
+			} else if(property.has(FORMAT)) {
+				String format = property.getString(FORMAT);
+				String formatMapping = formatToType.get(format);
+	
+				if(formatMapping!=null) {
+					res=formatMapping;
+	
+				} else if (Config.getFormatToType().containsKey(format)) {
+					res = Config.getFormatToType().get(format);
+	
+				} else {
+					if(!typeWarnings.contains(format)) {
+						Out.debug("... format: {} has no mapping, using type and format", format);
+						typeWarnings.add(format);
+					}
+					res = property.getString(TYPE) + '/' + format;
 				}
-				res = property.getString(TYPE) + '/' + format;
-			}
-
-		} else if(property.has(REF)) {
-
-			res = getReference(property);
-
-		} else if(property.has(ITEMS)) {
-
-			res = type( property.optJSONObject(ITEMS) );
-
-		} else if(property.has(TYPE)) {
-
-			String type = property.getString(TYPE);
-			if(typeMapping.containsKey(type)) {
-				res = typeMapping.get(type);
-			} else if(Config.getTypeMapping().containsKey(type)) {
-				res = Config.getTypeMapping().get(type);
+	
+			} else if(property.has(REF)) {
+	
+				res = getReference(property);
+	
+			} else if(property.has(ITEMS)) {
+	
+				res = type( property.optJSONObject(ITEMS) );
+	
+			} else if(property.has(TYPE)) {
+	
+				String type = property.getString(TYPE);
+				if(typeMapping.containsKey(type)) {
+					res = typeMapping.get(type);
+				} else if(Config.getTypeMapping().containsKey(type)) {
+					res = Config.getTypeMapping().get(type);
+				} else {
+					res = type;
+				}
+	
 			} else {
-				res = type;
+				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				res = "{}"; // property.toString(); // should not really happen
 			}
-
-		} else {
-			Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
-			res = "{}"; // property.toString(); // should not really happen
+		} catch(Exception ex) {
+			Out.debug("APIModel::type: execption={}", ex.getLocalizedMessage());
+			ex.printStackTrace();
 		}
+
+		LOG.debug("... format: res={}", res);
 
 		return res;
 
@@ -1674,7 +1800,7 @@ public class APIModel {
 			String ref=property.optString(REF);
 			if(isExternalReference(ref)) {
 				addExternalReferences(property);
-				Out.debug("getReference: addExternalReferences ref={}", ref);
+				LOG.debug("getReference: addExternalReferences ref={}", ref);
 
 			}
 			return ref.replaceAll(".*/([A-Za-z0-9.]*)", "$1");

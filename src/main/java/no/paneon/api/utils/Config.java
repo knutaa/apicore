@@ -44,6 +44,8 @@ public class Config {
     
     private static final String NEWLINE = "\n";
 
+    private static JSONObject json = new JSONObject();
+
     public static void setConfigSources(List<String> files) {
     	configFiles.addAll(files);
     	forceConfig();
@@ -54,8 +56,6 @@ public class Config {
     	skipInternalConfiguration = val;
     }
     
-    private static JSONObject json = new JSONObject();
-
 	@LogMethod(level=LogLevel.TRACE)
     public static void getConfig() {
        	Config.init();	
@@ -388,7 +388,7 @@ public class Config {
 		
 		JSONObject obj = json.optJSONObject(property);
 		
-		obj.keySet().stream().forEach(key -> res.put(key,  obj.opt(key).toString()));
+		if(obj!=null) obj.keySet().stream().forEach(key -> res.put(key,  obj.opt(key).toString()));
 
 		return res;
 	

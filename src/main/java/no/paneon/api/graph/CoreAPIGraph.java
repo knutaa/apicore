@@ -67,9 +67,11 @@ public class CoreAPIGraph {
 		this.enumNodes = new HashMap<>();
 		this.enumMapping = new HashMap<>();
 		
+		LOG.debug("CoreAPIGraph:: #1");
+
 		this.completeGraph = generateGraph();	
 		
-		LOG.debug("CoreAPIGraph:: #1 edges={}", completeGraph.edgeSet());
+		LOG.debug("CoreAPIGraph:: edges={}", completeGraph.edgeSet());
 
 //		completeGraph.vertexSet().stream()
 //       	.filter(n -> n.getName().contentEquals("ProductRefOrValue"))
@@ -303,6 +305,8 @@ public class CoreAPIGraph {
 								.<Node,Edge> directed().allowingMultipleEdges(true).allowingSelfLoops(true)
 								.edgeClass(Edge.class).buildGraph();
 
+		LOG.debug("generateGraph: g=" + g);
+
 		addNodesAndEnums(g);						
 		addProperties(g);
 
@@ -357,9 +361,16 @@ public class CoreAPIGraph {
 		
 		Optional<Node> candidate = getNodeByName(g,definition);
 				
+		LOG.debug("getOrAddNode::candidate={} coreDefinition={}", candidate, coreDefinition);
+
 		if(candidate.isPresent()) return candidate.get();
 		
+		LOG.debug("getOrAddNode::isEnumType={}", APIModel.isEnumType(definition));
+
 		node = APIModel.isEnumType(definition) ? new EnumNode(coreDefinition) : new Node(coreDefinition);
+		
+		LOG.debug("getOrAddNode::node={}", node);
+
 		g.addVertex(node);
 		graphNodes.put(coreDefinition, node);
 		
@@ -375,19 +386,6 @@ public class CoreAPIGraph {
 			addProperties(g, node.getName());
 		}
 		
-//			if(node.getLocalDiscriminators().size()>1) {
-//				LOG.debug("getOrAddNode:: non empty local discriminator node={}", node);
-//				DiscriminatorNode discriminator = new DiscriminatorNode(node.getName() + "_discriminator");
-//				g.addVertex(discriminator);
-//				g.addEdge(node, discriminator, new Discriminator(node,discriminator));
-//
-//				node.getLocalDiscriminators().stream()
-//						.filter(label -> !label.contentEquals(node.getName()))
-//						.forEach(label -> {
-//							Node to = getOrAddNode(g, label);
-//							g.addEdge(discriminator, to, new Discriminator(discriminator, to));
-//						});
-//			}
 		
 		if(node.getLocalDiscriminators().size()>1) {
 			LOG.debug("getOrAddNode:: non empty local discriminator node={} localDiscriminator={}", node, node.getLocalDiscriminators());
