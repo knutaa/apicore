@@ -1120,7 +1120,7 @@ public class Utils {
 		try {
 						
 			if(isWebSource(source)) {
-				LOG.debug("readJSON::source={}", source );
+				Out.debug("isWebSource readJSON::source={}", source );
 
 				URI uri = new URI(source);
 				URL url = uri.toURL(); 
@@ -1129,6 +1129,8 @@ public class Utils {
 			    content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
 		        		        
 			} else {
+				Out.debug("fileSource readJSON::source={}", source );
+
 				String path = source.replaceFirst("^~", System.getProperty("user.home"));
 		        File file = new File(path);
 		        content = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
@@ -1137,7 +1139,7 @@ public class Utils {
 	        
 		} catch(Exception ex) {
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
-			LOG.debug("readJSON: exception={}", ex.getLocalizedMessage() );
+			Out.debug("readJSON: exception={}", ex.getLocalizedMessage() );
 			if(!errorOK) throw(new AppException());
 			return new JSONObject();
 		}
