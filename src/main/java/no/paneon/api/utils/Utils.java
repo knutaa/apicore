@@ -1122,6 +1122,8 @@ public class Utils {
 			if(isWebSource(source)) {
 				Out.debug("isWebSource readJSON::source={}", source );
 
+				source = source.replace("\\", "/");
+	
 				URI uri = new URI(source);
 				URL url = uri.toURL(); 
 				URLConnection conn = url.openConnection();
