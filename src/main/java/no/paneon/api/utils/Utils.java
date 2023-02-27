@@ -1190,10 +1190,14 @@ public class Utils {
 	private static boolean isWebSource(String source) {
 		boolean res=false;
 		try {
-			URI uri = new URI(source);
-			res = Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
-		} catch(Exception e) {
-			// ignore
+			String src=source.toUpperCase();
+			res=src.startsWith("HTTP");
+			
+//			URI uri = new URI(source);
+//			res = Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+		} catch(Exception ex) {
+			Out.debug("isWebSource:: execption={}",  ex.getLocalizedMessage());
+			// and ignore
 		}
 		return res;
 	}
