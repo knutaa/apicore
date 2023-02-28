@@ -30,7 +30,7 @@ public class WhitelistVerifier implements HostnameVerifier {
     
     // @Override
 	public boolean verify(String host, SSLSession session) {
-    	Out.debug("WhitelistVerifier::verify host={}", host);
+    	LOG.debug("WhitelistVerifier::verify host={}", host);
         if (whitelist.contains(host)) {
             return true;
         }

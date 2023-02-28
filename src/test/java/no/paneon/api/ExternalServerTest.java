@@ -120,7 +120,7 @@ public class ExternalServerTest {
 			List<String> resources = APIModel.getAllDefinitions();
 			
 			resources = APIModel.getAllOperations();
-			Out.debug("resources={}", resources);
+			LOG.debug("resources={}", resources);
 
 			assert(!resources.isEmpty());
 			
@@ -147,18 +147,18 @@ public class ExternalServerTest {
 			
 			assert(resource!=null);
 			
-			Out.debug("productOrder keys={}", resource.keySet());
-			Out.debug("productOrder={}", resource);
+			LOG.debug("productOrder keys={}", resource.keySet());
+			LOG.debug("productOrder={}", resource);
 
 			Set<String> properties = APIModel.getProperties(resource);
 			
-			Out.debug("properties={}", properties);
+			LOG.debug("properties={}", properties);
 
 			assert(properties.contains("expectedCompletionDate"));
 
 			CoreAPIGraph graph = new CoreAPIGraph(APIModel.getCoreResources());
 			
-			Out.debug("graph nodes={}", graph.getCompleteGraph().vertexSet());
+			LOG.debug("graph nodes={}", graph.getCompleteGraph().vertexSet());
 
 			Node node = graph.getNode("ProductOrder");
 			assert(node!=null);
@@ -184,9 +184,7 @@ public class ExternalServerTest {
 			APIModel.loadAPI(source, is);		
 			
 			List<String> resources = APIModel.getAllDefinitions();
-			
-			resources = APIModel.getAllDefinitions();
-			Out.debug("resources={}", resources);
+			LOG.debug("resources={}", resources);
 
 			assert(!resources.isEmpty());
 			

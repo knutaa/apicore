@@ -35,7 +35,9 @@
       "type": "string"
     },
     "orderItem": {
+      "type": "array",
       "items": {
+        "type": "object",
         "description": "Order items.",
         "properties": {
           "@baseType": {

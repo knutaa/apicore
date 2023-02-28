@@ -1680,7 +1680,7 @@ public class APIModel {
 				}
 	
 			} else {
-				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
 				res = "{}"; // property.toString(); // should not really happen
 			}
 		} catch(Exception ex) {

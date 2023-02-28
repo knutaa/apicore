@@ -11,9 +11,15 @@ public class AppException extends Exception {
 
 	protected static final long serialVersionUID = 3649840739892120559L;
 
-	public AppException() {
-		if(LOG.isDebugEnabled())
-			LOG.log(Level.DEBUG, "Exception: {}", this.toString());
+	private String msg;
+	
+	public AppException(String msg) {
+		this.msg=msg;
 	}
 
+	@Override
+	public String getLocalizedMessage() {
+		return this.msg;
+	}
+	
 }

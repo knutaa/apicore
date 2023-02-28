@@ -175,7 +175,7 @@ public class Utils {
 			}
 		} catch(Exception e) {
 			Out.println("... unable to read source " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
-			e.printStackTrace();
+			// e.printStackTrace();
 			System.exit(0);
 		}
 		return res;
@@ -1141,8 +1141,8 @@ public class Utils {
 	        
 		} catch(Exception ex) {
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
-			Out.debug("... ERROR readJson exception={}", ex.getLocalizedMessage() );
-			if(!errorOK) throw(new AppException());
+			LOG.debug("... ERROR readJson exception={}", ex.getLocalizedMessage() );
+			if(!errorOK) throw(new AppException(ex.getLocalizedMessage()));
 			return new JSONObject();
 		}
 		
@@ -1151,7 +1151,7 @@ public class Utils {
 			
 		} catch(Exception ex) {
 			Out.printAlways("... error when reading JSON: {}", ex.getLocalizedMessage() );
-			if(!errorOK) throw(new AppException());
+			if(!errorOK) throw(new AppException(ex.getLocalizedMessage()));
 			return new JSONObject();
 		}
     }
@@ -1184,7 +1184,7 @@ public class Utils {
 			Out.debug("readYamlAsJSON::source={} exception={}", source, ex.getLocalizedMessage() );
 			// ex.printStackTrace();
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
-			if(!errorOK) throw(new AppException());
+			if(!errorOK) throw(new AppException(ex.getLocalizedMessage()));
 			return new JSONObject();
 		}
     }
@@ -1225,7 +1225,7 @@ public class Utils {
 		    
 		} catch(Exception ex) {
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
-			throw(new AppException());
+			throw(new AppException(ex.getLocalizedMessage()));
 		}
 		        
 	}
@@ -1243,7 +1243,7 @@ public class Utils {
 		    			
 		} catch(Exception ex) {
 			if(LOG.isDebugEnabled()) LOG.log(Level.DEBUG, EXCEPTION_MESSAGE, ex.getLocalizedMessage() );
-			throw(new AppException());
+			throw(new AppException(ex.getLocalizedMessage()));
 		}
 	}
 
