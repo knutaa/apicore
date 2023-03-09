@@ -1696,6 +1696,8 @@ public class CoreAPIGraph {
 	public static Graph<Node, Edge> cleanDiscriminatorEdges(Graph<Node, Edge> graph, String resource) {
 		LOG.debug("cleanDiscriminatorEdges:: node={}", resource);
 		
+		if(resource==null) return graph;
+		
 		Predicate<Edge> isResourceNode = e -> e.getRelated().getName().contentEquals(resource);
 		
 		Predicate<Edge> isNotResourceNode = isResourceNode.negate();

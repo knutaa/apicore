@@ -736,11 +736,11 @@ public class APIModel {
 		int hashIndex = ref.indexOf("#/");
 		if(hashIndex>0) {
 			String externalSource=ref.substring(0, hashIndex);
-			Out.debug("getDefinitionByReference: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
+			LOG.debug("getDefinitionByReference: ref={} hashIndex={} externalSoure={} source={}",  ref, hashIndex, externalSource, swaggerSource);
 			
 			String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);
 			
-			Out.debug("getDefinitionByReference: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
+			LOG.debug("getDefinitionByReference: ref={} candidateExternalSource={}",  ref, candidateExternalSource);
 
 		}
 		
@@ -755,7 +755,7 @@ public class APIModel {
 				if(res.has(parts[idx])) res = res.optJSONObject(parts[idx]);
 			}
 			
-			Out.debug("getDefinitionByReference: ref={} res={}",  ref, res );
+			LOG.debug("getDefinitionByReference: ref={} res={}",  ref, res );
 
 		} else {
 			res = APIModel.getExternal(ref);

@@ -83,6 +83,7 @@ public class APIGraph extends CoreAPIGraph {
 	public APIGraph(String resource) {
 		super();
 		
+		this.mainResource=resource;
 		this.resource = resource;
 		this.resourceNode = getNode(resource);
 		
