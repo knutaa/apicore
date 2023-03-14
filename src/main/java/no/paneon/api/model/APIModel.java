@@ -1488,6 +1488,12 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 
 		JSONObject rulesFragment = Config.getRulesForResource(resource); 
+		
+		if(rulesFragment==null) {
+			Out.printOnce("... missing rules details - specify using --rules argument");
+			return res;
+		}
+		
 		JSONArray  rules = rulesFragment.getJSONArray("notifications");
 		
 		List<JSONObject> rule = new LinkedList<>();
