@@ -85,6 +85,8 @@ public class APIGraph extends CoreAPIGraph {
 		
 		this.mainResource=resource;
 		this.resource = resource;
+		this.allResources = new LinkedList<>();
+		this.allResources.add(resource);
 		this.resourceNode = getNode(resource);
 		
 		this.graph = getSubGraphWithInheritance(this.allResources, this.completeGraph, this.resourceNode, this.resourceNode);
