@@ -526,7 +526,7 @@ public class Node implements Comparable<Object>  {
 
 				if(property.isEmpty()) continue;
 
-				String type = APIModel.type(property);		
+				String type = APIModel.typeOfProperty(property, propName);		
 				
 				LOG.debug("addPropertyDetails: property={} type={}" , propName, type );
 

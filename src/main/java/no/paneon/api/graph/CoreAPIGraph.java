@@ -773,7 +773,7 @@ public class CoreAPIGraph {
 				continue; 
 			}
 			
-			String type = APIModel.getTypeName(property);
+			String type = APIModel.getTypeName(property, propertyName);
 			
 			if(type.isEmpty()) continue;
 			
@@ -801,7 +801,7 @@ public class CoreAPIGraph {
 				
 				property = APIModel.getDefinition(type);
 
-				type = APIModel.getTypeName(property);
+				type = APIModel.getTypeName(property, propertyName);
 				coreType = APIModel.removePrefix(type);
 
 				LOG.debug("addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));

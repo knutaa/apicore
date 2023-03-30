@@ -161,5 +161,6 @@
 	
 	"diagrams.yaml": "generated/diagrams/diagrams.yaml",
 	
+    "specialProperties": [ "value" ]
 	
 }

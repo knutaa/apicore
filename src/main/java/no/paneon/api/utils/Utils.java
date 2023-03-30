@@ -783,36 +783,31 @@ public class Utils {
 	@LogMethod(level=LogLevel.TRACE)
 	public static InputStream getSource(String source, List<String> directories) throws Exception {
 		InputStream res=null;
-						
-		URI uri = new URI(source);
-		boolean isWeb = uri.getScheme()!=null && Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
-		
-		LOG.debug("getSource::isWeb={} url={}",  isWeb, source);
+					
+		try {
+			URI uri = new URI(source);
+			boolean isWeb = uri.getScheme()!=null && Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+			if(isWeb) {
+				URL url = uri.toURL(); 
+				URLConnection con = url.openConnection();   
 
-		LOG.debug("getSource::HostnameVerifier={}",  HttpsURLConnection.getDefaultHostnameVerifier());
-		LOG.debug("getSource::SSLSocketFactory={}",  HttpsURLConnection.getDefaultSSLSocketFactory());
+				LOG.debug("getSource::isWeb={} url={}",  isWeb, source);
 
-		if(isWeb) {
-			try {
-			   URL url = uri.toURL(); 
-			   
-			   URLConnection con = url.openConnection();
-			   
-			   res = con.getInputStream();
-					   
-			   // res = url.openStream();
-			} catch (Exception ex) {
-				Out.debug("ERROR: {}",  ex.getLocalizedMessage());
-				ex.printStackTrace();
-				// returning null;
+				res = con.getInputStream();		   
+			} else {
+				res = new FileInputStream(source);
 			}
-		} else {
+		} catch(Exception ex) {
+			Out.debug("ERROR: {}",  ex.getLocalizedMessage());
 			try {
 				res = new FileInputStream(source);
-			} catch(Exception ex) {
-				// returning null
+			} catch(Exception ey) {
+				Out.printOnce("... unable to read source {}", source);
 			}
 		}
+		
+		LOG.debug("getSource::HostnameVerifier={}",  HttpsURLConnection.getDefaultHostnameVerifier());
+		LOG.debug("getSource::SSLSocketFactory={}",  HttpsURLConnection.getDefaultSSLSocketFactory());
 		
 		return res;
 	}

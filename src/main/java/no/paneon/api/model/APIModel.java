@@ -591,7 +591,7 @@ public class APIModel {
 		if(res) {
 			JSONObject property = APIModel.getDefinition(type);
 			
-			type = APIModel.getTypeName(property);
+			type = APIModel.getTypeName(property, type);
 
 			res = !property.isEmpty() && !type.isEmpty() && APIModel.isSimpleType(type) || APIModel.isArrayType(type);
 		}
@@ -1634,14 +1634,20 @@ public class APIModel {
 		if(ref!=null) {
 			return ref;
 		} else {
-			return type(property);
+			return typeOfProperty(property);
 		}
 	}
 
 	private static Set<String> typeWarnings = new HashSet<>();
 	
+
 	@LogMethod(level=LogLevel.DEBUG)
-	public static String type(JSONObject property) {
+	public static String typeOfProperty(JSONObject property) {
+		return typeOfProperty(property,null);
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public static String typeOfProperty(JSONObject property, String name) {
 
 		String res="";
 
@@ -1659,7 +1665,7 @@ public class APIModel {
 					res = Config.getFormatToType().get(format);
 	
 				} else {
-					if(!typeWarnings.contains(format)) {
+					if(!typeWarnings.contains(format) ) {
 						Out.debug("... format: {} has no mapping, using type and format", format);
 						typeWarnings.add(format);
 					}
@@ -1672,7 +1678,7 @@ public class APIModel {
 	
 			} else if(property.has(ITEMS)) {
 	
-				res = type( property.optJSONObject(ITEMS) );
+				res = typeOfProperty( property.optJSONObject(ITEMS), name );
 	
 			} else if(property.has(TYPE)) {
 	
@@ -1686,7 +1692,9 @@ public class APIModel {
 				}
 	
 			} else {
-				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+				if(!isSecialProperty(name)) {  
+					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+				}
 				res = "{}"; // property.toString(); // should not really happen
 			}
 		} catch(Exception ex) {
@@ -1702,6 +1710,12 @@ public class APIModel {
 
 
 	@LogMethod(level=LogLevel.DEBUG)
+	private static boolean isSecialProperty(String name) {
+		List<String> specials = Config.get("specialProperties");
+		return specials.contains(name);
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getType(JSONObject property) {
 		if(property.has(ITEMS) && property.optJSONObject(ITEMS)!=null) {
 			property = property.optJSONObject(ITEMS);
@@ -1712,13 +1726,18 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getTypeName(JSONObject property) {
+		return getTypeName(property,null);
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static String getTypeName(JSONObject property, String name) {
 
 		String res=null;
 		if(property==null) {
 			res = "";
 		} else if(property.has(ITEMS)) {
 			property = property.optJSONObject(ITEMS);
-			res = getTypeName(property);
+			res = getTypeName(property, name);
 		} else if(property.has(REF)) {
 			res = getReference(property); 
 		} else if(property.has(TYPE)){
@@ -1726,8 +1745,10 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
-			// System.exit(1);
+			if(!isSecialProperty(name)) {
+				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+			}
+				// System.exit(1);
 			res="{}";
 		}
 		
