@@ -99,27 +99,36 @@ public class Utils {
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static boolean isSimpleType(String type) {
+		boolean res=false;
 	    List<String> simpleTypes = Config.getSimpleTypes(); 
     
 	    List<String> simpleEndings = Config.getSimpleEndings();       
 	    List<String> nonSimpleEndings = Config.getNonSimpleEndings();
 	    
         if(APIModel.isEnumType(type)) {
-        	return true;
+        	res=true;
         }
         else if(simpleTypes.contains(type)) {
-	        return true;
+	        res=true;
 	    } else {
 	        boolean nonSimple=nonSimpleEndings.stream().anyMatch(type::endsWith);
-	        if(nonSimple) return false;
+	        if(nonSimple) res=false;
 	
-	        return simpleEndings.stream().anyMatch(type::endsWith);
+	        res=simpleEndings.stream().anyMatch(type::endsWith);
 	    }
+        
+        Out.debug("isSimpleType: type={} res={}", type, res);
+        
+        return res;
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static String getStereoType(APIGraph aPIGraph, String node, String pivot, List<String> subGraphs) {
-		if(node.contains("_discriminator")) {
+		List<String> allResources = APIModel.getResources();
+		
+		if(allResources.contains(node) && !node.contentEquals(pivot)) {
+			return " <<DiscriminatorNode>>";
+		} else if(node.contains("_discriminator")) {
 			return " <<DiscriminatorNode>>";
 		} else if(node.equals(pivot) ) {
 	        return (aPIGraph instanceof APISubGraph) ? " <<SubResource>>" : " <<Pivot>>";

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
@@ -45,7 +46,7 @@ public class Config {
     private static final String NEWLINE = "\n";
 
     private static JSONObject json = new JSONObject();
-
+    
     public static void setConfigSources(List<String> files) {
     	configFiles.addAll(files);
     	forceConfig();
@@ -95,9 +96,14 @@ public class Config {
     		InputStream is ;
     		if(!skipInternalConfiguration) {
     			is = new ClassPathResource("configuration.json").getInputStream();
-    			addConfiguration(is,"configuration.json");    			
+    			addConfiguration(is,"configuration.json");    
+    			
+    			LOG.debug("config={}", json);
+
     		} 
     		
+			LOG.debug("config={}", json);
+
     		for(String file : configFiles) {
     			Out.println("... adding configuration from file " + Utils.getBaseFileName(file));
 
@@ -896,6 +902,43 @@ public class Config {
 		}
 	}
 
+
+	public static List<String> getResourcesFromRules() {
+		List<String> res = new LinkedList<>();
+		
+		JSONObject rules = Config.getRules();
+		
+		LOG.debug("getResourcesFromRules: rules={}", rules);	
+		
+		if(rules !=null && rules.optJSONArray("resources") != null) {
+			LOG.debug("getResourcesFromRules: rules={}", rules);	
+
+			boolean checkForExamples = Config.getBoolean("checkForResourceExamples");
+			
+			LOG.debug("getResourcesFromRules: checkForExamples={}", checkForExamples);
+
+			Predicate<JSONObject> includeResource = obj -> obj.has("name") && 
+					(!checkForExamples || checkForExamples && (obj.has("example") || obj.has("examples")));
+			
+			JSONArray resourcesRules = rules.optJSONArray("resources");
+			Iterator<Object> iter = resourcesRules.iterator();
+			while(iter.hasNext()) {
+				Object o = iter.next();
+				if(o instanceof JSONObject) {
+					JSONObject rule = (JSONObject)o;
+					if(includeResource.test(rule)) res.add(rule.optString("name"));
+				}
+			
+			}
+
+		}
+		
+		LOG.debug("getResourcesFromRules: {}", res);
+		
+		return res.stream().distinct().collect(Collectors.toList());
+		
+	}
+	
 	public static JSONObject getRulesForResource(String resource) {
 		JSONObject rules = Config.getRules();
 		

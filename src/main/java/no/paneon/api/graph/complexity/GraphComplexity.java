@@ -80,17 +80,17 @@ public class GraphComplexity {
 
 		for(Node node : graph.vertexSet().stream().sorted().collect(toList())) {
 
-			LOG.debug("computeGraphComplexity:: node={} isSimplePrefixGr={}", node, isSimplePrefixGraph(graph,node));
-
 			if(!shortestPath.containsKey(node) || 
 			   !longestPath.containsKey(node) ||
 			   (!node.equals(resource) && isSimplePrefixGraph(graph,node))) continue;
-			
+
+			LOG.debug("## computeGraphComplexity:: node={} isSimplePrefixGraph={}", node, isSimplePrefixGraph(graph,node));
+
 			int complexityContribution = computeComplexityContribution(this.graph, node, shortestPath.get(node), longestPath.get(node));
 			
 			if(complexityContribution>minimum+MIN_COMPLEXITY || this.resource.equals(node)) nodeComplexity.put(node, complexityContribution);
 					
-			LOG.debug("computeGraphComplexity:: node={} complexityContribution={}", node, complexityContribution);
+			LOG.debug("computeGraphComplexity:: node={} complexityContribution={}", node, complexityContribution); // 06-2023
 
 		}
 				
@@ -113,6 +113,7 @@ public class GraphComplexity {
 	}
 	
 	private boolean isSimplePrefixGraph(Graph<Node, Edge> graph, Node node) {
+		
 		Set<Node> inbound = GraphAlgorithms.getInboundNeighbours(graph, node);
 		Set<Node> outbound = GraphAlgorithms.getOutboundNeighbours(graph, node);
 
@@ -120,15 +121,23 @@ public class GraphComplexity {
 										.filter(n -> !CoreAPIGraph.isLeafNode(graph,n))
 										.collect(toSet());
 		
-		LOG.debug("computeComplexityContribution: node={} outboundNonLeaf={}", node, outboundNonLeaf);
+		LOG.debug("isSimplePrefixGraph: node={} outboundNonLeaf={}", node, outboundNonLeaf);
 
-		outbound.removeAll(inbound);
+		// outbound.removeAll(inbound); // TBD 05-2023
 		
 		Predicate<Node> isEnumNode = Node::isEnumNode;
 		
 		outbound = outbound.stream().filter(isEnumNode.negate()).collect(toSet());
 				
-		return (outbound.size()<3) || (outboundNonLeaf.size()==1);
+		int discriminators = graph.outgoingEdgesOf(node).stream().filter(Edge::isDiscriminator).collect(Collectors.toSet()).size();
+		
+		boolean res = (outbound.size()<3) || (outboundNonLeaf.size()==1);
+
+		res = res && discriminators==0;
+		
+		LOG.debug("isSimplePrefixGraph: node={} res={}", node, res);
+
+		return res;
 		
 	}
 
@@ -177,6 +186,9 @@ public class GraphComplexity {
 		int complexityContribution = 0;
 		
 		if(shortest>PATH_LENGTH_THRESHOLD || node.equals(this.resource)) {
+			
+			LOG.debug("computeComplexityContribution: node={} edges={}",  node, graph.edgesOf(node));
+
 			Set<Node> subGraph = CoreAPIGraph.getNodesOfSubGraph(graph, node);
 			Set<Node> inbound = CoreAPIGraph.getInboundNeighbours(graph, node);
 			Set<Node> outbound = CoreAPIGraph.getOutboundNeighbours(graph, node);
@@ -184,14 +196,19 @@ public class GraphComplexity {
 			Set<Node> allInboundOutbound = Utils.union( inbound, outbound );					
 			Set<Node> differenceInboundOutbound = Utils.difference( outbound, inbound );
 			
-			int degree = graph.degreeOf(node);
+			int discriminators = graph.outgoingEdgesOf(node).stream().filter(Edge::isDiscriminator).collect(Collectors.toSet()).size();
+			
+			LOG.debug("computeComplexityContribution: node={} discriminators={}",  node, discriminators);
+
+			int degree = discriminators + graph.degreeOf(node);
 			int pathComplexity = 1 + longest * shortest;
 			int subGraphContribution = (subGraph.size()<4) ? 1 : subGraph.size()+1;
-			int allEdgesContribution = allInboundOutbound.size();
-			int differenceContribution = (degree<3) ? 1 : differenceInboundOutbound.size();
+			int allEdgesContribution = allInboundOutbound.size() + discriminators;
+			int differenceContribution = (degree<3) ? 1 : discriminators + differenceInboundOutbound.size();
 						
 			complexityContribution = pathComplexity * subGraphContribution * allEdgesContribution * differenceContribution;
 					
+			LOG.debug("computeComplexityContribution: node={} contrib={}",  node, complexityContribution);
 			
 		}
 		

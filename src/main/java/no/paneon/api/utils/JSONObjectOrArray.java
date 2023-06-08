@@ -4,12 +4,17 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Optional;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import no.paneon.api.model.APIModel;
+
 public class JSONObjectOrArray {
 
-	
+	static final Logger LOG = LogManager.getLogger(JSONObjectOrArray.class);
+
 	public enum JSONValueType {
 		ARRAY,
 		OBJECT,
@@ -33,7 +38,7 @@ public class JSONObjectOrArray {
 			content = Utils.readFile(file);
 			return res.set(new JSONObject(content) );		
 		} catch(FileNotFoundException e1) {
-			Out.printAlways("... file not found: " + Utils.getBaseFileName(file) );
+			LOG.debug("... file not found: {}", Utils.getBaseFileName(file) );
 		} catch(Exception e1) {
 		
 			try {
