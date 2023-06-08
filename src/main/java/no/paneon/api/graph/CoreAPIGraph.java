@@ -987,24 +987,40 @@ public class CoreAPIGraph {
 
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} vertexSet={}", node, resource, graph.vertexSet());
 		LOG.debug("getSubGraphWithInheritance:: node={} resource={} edgeSet={}", node, resource, graph.edgeSet());
+
+		Predicate<Edge> notBothDirections = e -> {
+			return graph.getAllEdges(e.related, e.node).isEmpty();
+		};
 		
-		Set<Edge> inheritanceFromNode = graph.incomingEdgesOf(node).stream()
+		Set<Edge> inheritedFromNode = graph.incomingEdgesOf(node).stream()
+											.filter(Edge::isAllOf)
+											//.filter(Edge::isInheritance)
+											// .filter(e -> !e.isDiscriminator())
+											//.filter(e -> notBothDirections.test(e))
+											.collect(toSet());
+		
+		Set<Edge> inheritedByNode = graph.outgoingEdgesOf(node).stream()
 											.filter(Edge::isInheritance)
 											.collect(toSet());
 		
-		LOG.debug("getSubGraphWithInheritance:: node={} resource={} inheritanceFromNode={}", node, resource, inheritanceFromNode);
-
-		Set<Node> subclassesBy = inheritanceFromNode.stream().map(Edge::getNode).filter(n -> allResources.contains((n.getName()))).collect(Collectors.toSet());
+		Set<Node> inheritance = inheritedByNode.stream().map(Edge::getRelated).collect(Collectors.toSet());
 		
-		LOG.debug("getSubGraphWithInheritance:: node={} resource={} subclassesBy={}", node, resource, subclassesBy);
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} inheritanceFromNode={}", node, resource, inheritedFromNode);
 
-		graph.removeAllVertices(subclassesBy);
+		Set<Node> subclassedBy = inheritedFromNode.stream()							
+									.map(Edge::getNode)
+									.filter(n -> allResources.contains((n.getName())) ) // && !inheritance.contains(n))
+									.collect(Collectors.toSet());
+		
+		LOG.debug("getSubGraphWithInheritance:: node={} resource={} subclassedBy={}", node, resource, subclassedBy);
+
+		// graph.removeAllVertices(subclassedBy); // 06-2023
 
 		Set<Node> simpleTypes = graph.vertexSet().stream()
-				.filter(Node::isSimpleType)
-				.collect(toSet());
+									.filter(Node::isSimpleType)
+									.collect(toSet());
 		
-		LOG.debug("getSubGraph:: node={} resource={} simpleTypes={}", node, resource, simpleTypes);
+		if(!simpleTypes.isEmpty()) LOG.debug("getSubGraph:: node={} resource={} simpleTypes={}", node, resource, simpleTypes);
 
 		simpleTypes.remove(node);
 		simpleTypes.remove(resource);
@@ -1047,7 +1063,11 @@ public class CoreAPIGraph {
 										.filter(notEnumNode)
 										.collect(toSet());
 	
-			LOG.debug("getSubGraphWithInheritance:: node={} NO inbund discriminator={}", node, noInbound);
+			LOG.debug("getSubGraphWithInheritance:: #2 node={} NO inbound discriminator={}", node, noInbound);
+
+			noInbound.removeAll(subclassedBy);
+			
+			LOG.debug("getSubGraphWithInheritance:: #1 node={} NO inbound discriminator={}", node, noInbound);
 
 			graph.removeAllVertices(noInbound);
 
@@ -1078,7 +1098,8 @@ public class CoreAPIGraph {
 			LOG.debug("getSubGraphWithInheritance:: node={} oneOfs={}", node, oneOfs);
 
 			excludeNodes.addAll(oneOfs);
-			
+			excludeNodes.removeAll(subclassedBy); // 06-2023
+
 			Set<Node> discriminators = nodes.stream()
 					.filter(n -> graph.getAllEdges(n, node)!=null)
 					.filter(n -> graph.getAllEdges(n, node).stream().anyMatch(Edge::isDiscriminator))
@@ -1107,6 +1128,8 @@ public class CoreAPIGraph {
 							.collect(toSet());
 		
 		LOG.debug("getSubGraphWithInheritance:: node={} excludeNodes={}", node, excludeNodes);
+
+		excludeNodes.removeAll(subclassedBy); // 06-2023
 
 		nodes.removeAll(excludeNodes);
 
@@ -1157,9 +1180,11 @@ public class CoreAPIGraph {
 			LOG.debug("getSubGraphWithInheritance:: node={} reachable={} ", node, reachable);
 			LOG.debug("getSubGraphWithInheritance:: node={} unReachabl={} ", node, unReachable);
 			
+			unReachable.removeAll(subclassedBy);
+
 			if(!reachable.isEmpty() && !unReachable.isEmpty()) {
 				remove=true;
-				
+								
 				LOG.debug("getSubGraphWithInheritance:: node={} unReachable={} ", node, unReachable);
 
 				unReachable.forEach(subGraph::removeVertex); 				
@@ -1674,7 +1699,7 @@ public class CoreAPIGraph {
 		LOG.debug("cleanExplicitResources:: node={} allResources={}", resource, allResources);
 		
 		Predicate<Edge> isResourceNode = e -> allResources.contains(e.getRelated().getName()); 
-		Predicate<Edge> isNotResource  = e -> !e.getRelated().getName().contentEquals(resource);
+		Predicate<Edge> isNotResource  = e -> !e.getRelated().getName().contentEquals(resource) && !e.getNode().getName().contentEquals(resource);
 
 		Set<Edge> discriminatorEdges = graph.edgeSet().stream()
 										.filter(Edge::isDiscriminator)
@@ -1686,7 +1711,13 @@ public class CoreAPIGraph {
 				graph.edgeSet().stream()
 				.filter(Edge::isDiscriminator).collect(Collectors.toSet()));
 
-		LOG.debug("cleanExplicitResources:: disriminatorEdges={}", discriminatorEdges);
+//		discriminatorEdges = graph.edgeSet().stream()
+//				.filter(Edge::isDiscriminator)
+//				.filter(isResourceNode)
+//				.filter(isNotResource)
+//				.collect(Collectors.toSet());
+
+		LOG.debug("cleanExplicitResources:: node={} disriminatorEdges={}", resource, discriminatorEdges);
 
 		graph.removeAllEdges(discriminatorEdges);
 

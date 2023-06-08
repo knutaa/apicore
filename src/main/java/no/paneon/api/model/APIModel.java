@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -51,13 +52,13 @@ public class APIModel {
 
 	public static final List<String> ALL_OPS = Arrays.asList("GET", "POST", "DELETE", "PUT", "PATCH");
 
-	private static String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
-	private static String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
+	private static final String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
+	private static final String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
 	
-	private static String RESOURCE_MAPPING = "resourceMapping";
+	private static final String RESOURCE_MAPPING = "resourceMapping";
 	
-	private static String FLATTEN_INHERITANCE = "expandInherited";
-	private static String TITLE = "title";
+	private static final String FLATTEN_INHERITANCE = "expandInherited";
+	private static final String TITLE = "title";
 	private static final String FORMAT = "format";
 	private static final String TYPE = "type";
 	private static final String ARRAY = "array";
@@ -335,22 +336,71 @@ public class APIModel {
 	}
 
 
+	static List<String> _getResources = null;
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getResources() {
 
+		if(_getResources!=null) return _getResources;
+		
 		List<String> res = getCoreResources(); 
 			
 		LOG.debug("getResources:: {}", res);
+				
+		Predicate<String> notAlreadySeen = s -> !res.contains(s);
+		
+		if(Config.getBoolean("includeResourcesFromRules")) {
+			
+			List<String> fromRules = Config.getResourcesFromRules();
+			
+			LOG.debug("getResources:: fromRules={}", fromRules);
+				
+			LOG.debug("getResources:: {}", res);
+			
+			fromRules = fromRules.stream().filter(notAlreadySeen).collect(Collectors.toList());
 
-		// res.addAll( getSubclassesByResources(res) );
+			res.addAll(fromRules);
+			
+		}
 		
 		LOG.debug("getResources:: {}", res);
+
+		
+		if(!Config.getBoolean("excludeResourcesFromDiscriminators")) {
+			
+			final Set<String> discriminators = new HashSet<>();
+			res.forEach(resource -> {
+				discriminators.addAll(getDiscriminators(resource));
+			});
+			
+			res.addAll(discriminators.stream().filter(notAlreadySeen).collect(Collectors.toSet()));
+		}
+		
+		
+		LOG.debug("getResources:: {}", res);
+
+		_getResources = res;
 		
 		return res;
 		
 	}
 	
 	
+	private static Set<String> getDiscriminators(String resource) {
+		Set<String> res = new HashSet<>();
+		JSONObject definition = getDefinition(resource);
+		if(definition.has(DISCRIMINATOR)) {
+			definition = definition.optJSONObject(DISCRIMINATOR);
+			if(definition.has(MAPPING)) {
+				definition = definition.optJSONObject(MAPPING);
+				String discriminators[] = JSONObject.getNames(definition);
+				LOG.debug("getDiscriminators:: node={} discriminators={}", resource, discriminators);
+				for(String d : discriminators) res.add(d);
+			}
+		}
+		return res;
+	}
+
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getCoreResources() {
 
@@ -362,8 +412,6 @@ public class APIModel {
 				.distinct()
 				// .map(APIModel::getMappedResource)
 				.collect(toList());
-
-		LOG.debug("getCoreResources:: {}", res);
 		
 		return res;
 		
@@ -536,7 +584,12 @@ public class APIModel {
 	public static boolean isSimpleType(String type) {
 		JSONObject definition = getDefinition(type);
 		LOG.debug("isSimpleType: type={} definition={}", type, definition);
-		return isSimpleType(definition);
+		
+		boolean res=isSimpleType(definition);
+		
+		LOG.debug("isSimpleType: type={} res={}",  type, res);
+		
+		return res;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -555,6 +608,7 @@ public class APIModel {
 
 				if(definition.has(DISCRIMINATOR)) res=false;
 				if(definition.has(ALLOF)) res=false;
+				if(definition.has(ONEOF)) res=false;
 
 				if(definition.has(PROPERTIES)) {
 					JSONObject properties = definition.optJSONObject(PROPERTIES);
@@ -791,10 +845,14 @@ public class APIModel {
 		} else {
 			res = getDefinition(coreResource, PROPERTIES);
 			
-			LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res);
+			LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res.keySet());
+			LOG.debug("getPropertyObjectForResource: resource={} {}={}",  coreResource, FLATTEN_INHERITANCE, Config.getBoolean(FLATTEN_INHERITANCE));
 
-			if(res!=null && !res.isEmpty() && Config.getBoolean(FLATTEN_INHERITANCE)) {	
+			if(Config.getBoolean(FLATTEN_INHERITANCE)) {	
 				JSONObject allOfs = getFlattenAllOfs(coreResource);
+				
+				LOG.debug("getPropertyObjectForResource: resource={} allOfs={}",  coreResource, allOfs.keySet());
+
 				res = mergeJSON(res,allOfs);
 				
 				resourcePropertyMap.put(coreResource, res);
@@ -802,8 +860,10 @@ public class APIModel {
 				LOG.debug("getPropertyObjectForResource: resource={} properties={}",  coreResource, res.keySet());
 
 			}
+			
+			resourcePropertyMap.put(coreResource, res);
+
 		}
-		if(res==null) res=new JSONObject();
 
 		return res;
 	}
@@ -820,11 +880,17 @@ public class APIModel {
 		
 		final JSONObject target = new JSONObject();
 		JSONObject definition = getDefinition(resource);
+
 		if(definition!=null && definition.has(ALLOF)) {
+			
 			JSONArray allofs = definition.optJSONArray(ALLOF);
+			LOG.debug("getFlattenAllOfs: resource={} allofs={}", resource, allofs);
+
 			if(allofs!=null && !allofs.isEmpty()) {
 				allofs.forEach(allof -> {
 					if(allof instanceof JSONObject) {
+						LOG.debug("getFlattenAllOfs: resource={} allof={}", resource, allof);
+
 						JSONObject allOfDefinition = (JSONObject) allof;
 						if(allOfDefinition.has(REF)) {
 							String superior = getReferencedType(allOfDefinition, null); 
