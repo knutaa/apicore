@@ -94,6 +94,10 @@ public class APIModel {
 	private static final String NEWLINE = "\n";
 	private static String swaggerSource;
 	
+	private static final String MERGE_ALLOFS_TO_DEFINITION = "mergeAllOfs";
+	private static final String DELETE_RESP_CONFIG = "deleteResponses";
+	private static final String DELETE_RESP = "deleteResponseHandling";
+
 	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
 
     private static boolean firstAPImessage=true;
@@ -110,21 +114,25 @@ public class APIModel {
 	private APIModel() {
 		resourceMapping = Config.getConfig(RESOURCE_MAPPING);
 		reverseMapping = generateReverseMapping(resourceMapping);
+		
 	}
 
 	public APIModel(JSONObject api) {
 		this();
+		
 		setSwagger(api);
 	}
 
 	private APIModel(String source) {
 		this();
+		
 		setSwagger(Utils.readJSONOrYaml(source));
 		swaggerSource=source;
 	}
 
 	public APIModel(String source, InputStream is) {
 		this();
+				
 		try {
 			APIModel.setSwaggerSource(source);
 			setSwagger(Utils.readJSONOrYaml(is));
@@ -142,13 +150,16 @@ public class APIModel {
 	
 	public APIModel(String filename, File file) {
 		this();
+		
 		try {
 			InputStream is = new FileInputStream(file);
 			APIModel.setSwaggerSource(filename);
+			
 			setSwagger(Utils.readJSONOrYaml(is));
 			swaggerSource=filename;
 
 		} catch(Exception ex) {
+			
 			Out.println("... unable to read API specification from file '" + filename + "'");
 			Out.println("... error=" + ex.getLocalizedMessage());
 			// ex.printStackTrace();
@@ -181,11 +192,10 @@ public class APIModel {
 		
 		swagger = api;
 
-		LOG.debug("setSwagger:: keys={}", swagger.keySet());
-
 		rearrangeDefinitions(swagger);
 		
 		refactorEmbeddedTitles();
+		
 
 	}
 
@@ -224,8 +234,11 @@ public class APIModel {
 	private static void refactorEmbeddedTitles(String type) {
 		LOG.debug("refactorEmbeddedTitles resource={}", type);
 
-		JSONObject definition = getDefinition(type);
+		// JSONObject definition = getDefinition(type);
 		for(String property : APIModel.getProperties(type) ) {
+			
+			LOG.debug("refactorEmbeddedTitles resource={} property={}", type, property);
+
 			JSONObject propObj = APIModel.getPropertySpecification(type, property);
 			if(propObj.has(TITLE)) {
 				String title=propObj.optString(TITLE);
@@ -252,6 +265,9 @@ public class APIModel {
 
 			}
 		}
+		
+		LOG.debug("refactorEmbeddedTitles DONE resource={}", type);
+
 	}
 
 
@@ -851,7 +867,10 @@ public class APIModel {
 			if(Config.getBoolean(FLATTEN_INHERITANCE)) {	
 				JSONObject allOfs = getFlattenAllOfs(coreResource);
 				
-				LOG.debug("getPropertyObjectForResource: resource={} allOfs={}",  coreResource, allOfs.keySet());
+				if(allOfs.has(PROPERTIES)) allOfs = allOfs.optJSONObject(PROPERTIES);
+				
+				if(allOfs!=null) LOG.debug("getPropertyObjectForResource: resource={} allOfs={}",  coreResource, allOfs.keySet());
+				LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res.keySet());
 
 				res = mergeJSON(res,allOfs);
 				
@@ -881,32 +900,44 @@ public class APIModel {
 		final JSONObject target = new JSONObject();
 		JSONObject definition = getDefinition(resource);
 
+		LOG.debug("getFlattenAllOfs: #1 resource={} definition={}", resource, definition);
+
 		if(definition!=null && definition.has(ALLOF)) {
+							
+			JSONObject allOfs = expandAllOfs(resource, definition.optJSONArray(ALLOF));
+
+			LOG.debug("getFlattenAllOfs: #2 resource={} allofs={}", resource, allOfs.keySet());
+
+			LOG.debug("getFlattenAllOfs: resource={} res={}", resource, target.keySet());
 			
-			JSONArray allofs = definition.optJSONArray(ALLOF);
-			LOG.debug("getFlattenAllOfs: resource={} allofs={}", resource, allofs);
+			merge(resource,target,allOfs);
+			target.remove(ALLOF);
+				
+			LOG.debug("## getFlattenAllOfs: resource={} res={}", resource, target);
 
-			if(allofs!=null && !allofs.isEmpty()) {
-				allofs.forEach(allof -> {
-					if(allof instanceof JSONObject) {
-						LOG.debug("getFlattenAllOfs: resource={} allof={}", resource, allof);
-
-						JSONObject allOfDefinition = (JSONObject) allof;
-						if(allOfDefinition.has(REF)) {
-							String superior = getReferencedType(allOfDefinition, null); 
-							
-							LOG.debug("getFlattenAllOfs: allOf={} superior={}", allOfDefinition, superior);
-
-							JSONObject inheritsFrom =  getPropertyObjectForResource(superior);
-							
-							LOG.debug("merging with resource {} keys {}",  resource, inheritsFrom.keySet());
-							LOG.debug("merging with resource {} ",  inheritsFrom.toString(2));
-	
-							mergeJSON(target,inheritsFrom);
-						}
-					}
-				});
-			}
+			
+//			if(allofs!=null && !allofs.isEmpty()) {
+//				allofs.forEach(allof -> {
+//					if(allof instanceof JSONObject) {
+//						LOG.debug("getFlattenAllOfs: resource={} allof={}", resource, allof);
+//
+//						JSONObject allOfDefinition = (JSONObject) allof;
+//						if(allOfDefinition.has(REF)) {
+//							String superior = getReferencedType(allOfDefinition, null); 
+//							
+//							LOG.debug("getFlattenAllOfs: allOf={} superior={}", allOfDefinition, superior);
+//
+//							JSONObject inheritsFrom = getPropertyObjectForResource(superior,,);
+//							
+//							LOG.debug("merging with resource {} keys {}",  resource, inheritsFrom.keySet());
+//							LOG.debug("merging with resource {} ",  inheritsFrom.toString(2));
+//	
+//							mergeJSON(target,inheritsFrom);
+//						}
+//					}
+//				});
+//			}
+			
 		}
 		
 		flattened.put(resource, target);
@@ -935,6 +966,10 @@ public class APIModel {
 	
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getPropertyObjectForResource(JSONObject resource) {
+		JSONObject allOfs = null;
+		
+		if(resource!=null && resource.has(ALLOF)) allOfs=resource.optJSONObject(PROPERTIES);
+
 		if(resource!=null && resource.has(PROPERTIES)) resource=resource.optJSONObject(PROPERTIES);
 
 		if(resource==null) resource=new JSONObject();
@@ -944,6 +979,9 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Set<String> getPropertiesForResource(String resource) {
 		JSONObject obj = getPropertyObjectForResource(resource);
+		
+		Out.debug("getPropertiesForResource resource={} prop={}", resource, obj.keySet()); 
+
 		return obj.keySet();
 	}
 
@@ -1066,13 +1104,20 @@ public class APIModel {
 		return swagger!=null && !swagger.has("openapi");
 	}
 
-
+	private static Map<String,JSONObject> mergedDefinitions = new HashMap<>();
+	
 	@LogMethod(level=LogLevel.DEBUG)
-	public static JSONObject getDefinition(String node) {
+	public static JSONObject getDefinition(String node, boolean mergeAllOfs) {
 
 		JSONObject res;
 		JSONObject definitions = getDefinitions();
 
+		LOG.debug("getDefinition: node={} mergeAllOfs={}", node, mergeAllOfs);
+
+		if(mergeAllOfs && mergedDefinitions.containsKey(node)) {
+			return mergedDefinitions.get(node);
+		}
+		
 		if(definitions==null) {
 			res=null;
 		} else if(definitions.optJSONObject(node)!=null) {
@@ -1091,15 +1136,143 @@ public class APIModel {
 		}
 
 		if(res!=null) {
+			LOG.debug("getDefinition: node={} res={}", node, res.keySet());
+
 			if(res.has(REF)) {
 				res = getDefinitionByReference(res.getString(REF));
+				LOG.debug("getDefinition: node={} has $ref", node);
+			}
+			
+			LOG.debug("getDefinition: node={} mergeAllOfs={} MERGE_ALLOFS_TO_DEFINITION={}", node, mergeAllOfs, Config.getBoolean(MERGE_ALLOFS_TO_DEFINITION));
+
+			if(res.has(ALLOF) && Config.getBoolean(MERGE_ALLOFS_TO_DEFINITION) && mergeAllOfs) {
+				Out.debug("getDefinition: node={} allOf={}", node, res.get(ALLOF));
+
+				JSONObject allOfs = expandAllOfs(node, res.optJSONArray(ALLOF));
+				
+				Out.debug("getDefinition: node={} allOfs={}", node, allOfs.keySet());
+				if(allOfs.has(PROPERTIES)) LOG.debug("getDefinition: node={} allOfs={}", node, allOfs.getJSONObject(PROPERTIES).keySet());
+
+				LOG.debug("getDefinition: node={} res={}", node, res.keySet());
+				
+				merge(node,res,allOfs);
+				res.remove(ALLOF);
+				
+				Out.debug("## getDefinition: node={} res={}", node, res);
+
+				mergedDefinitions.put(node,res);
+				
 			}
 		}
 		
-		LOG.debug("getDefinition: node={} res={}", node, res!=null? res.toString() : null);
-
+		if(res!=null) LOG.debug("getDefinition: node={} res={}", node, res.keySet());
+				
 		return res;	
 	}
+
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static JSONObject getDefinition(String node) {
+		final boolean MERGE = true;
+		return getDefinition(node, !MERGE);
+	}
+
+	private static JSONObject expandAllOfs(String node, JSONArray allOfs) {
+		JSONObject res = new JSONObject();
+		
+		final boolean MERGE = true;
+		
+		if(allOfs!=null) {
+			allOfs.forEach(allof -> {
+				if(allof instanceof JSONObject) {
+					LOG.debug("expandAllOfs: allof={}", allof);
+
+					JSONObject allOfDefinition = (JSONObject) allof;
+					if(!allOfDefinition.has(REF)) {
+						LOG.debug("expandAllOfs: merging with allOfDefinition {}",  allOfDefinition);
+						merge(node, res, allOfDefinition);
+					}
+				}
+			});
+			
+			LOG.debug("expandAllOfs: res={}", res);
+
+			allOfs.forEach(allof -> {
+				if(allof instanceof JSONObject) {
+					LOG.debug("expandAllOfs: allof={}", allof);
+
+					JSONObject allOfDefinition = (JSONObject) allof;
+					if(allOfDefinition.has(REF)) {
+						String superior = getReferencedType(allOfDefinition, null); 
+						
+						LOG.debug("expandAllOfs: allOf={} superior={}", allOfDefinition, superior);
+
+						JSONObject expanded =  getDefinition(superior, MERGE); // getPropertyObjectForResource(superior);
+						
+						LOG.debug("expandAllOfs: merging with resource {} keys {}",  superior, expanded.keySet());
+						// LOG.debug("expandAllOfs: merging with resource {} ",  expanded.toString(2));
+
+						merge(node, res, expanded);
+						
+						LOG.debug("expandAllOfs: merged res={}", res.keySet());
+
+					}
+				}
+			});
+		}
+		
+		return res;
+	}
+
+	private static void merge(String node, JSONObject target, JSONObject add) {
+		LOG.debug("merge: start {}", node);
+
+		if(!target.has(PROPERTIES) && !add.has(PROPERTIES)) {
+			// nothing to do
+		} else if(!target.has(PROPERTIES) && add.has(PROPERTIES)) {
+			target.put(PROPERTIES, add.get(PROPERTIES));
+			mergeRequired(target,add);
+		} else if(target.has(PROPERTIES) && add.has(PROPERTIES)) {
+			JSONObject props = add.optJSONObject(PROPERTIES);
+			JSONObject targetProps = target.optJSONObject(PROPERTIES);
+			if(props!=null && targetProps!=null) {
+				for(String prop : props.keySet()) {
+					targetProps.put(prop,props.get(prop));
+				}
+				mergeRequired(target,add);
+
+			}
+		}
+		
+		for(String prop : add.keySet()) {
+			if(!target.has(prop)) {
+				target.put(prop, add.get(prop));
+				LOG.debug("merge: add property {}", prop);
+			}
+		}
+		
+		target.remove(ALLOF);
+		
+		LOG.debug("merge: end: node={} target={}", node, target);
+
+	}
+
+
+	private static void mergeRequired(JSONObject target, JSONObject add) {
+		if(!target.has(REQUIRED) && add.has(REQUIRED)) {
+			target.put(REQUIRED, add.get(REQUIRED));
+		} else if(target.has(REQUIRED) && add.has(REQUIRED)) {
+			JSONArray targetRequired = target.optJSONArray(REQUIRED);
+			JSONArray addRequired = add.optJSONArray(REQUIRED);
+			if(targetRequired!=null && addRequired!=null) {
+				List<Object> l = targetRequired.toList(); 
+				l.addAll(addRequired.toList());
+				target.put(REQUIRED, l);
+			}
+
+		}
+	}
+
 
 	static JSONObject allDefinitions = new JSONObject();
 
@@ -1374,8 +1547,8 @@ public class APIModel {
 		} else {
 				
 			if(seenRefs.contains(ref) && !externals.isEmpty()) {
-				Out.debug("getExternal: RECURSIVE ref={}", ref );
-				Out.debug("getExternal: externals keys={}", externals.keySet() );
+				LOG.debug("getExternal: RECURSIVE ref={}", ref );
+				LOG.debug("getExternal: externals keys={}", externals.keySet() );
 
 				return new JSONObject();
 			}
@@ -2407,6 +2580,8 @@ public class APIModel {
 	public static Map<String,String> getMandatoryOptional(JSONObject resource) {
 		Map<String,String> res = new HashMap<>();
 
+		LOG.debug("getMandatoryOptional: resource={}",  resource);
+
 		JSONObject core = getPropertyObjectForResource( resource );
 
 		for(String property : core.keySet()) {
@@ -2509,11 +2684,12 @@ public class APIModel {
 
 	public static JSONObject getResourceForPost(String resource) {
 		JSONObject res = null;
-
-		res = getDefinition( getReverseResourceMapping(resource) + "_Create");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_FVO");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "Input");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_MVO");
+		final boolean MERGE = true;
+		
+		res = getDefinition( getReverseResourceMapping(resource) + "_Create", MERGE);
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_FVO", MERGE);
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "Input", MERGE);
+		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_MVO", MERGE);
 
 		return res;
 	}
@@ -2678,11 +2854,25 @@ public class APIModel {
 //				Out.printAlways("... unable to extract unique success response code for " + path + " - found alternatives: " + responseCodes);
 //			}
 			if(!responseCodes.isEmpty()) {
-				Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
-				if(optRes.isPresent()) res = optRes.get();
+				if(op.toUpperCase().contentEquals("DELETE") && Config.getBoolean(DELETE_RESP)) {
+					res = "204";
+					LOG.debug("getSuccessResponseCode: path={} op={} default res={}",  path, op, res);
+
+					Map<String,String> resp_config = Config.getMap(DELETE_RESP_CONFIG);
+					if(resp_config!=null && !resp_config.isEmpty()) {
+						LOG.debug("getSuccessResponseCode: path={} op={} resp_config={}",  path, op, resp_config);
+						if(resp_config.containsKey(path)) res = resp_config.get(path);
+						LOG.debug("getSuccessResponseCode: path={} op={} res={}",  path, op, res);
+					}
+				} else {
+					Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
+					if(optRes.isPresent()) res = optRes.get();
+				}
 			}
 		}
 		
+		LOG.debug("getSuccessResponseCode: path={} op={} res={}",  path, op, res);
+
 		if(res.isEmpty()) {
 			Out.printAlways("... unable to extract unique success response code for " + path + " and operation " + op);
 		}

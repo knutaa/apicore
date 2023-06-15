@@ -557,10 +557,10 @@ public class Node implements Comparable<Object>  {
 				boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
 				
 				if(isRequired) {
-					LOG.debug("addPropertyDetails: node={} property={} isRequired={} contains={}", 
+					LOG.debug("addPropertyDetails: node={} property={} isRequired={} contains={} required={}", 
 							this, propName,
 							APIModel.isRequired(this.resource, propName),
-							required.contains(propName));
+							required.contains(propName), required);
 
 				}
 				
@@ -1036,7 +1036,9 @@ public class Node implements Comparable<Object>  {
 			Node fvoNode = nodeMap.get(fvo);
 				
 			List<Property> requiredProperties = fvoNode.getProperties().stream().filter(Property::isRequired).collect(toList());
-								
+						
+			LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={}",  this.getName(), requiredProperties);
+
 			requiredProperties.stream()
 				.map(Property::getName)
 				.map(this::getPropertyByName)
@@ -1049,6 +1051,8 @@ public class Node implements Comparable<Object>  {
 				
 				Set<Property> additionalRequired = this.properties.stream().filter(p -> !fvoProperties.contains(p.getName())).collect(toSet());
 				
+				LOG.debug("updatePropertiesFromFVO: node={} additionalRequired={}",  this.getName(), additionalRequired);
+
 				additionalRequired.forEach(Property::setRequired);
 				
 			}
