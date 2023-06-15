@@ -94,6 +94,10 @@ public class APIModel {
 	private static final String NEWLINE = "\n";
 	private static String swaggerSource;
 	
+	private static final String MERGE_ALLOFS_TO_DEFINITION = "mergeAllOfs";
+	private static final String DELETE_RESP_CONFIG = "deleteResponses";
+	private static final String DELETE_RESP = "deleteResponseHandling";
+
 	private static Map<String, JSONObject> resourcePropertyMap = new HashMap<>();
 
     private static boolean firstAPImessage=true;
@@ -2670,16 +2674,28 @@ public class APIModel {
 			
 			LOG.debug("getSuccessResponseCode: path={} op={} responseCodes={}",  path, op, responseCodes);
 			
-//			if(responseCodes.size()==1) {
-//				res = responseCodes.iterator().next();
-//			} else if(!responseCodes.isEmpty()) {
-//				res = responseCodes.stream().sorted().distinct().findFirst().get();
-//			} else {
-//				Out.printAlways("... unable to extract unique success response code for " + path + " - found alternatives: " + responseCodes);
-//			}
 			if(!responseCodes.isEmpty()) {
-				Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
-				if(optRes.isPresent()) res = optRes.get();
+
+				if(op.toUpperCase().contentEquals("DELETE") && Config.getBoolean(DELETE_RESP)) {
+					if(responseCodes.contains("204")) {
+						res = "204";
+					} else {
+						Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
+						if(optRes.isPresent()) res = optRes.get();
+					}
+					
+					LOG.debug("getSuccessResponseCode: path={} op={} default res={}",  path, op, res);
+
+					Map<String,String> resp_config = Config.getMap(DELETE_RESP_CONFIG);
+					if(resp_config!=null && !resp_config.isEmpty()) {
+						LOG.debug("getSuccessResponseCode: path={} op={} resp_config={}",  path, op, resp_config);
+						if(resp_config.containsKey(path)) res = resp_config.get(path);
+						LOG.debug("getSuccessResponseCode: path={} op={} res={}",  path, op, res);
+					}
+				} else {
+					Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
+					if(optRes.isPresent()) res = optRes.get();
+				}
 			}
 		}
 		
