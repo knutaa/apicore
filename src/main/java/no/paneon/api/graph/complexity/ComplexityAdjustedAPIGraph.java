@@ -101,6 +101,9 @@ public class ComplexityAdjustedAPIGraph {
 	    this.allGraphs = adjustSubGraphs(allResources, resourceNode, resourceGraph, graphMap);
 	    	    
 	    LOG.debug("### generateSubGraphsForResource: resource={} allGraphs={}", resource, this.allGraphs.keySet());
+	    for(String node : this.allGraphs.get(resource).keySet()) {
+		    LOG.debug("### generateSubGraphsForResource: resource={} node={} nodes={}", resource, node, this.allGraphs.get(resource).get(node).vertexSet());
+	    }
 
 	}
 	
@@ -188,7 +191,12 @@ public class ComplexityAdjustedAPIGraph {
 //		    		}
 	    		
 	    	    
-	    		graphMap.put(node.getName(), subGraph);
+	    	    LOG.debug("createSubGraphsGraphFromComplexity: node={} subGraph={}" , node, subGraph.vertexSet().size());
+
+	    	    if(!GraphComplexity.tooSmallGraph(node.getName(), subGraph)) {
+	    	    	graphMap.put(node.getName(), subGraph);
+	    	    }
+	    	    	
 	    	}
 	    	
 	    	graphMap.keySet().forEach(key -> {
@@ -306,6 +314,7 @@ public class ComplexityAdjustedAPIGraph {
 	private Map<String,Graph<Node,Edge>> addMissingMappedResources(Collection<String> allResources, Graph<Node, Edge> graph, Node pivot, Set<Node> nodes) {
 		
 	    LOG.debug("addMissingMappedResources: nodes={}", nodes);
+	    LOG.debug("addMissingMappedResources: graph_nodes={}", graph.vertexSet());
 
 		Map<String, Graph<Node, Edge>> res = new HashMap<>();
 		
@@ -965,11 +974,24 @@ public class ComplexityAdjustedAPIGraph {
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
-	public Optional<Graph<Node, Edge>> getSubGraph(String resource, String pivot) {
+	public Optional<Graph<Node, Edge>> getSubGraphOptional(String resource, String pivot) {
 		Optional<Graph<Node,Edge>> res = Optional.empty();
 		
 		if(allGraphs.containsKey(resource) && allGraphs.get(resource).containsKey(pivot)) {
 			res = Optional.of( allGraphs.get(resource).get(pivot) );
+		}
+			
+		LOG.debug("getSubGraph:: resource={} pivot={} res={}",  resource, pivot, res);
+		
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public Graph<Node, Edge> getSubGraphV2(String resource, String pivot) {
+		Graph<Node,Edge> res = null;
+		
+		if(allGraphs.containsKey(resource) && allGraphs.get(resource).containsKey(pivot)) {
+			res = allGraphs.get(resource).get(pivot);
 		}
 			
 		LOG.debug("getSubGraph:: resource={} pivot={} res={}",  resource, pivot, res);
@@ -1033,17 +1055,68 @@ public class ComplexityAdjustedAPIGraph {
 
 	    removeSubGraphsCoveredByContainingGraph(allResources, resource, graphMap);
 	    
-	    for(String key : graphMap.keySet()) { LOG.debug(" after remove ... {} :: {}", key, graphMap.get(key).edgeSet()); }
+	    for(String key : graphMap.keySet()) { LOG.debug(" after remove ... {} :: {}", key, graphMap.get(key).edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n...")) ); }
+	    
+	    removeDisjointSubgraphs(allResources, resource, graphMap);
 
 	    addRemovedRelationshipsWhenDiscriminator(graph.getCompleteGraph(), graphMap);
 
+	    removeSubGraphNotReferenced(resource, graphMap);
+	    
 	    res.put(resource, graphMap);
     
 	    LOG.debug("adjustSubGraphs: #2 resource={} final graphMap={}", resource, graphMap.keySet());
-	    for(String key : graphMap.keySet()) { LOG.debug(" ... {} :: {}", key, graphMap.get(key).vertexSet()); }
+	    
+	    for(String key : graphMap.keySet()) { LOG.debug(" ... {} :: \n...{}", key, graphMap.get(key).vertexSet().stream().map(Node::getName).collect(Collectors.joining("\n...")) ); }
 	    
 	    return res;
 	    
+	}
+
+	private void removeDisjointSubgraphs(Collection<String> allResources, String resource, Map<String, Graph<Node, Edge>> graphMap) {
+		for(String map : graphMap.keySet()) {
+			
+			Graph<Node, Edge> g = graphMap.get(map);
+			Set<Node> reachable = CoreAPIGraph.getReachableNew(g, map);
+			Set<Node> nonReachable = new HashSet<>( g.vertexSet() );
+			nonReachable.removeAll(reachable);
+		   
+			LOG.debug("removeDisjointSubgraphs: resource={} map={} reachable={} nonReachable={}", resource, map, reachable, nonReachable);
+			LOG.debug("removeDisjointSubgraphs: resource={} map={} nonReachable={}", resource, map, nonReachable);
+			
+			g.removeAllVertices(nonReachable);
+
+		}
+	}
+
+	private void removeSubGraphNotReferenced(String resource, Map<String, Graph<Node, Edge>> graphMap) {
+		
+		Set<String> notSeen = new HashSet<>();
+		
+		for(String node : graphMap.keySet()) {
+			
+			Predicate<String> notNode = n -> !n.contentEquals(node);
+			Set<String> otherGraphs = graphMap.keySet().stream().filter(notNode).collect(toSet());
+
+			Set<String> seen = otherGraphs.stream()
+								.map(graphMap::get)
+								.map(Graph<Node, Edge>::vertexSet)
+								.flatMap(Set::stream)
+								.map(Node::getName)
+								.collect(toSet());
+			
+			if(!seen.contains(node)) notSeen.add(node);
+			
+		}
+
+		notSeen.remove(resource);
+		
+		if(!notSeen.isEmpty()) LOG.debug("removeSubGraphNotReferenced: resource={} notSeen={}", resource, notSeen);
+		
+		if(!Config.getBoolean("doNotRemoverSubGraphNotReferenced")) {
+			// notSeen.forEach(graphMap::remove);
+		}
+
 	}
 
 	private void addRemovedRelationshipsWhenDiscriminator(Graph<Node, Edge> completeGraph, Map<String, Graph<Node, Edge>> graphMap) {

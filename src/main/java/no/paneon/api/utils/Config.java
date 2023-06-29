@@ -898,6 +898,8 @@ public class Config {
 			return Integer.valueOf(s);
 		} catch(Exception e) {
 			Out.debug("... unable to process configuration property '{}' - expecting integer value", property);
+			LOG.debug("... error={}",  e.getLocalizedMessage());
+			
 			return 0;
 		}
 	}

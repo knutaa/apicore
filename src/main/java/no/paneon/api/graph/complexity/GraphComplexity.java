@@ -7,6 +7,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -214,9 +215,22 @@ public class GraphComplexity {
 		
 		complexityContribution = node.equals(this.resource) && complexityContribution==0 ? MAX_DIAGRAM_COMPLEXITY : complexityContribution;
 
+		if(tooSmallGraph(node.getName(),graph)) complexityContribution=0;
+		
+		
 		return complexityContribution;
 
 	}	
+
+	public static boolean tooSmallGraph(String pivot, Graph<Node, Edge> graph) {
+		boolean res=false;
+		List<String> allResources = APIModel.getResources();
+		if(!allResources.contains(pivot)) {
+			int minimumGraphSize = Config.getInteger("minimumGraphSize");
+			res = graph.vertexSet().size()<=minimumGraphSize;
+		}
+		return res;
+	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public Set<Node> getNonComplexTypes() {

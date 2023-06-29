@@ -147,24 +147,19 @@ public class ExternalServerTest {
 			
 			assert(resource!=null);
 			
-			LOG.debug("productOrder keys={}", resource.keySet());
-			LOG.debug("productOrder={}", resource);
-
 			Set<String> properties = APIModel.getProperties(resource);
 			
-			LOG.debug("properties={}", properties);
-
 			assert(properties.contains("expectedCompletionDate"));
 
 			CoreAPIGraph graph = new CoreAPIGraph(APIModel.getCoreResources());
 			
-			LOG.debug("graph nodes={}", graph.getCompleteGraph().vertexSet());
-
 			Node node = graph.getNode("ProductOrder");
 			assert(node!=null);
 
 			
 		} catch(Exception ex) {
+			Out.debug("exception: ", ex.getLocalizedMessage());
+
 			assert(false);
 		}		
 

@@ -51,6 +51,17 @@ public class Property {
 				
 	}
 
+	public Property(Property property) {
+		this.name = property.name;
+		this.type = property.type;
+		this.cardinality = property.cardinality;
+		this.required = property.required;
+		this.description = property.description;
+		this.visibility = property.visibility;
+		
+		this.isEnum = APIModel.isEnumType(this.type);	
+	}
+
 	@LogMethod(level=LogLevel.DEBUG)
 	public String getName() { 
 		return name;
@@ -139,7 +150,7 @@ public class Property {
 	}
 	
 	public void setRequired() {
-		LOG.debug("Property::setRequired: property={}", this.name);
+		LOG.debug("Property::setRequired: property={} current state={}", this.name, this.required);
 		this.required=true;
 	}
 	

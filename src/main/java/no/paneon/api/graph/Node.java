@@ -146,6 +146,30 @@ public class Node implements Comparable<Object>  {
 				
 	}
 
+	Set<String> propertyNames = new HashSet<>();
+	
+	public Node addProperty(Property property) {
+		
+		LOG.debug("Node::addProperty node={} property={}" , this.getName(), property );
+
+		if(!this.propertyNames.contains(property.name)) {
+			this.properties.add(property);
+			this.propertyNames.add(property.name);
+		}
+		return this;
+	}
+	
+	public Node addProperties(Collection<Property> properties) {
+		properties.stream().forEach(this::addProperty);
+		return this;
+	}
+	
+	public Node setProperties(Collection<Property> properties) {
+		this.properties.clear();
+		this.addProperties(properties);
+		return this;
+	}
+	
 	public void updateDiscriminatorMapping() {
 		Set<String> inherited = getAllDiscriminators();
 		if(this.localDiscriminatorMapping.isEmpty() && inherited.contains(this.resource)) {
@@ -218,7 +242,7 @@ public class Node implements Comparable<Object>  {
 		Predicate<String> endsWith = x -> resource.endsWith(x);
 		boolean exception = inlineException.stream().anyMatch(endsWith);
 		
-		if(exception) Out.debug("Node::getExpandedJSON resource={} exception={}" , resource, exception );
+		if(exception) LOG.debug("Node::getExpandedJSON resource={} exception={}" , resource, exception );
 
 		if(exception) return res;
 		
@@ -466,7 +490,7 @@ public class Node implements Comparable<Object>  {
 		LOG.debug("toRemove={}", toRemove);
 		LOG.debug("properties={}", this.properties);
 
-		this.properties = this.properties.stream().filter(p->!toRemove.contains(p.getName())).collect(toList());
+		this.setProperties(this.properties.stream().filter(p->!toRemove.contains(p.getName())).collect(toList()) );
 		
 		LOG.debug("properties={}", this.properties);
 
@@ -477,7 +501,7 @@ public class Node implements Comparable<Object>  {
 			
 		if(definition!=null) LOG.debug("addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
 
-		if(APIModel.isArrayType(definition)) Out.debug("## addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
+		if(APIModel.isArrayType(definition)) LOG.debug("## addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
 
 		if(APIModel.isArrayType(definition) && !APIModel.isSimpleType(definition)) {
 			Out.printAlways("addPropertyDetails: ARRAY handled as relationship definition=" + definition.toString(2) );
@@ -519,8 +543,7 @@ public class Node implements Comparable<Object>  {
 	
 				if(property.has(TITLE)) {
 					Out.printOnce(".. found unexpected EMBEDDED {}", property.optString(TITLE));
-				} 
-	
+				} 	
 				
 				LOG.debug("addPropertyDetails: property={} isEmpty={}" , propName, property.isEmpty() );
 
@@ -530,12 +553,15 @@ public class Node implements Comparable<Object>  {
 				
 				LOG.debug("addPropertyDetails: property={} type={}" , propName, type );
 
-				// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} cproperty={}", type, property );						
+				// if(propName.contentEquals("itemTotalPrice")) LOG.debug("Node::addProperties: type={} cproperty={}", type, property );						
 
 				String coreType = APIModel.removePrefix(type);
 					
 				LOG.debug("addPropertyDetails: property={} coreType={}" , propName, coreType );
 
+				boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
+				String cardinality = APIModel.getCardinality(property, isRequired);
+	
 				if(property.has(REF) && APIModel.isArrayType(type)) {
 					LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
 					
@@ -547,13 +573,10 @@ public class Node implements Comparable<Object>  {
 					LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
 				} 
 
-				// if(propName.contentEquals("itemTotalPrice")) Out.debug("Node::addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
+				// if(propName.contentEquals("itemTotalPrice")) LOG.debug("Node::addProperties: type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
 
 				if(type.isEmpty()) continue;
 				
-				boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
-				String cardinality = APIModel.getCardinality(property, isRequired);
-	
 				boolean seen = properties.stream().map(Property::getName).anyMatch(propName::contentEquals);
 				
 				if(isRequired) {
@@ -567,7 +590,7 @@ public class Node implements Comparable<Object>  {
 				if(!seen) {
 					Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 					
-					LOG.debug("addPropertyDetails: node={} property={} " , this, propDetails );
+					LOG.debug("### addPropertyDetails: node={} property={} " , this, propDetails );
 
 					if(property.has(ENUM)) {
 						
@@ -583,7 +606,7 @@ public class Node implements Comparable<Object>  {
 
 					}
 					
-					properties.add( propDetails );
+					this.addProperty( propDetails );
 					
 				} else {
 					LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
@@ -603,11 +626,14 @@ public class Node implements Comparable<Object>  {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	private Set<String> getAllDiscriminators() {
-		if(allDiscriminators.isEmpty()) {
-			allDiscriminators = Optional.of( new HashSet<>() );
-			allDiscriminators = Optional.of( Node.getAllDiscriminatorsHelper(this));
+		if(this.allDiscriminators.isEmpty()) {
+			// allDiscriminators = Optional.of( new HashSet<>() );
+			this.allDiscriminators = Optional.of( Node.getAllDiscriminatorsHelper(this));
 		}
-		return allDiscriminators.get();
+		
+		LOG.debug("getAllDiscriminators: node={} allDiscriminators={}", this, this.allDiscriminators);
+
+		return this.allDiscriminators.get();
 	}
 
 	
@@ -682,6 +708,13 @@ public class Node implements Comparable<Object>  {
 		
 		LOG.debug("addAllOfs: node={} definition={}", this, definition);
 
+		LOG.debug("addAllOfs: node={} EXPAND_ALL_PROPERTIES_FROM_ALLOFS={} EXPAND_INHERITED={} INCLUDE_INHERITED={}", 
+				this, 
+				Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS),
+				Config.getBoolean(EXPAND_INHERITED),
+				Config.getBoolean(INCLUDE_INHERITED)
+				);
+
 		if(Config.getBoolean(EXPAND_ALL_PROPERTIES_FROM_ALLOFS)) {
 			if(definition.has(REF)) {
 				String type = APIModel.getTypeByReference(definition.optString(REF));
@@ -711,8 +744,10 @@ public class Node implements Comparable<Object>  {
 		}
 		
 		if(definition.has(PROPERTIES)) {
-			JSONObject obj = APIModel.getPropertyObjectBySchemaObject(definition);			
+			JSONObject obj = definition.optJSONObject(PROPERTIES); // APIModel.getPropertyObjectBySchemaObject(definition);			
 			if(obj!=null) {	
+				LOG.debug("addAllOfs: node={} obj={}", this, obj);
+
 				addPropertyDetails(obj,visibility,definition);				
 			}
 		}
@@ -968,7 +1003,7 @@ public class Node implements Comparable<Object>  {
 		all.addAll(this.getLocalDiscriminators());
 		if(this.externalDiscriminatorMapping.isPresent()) all.addAll(this.externalDiscriminatorMapping.get());
 				
-		LOG.debug("getAllDiscriminatorMapping: node=" + this.getName() + " all=" + all);
+		LOG.debug("getAllDiscriminatorMapping: node={} all={}", this, all);
 
 		return all;
 	}
@@ -1018,9 +1053,21 @@ public class Node implements Comparable<Object>  {
 	
 	public void setDiscriminatorDefault() {
 		Optional<Property> atType = properties.stream().filter(p -> p.getName().contentEquals(ATTYPE)).findAny();
+		
+		if(atType.isEmpty()) {
+			atType = getInheritedProperties().stream().filter(p -> p.getName().contentEquals(ATTYPE)).findAny();
+			if(atType.isPresent()) {
+				Property p = new Property(atType.get());
+				this.addProperty(p);
+				atType = Optional.of(p);
+			}
+		}
+		
 		if(atType.isPresent()) {
 			atType.get().setDefaultValue(this.getName());
 			LOG.debug("setDiscriminatorDefault: node={} default={}",  this.getName(), atType.get().getDefaultValue());
+		} else {
+			LOG.debug("setDiscriminatorDefault: node={} atType={}",  this.getName(), atType);
 		}
 	}
 	
@@ -1031,20 +1078,30 @@ public class Node implements Comparable<Object>  {
 		
 		if(fvoNames.isEmpty()) return;
 		
+		LOG.debug("updatePropertiesFromFVO: node={} fvoNames={}",  this.getName(), fvoNames );
+
 		fvoNames.forEach(fvo -> {
 			if(!nodeMap.containsKey(fvo)) return;
 			Node fvoNode = nodeMap.get(fvo);
 				
 			List<Property> requiredProperties = fvoNode.getProperties().stream().filter(Property::isRequired).collect(toList());
-								
+
+			List<String> requiredPropertiesByName = requiredProperties.stream().map(Property::getName).collect(toList());
+
+			LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
+
 			requiredProperties.stream()
 				.map(Property::getName)
 				.map(this::getPropertyByName)
 				.filter(Objects::nonNull)
 				.forEach(Property::setRequired);
+				// .forEach(p -> Out.debug("p={}", p));
 
 			
 			if(Config.getBoolean("includeAsRequiredIfNotInPost")) {
+				
+				LOG.debug("updatePropertiesFromFVO: includeAsRequiredIfNotInPost node={}",  this.getName() );
+
 				Set<String> fvoProperties = fvoNode.getProperties().stream().map(Property::getName).collect(toSet());
 				
 				Set<Property> additionalRequired = this.properties.stream().filter(p -> !fvoProperties.contains(p.getName())).collect(toSet());
@@ -1060,6 +1117,8 @@ public class Node implements Comparable<Object>  {
 		List<String> defaultMandatory = Config.get("includeDefaultMandatoryProperties");	
 		if(!defaultMandatory.isEmpty()) {
 			
+			LOG.debug("updatePropertiesFromFVO: node={} defaultMandatory={}",  this.getName(), defaultMandatory );
+
 			long found = this.properties.stream()
 								.map(Property::getName)
 								.filter(defaultMandatory::contains)
@@ -1080,7 +1139,10 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public Property getPropertyByName(String name) {
-		return this.properties.stream().filter(p -> p.getName().contentEquals(name)).findFirst().orElse(null);
+		Property res = this.properties.stream().filter(p -> p.getName().contentEquals(name)).findFirst().orElse(null);
+		LOG.debug("getPropertyByName: name={} res={}",  name, res);
+		return res;
+
 	}
 
 	Optional<Set<String>> deepInheritance = Optional.empty();
@@ -1170,6 +1232,37 @@ public class Node implements Comparable<Object>  {
 	
 	public List<String> getInheritanceExtension() {
 		return this.inheritanceExtension;
+	}
+
+	public Set<Property> getAllProperties() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Collection<String> getPropertyNames() {
+		return properties.stream().map(Property::getName).collect(toList());
+	}
+
+	public Collection<Property> getInheritedProperties() {
+		Map<String, Property>  inherited = new HashMap<>();
+		
+		Set<String> inheritance = this.getInheritance();
+		
+		LOG.debug("getInheritedProperties: node={} inheritance={}", this.getName(), inheritance);
+
+		inheritance.forEach(n -> {
+			Node node = Node.getNodeByName(n);
+			if(node!=null) {
+				Collection<Property> properties = node.getProperties();
+				properties.forEach(p -> {
+					inherited.put(p.getName(), p);
+				});
+			}
+		});
+		
+		LOG.debug("getInheritedProperties: node={} keys={}", this.getName(), inherited.keySet());
+
+		return inherited.values();
 	}
 	
 }

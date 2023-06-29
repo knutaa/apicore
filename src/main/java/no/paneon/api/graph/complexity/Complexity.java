@@ -24,6 +24,7 @@ import no.paneon.api.graph.CoreAPIGraph;
 import no.paneon.api.graph.Edge;
 import no.paneon.api.graph.Node;
 import no.paneon.api.utils.Config;
+import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
@@ -61,7 +62,7 @@ public class Complexity {
 		Map<Node,Integer> shortestPath = pathAlgs.computeShortestPath();		
 		Map<Node,Integer> longestPath = pathAlgs.computeLongestPath();
 					
-		LOG.debug("graph=" + graph);
+		Out.debug("graph=" + graph);
 		
 		if(!shortestPath.isEmpty() && !longestPath.isEmpty()) {
 			for(Node node : graph.vertexSet().stream().sorted().collect(toList())) {
