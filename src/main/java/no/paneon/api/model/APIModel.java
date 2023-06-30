@@ -2570,7 +2570,6 @@ public class APIModel {
 		return res;
 	}
 
-<<<<<<< Updated upstream
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getPropertyObjectForResourceExpanded(String node) {
