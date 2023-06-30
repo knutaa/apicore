@@ -2563,8 +2563,6 @@ public class APIModel {
 		return res;
 	}
 
-<<<<<<< Updated upstream
-=======
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getPropertyObjectForResourceExpanded(String node) {
@@ -2760,7 +2758,6 @@ public class APIModel {
 	}
 
 	
->>>>>>> Stashed changes
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getMandatoryOptionalHelper(JSONObject definition, String property) {
 		boolean required = false;
@@ -2871,12 +2868,6 @@ public class APIModel {
 	public static JSONObject getResourceForPost(JSONObject opDetail, String resource) {
 		JSONObject res = null;
 
-<<<<<<< Updated upstream
-		res = getDefinition( getReverseResourceMapping(resource) + "_Create");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_FVO");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "Input");
-		if(res==null) res = getDefinition( getReverseResourceMapping(resource) + "_MVO");
-=======
 		if(opDetail!=null && opDetail.has("requestBody")) {
 			JSONObject request = opDetail.optJSONObject("requestBody");
 			if(request.has(REF)) res = APIModel.getDefinitionByReference(request.optString(REF));
@@ -2902,7 +2893,6 @@ public class APIModel {
 		}
 		
 		if(res!=null) LOG.debug("getResourceForPost: resource={} res={}", resource, res.keySet());
->>>>>>> Stashed changes
 
 		return res;
 	}
