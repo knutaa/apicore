@@ -127,7 +127,8 @@ public class Utils {
 		List<String> allResources = APIModel.getResources();
 		
 		if(allResources.contains(node) && !node.contentEquals(pivot)) {
-			return " <<DiscriminatorNode>>";
+			// return " <<DiscriminatorNode>>";
+	        return " <<SubResourceReference>>" ;
 		} else if(node.contains("_discriminator")) {
 			return " <<DiscriminatorNode>>";
 		} else if(node.equals(pivot) ) {

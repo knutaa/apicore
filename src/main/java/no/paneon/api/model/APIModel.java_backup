@@ -2545,13 +2545,6 @@ public class APIModel {
 		return res;
 	}       
 
-	@LogMethod(level=LogLevel.DEBUG)
-	public static Set<String> getPropertiesExpanded(String resource) {
-		Set<String> res = new HashSet<>();
-		JSONObject obj = getPropertyObjectForResourceExpanded(resource);
-		if(obj!=null) res.addAll(obj.keySet());
-		return res;
-	} 
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Map<String,String> getMandatoryOptional(JSONObject resource) {
@@ -2794,25 +2787,6 @@ public class APIModel {
 
 	}
 
-	@LogMethod(level=LogLevel.DEBUG)
-	public static Map<String,String> getMandatoryOptional(String node, JSONObject resource) {
-		Map<String,String> res = new HashMap<>();
-
-		JSONObject core = getPropertyObjectForResourceExpanded( node, resource );
-
-		LOG.debug("getMandatoryOptional: node={} core={}",node, core.keySet());
-
-		for(String property : core.keySet()) {
-			String coreCondition = getMandatoryOptionalHelper(resource, property);
-			if(coreCondition.contains("M")) {
-				res.put(property, coreCondition);
-
-			}
-		}
-
-		return res;
-	}
-	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Map<String,String> getMandatoryOptional(String resource, boolean includeSetByServer) {
 		Map<String,String> res = new HashMap<>();

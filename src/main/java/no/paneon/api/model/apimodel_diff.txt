@@ -1,0 +1,41 @@
+2548,2554d2547
+< 	@LogMethod(level=LogLevel.DEBUG)
+< 	public static Set<String> getPropertiesExpanded(String resource) {
+< 		Set<String> res = new HashSet<>();
+< 		JSONObject obj = getPropertyObjectForResourceExpanded(resource);
+< 		if(obj!=null) res.addAll(obj.keySet());
+< 		return res;
+< 	} 
+2572a2566,2567
+> <<<<<<< Updated upstream
+> =======
+2767a2763
+> >>>>>>> Stashed changes
+2798,2816d2793
+< 	public static Map<String,String> getMandatoryOptional(String node, JSONObject resource) {
+< 		Map<String,String> res = new HashMap<>();
+< 
+< 		JSONObject core = getPropertyObjectForResourceExpanded( node, resource );
+< 
+< 		LOG.debug("getMandatoryOptional: node={} core={}",node, core.keySet());
+< 
+< 		for(String property : core.keySet()) {
+< 			String coreCondition = getMandatoryOptionalHelper(resource, property);
+< 			if(coreCondition.contains("M")) {
+< 				res.put(property, coreCondition);
+< 
+< 			}
+< 		}
+< 
+< 		return res;
+< 	}
+< 	
+< 	@LogMethod(level=LogLevel.DEBUG)
+2896a2874
+> <<<<<<< Updated upstream
+2901c2879
+< 
+---
+> =======
+2926a2905
+> >>>>>>> Stashed changes

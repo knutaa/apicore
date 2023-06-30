@@ -66,6 +66,11 @@ public class Edge {
 		return this.node;
 	}
 	
+	public boolean isRegularEdge() {
+		boolean isInheritance = isOneOf() || isAllOf() || isDiscriminator();
+		return !isInheritance;
+	}
+
 	public boolean isInheritance() {
 		boolean isInheritance = isOneOf() || isAllOf() || isDiscriminator();
 		return isInheritance && !flattenedInheritance();
@@ -145,6 +150,10 @@ public class Edge {
 
 	public boolean getRequiredExtension() {
 		return this.isRequiredExtension;
+	}
+
+	public String getSourceName() {
+		return getNode().getName();
 	}
 	
 }

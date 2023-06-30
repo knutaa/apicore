@@ -1116,6 +1116,13 @@ public class APIGraph extends CoreAPIGraph {
 		}
 	}
 
+	@LogMethod(level=LogLevel.DEBUG)
+	public Set<Edge> getOutboundEdges(String node) {
+		Node n = this.getNode(node);
+		return getOutboundEdges(n);
+	}
+
+	
 	public void removeTechnicalAllOfs() {
 		Set<Edge> edges = this.graph.edgeSet().stream().filter(Edge::isDiscriminator).collect(toSet());
 		
