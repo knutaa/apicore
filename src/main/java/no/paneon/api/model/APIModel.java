@@ -422,12 +422,18 @@ public class APIModel {
 			res.addAll(discriminators.stream().filter(notAlreadySeen).collect(Collectors.toSet()));
 		}
 		
+		List<String> result = res;
 		
-		LOG.debug("getResources:: {}", res);
+		if(!Config.getBoolean("keepMVOFVOResources")) {
+			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			result = res.stream().filter(MVO_or_FVO.negate()).collect(toList());
+		} 
+		
+		LOG.debug("getResources:: {}", result);
 
-		_getResources = res;
+		_getResources = result;
 		
-		return res;
+		return result;
 		
 	}
 	
@@ -1649,8 +1655,7 @@ public class APIModel {
 		List<String> res = new LinkedList<>();
 
 		if(rules==null || rules.isEmpty()) {
-			if(firstAPImessage) Out.println("... extracting notification support from API");
-			setSeenAPImessage();
+			Out.printOnce("... extracting notification support from API");
 			return getNotificationsFromSwagger(resource);
 		}
 
@@ -1742,12 +1747,37 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private static List<String> getNotificationsFromSwagger(String resource) {				
-		return getAllDefinitions().stream().filter(x -> x.startsWith(resource) && x.endsWith("Event")).collect(toList());			
+		List<String> res = new LinkedList<>();
+		
+		List<String> allDefs = getAllDefinitions();
+		List<String> allResources = getResources();
+
+		Set<String> events = allDefs.stream().filter(x -> x.startsWith(resource) &&  x.endsWith("Event")).collect(toSet());			
+
+		Set<String> moreSpecificResources = allResources.stream().filter(x -> x.startsWith(resource) && x.length()>resource.length()).collect(toSet());
+		
+		Set<String> removeCandidates = moreSpecificResources.stream().map(s -> events.stream().filter(e -> e.startsWith(s)).collect(toSet()))
+					.flatMap(Set::stream).collect(toSet());
+		
+		LOG.debug("getNotificationsFromSwagger: resource={} removeCandidates={}", resource, removeCandidates);
+
+		res.addAll(events);
+		res.removeAll(removeCandidates);
+		
+		return res;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getAllDefinitions() {
-		return getDefinitions().keySet().stream()
+		
+		Set<String> res = getDefinitions().keySet();
+		
+//		if(!Config.getBoolean("keepMVOFVOResources")) {
+//			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+//			res = res.stream().filter(MVO_or_FVO.negate()).collect(toSet());
+//		} 
+
+		return res.stream()
 				// 2022-11-04 .map(APIModel::getMappedResource)
 				.collect(toList());
 	}
@@ -2576,7 +2606,14 @@ public class APIModel {
 		LOG.debug("getPropertyObjectForResourceExpanded: node={}",  node);
 
 		JSONObject resource = getDefinition(node);
-		return getPropertyObjectForResourceExpanded(node,resource);		
+		
+		LOG.debug("getPropertyObjectForResourceExpanded: node={} resource={}",  node, resource);
+
+		JSONObject res = getPropertyObjectForResourceExpanded(node,resource);	
+		
+		LOG.debug("getPropertyObjectForResourceExpanded: node={} res={}",  node, res.toString(2));
+
+		return res;
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG) 
@@ -2615,6 +2652,23 @@ public class APIModel {
 				LOG.debug("getResourceExpanded: resource={} def={}",  node, res.keySet());
 
 				JSONObject allOfs = expandAllOfs(node, res.optJSONArray(ALLOF));
+					
+				LOG.debug("getResourceExpanded: resource={} allOfs={}",  node, allOfs.keySet());
+				LOG.debug("getResourceExpanded: resource={} allOfs required={}",  node, allOfs.optJSONObject(REQUIRED));
+
+				merge(node,res,allOfs);
+			
+				LOG.debug("getResourceExpanded: resource={} res required={}",  node, res.optJSONArray(REQUIRED));
+
+				LOG.debug("getResourceExpanded: resource={} required={}",  node, res.optJSONArray(REQUIRED));
+
+			}
+			
+			if(res!=null && res.has(ONEOF)) {
+				
+				LOG.debug("getResourceExpanded: resource={} def={}",  node, res.keySet());
+
+				JSONObject allOfs = expandAllOfs(node, res.optJSONArray(ONEOF));
 					
 				LOG.debug("getResourceExpanded: resource={} allOfs={}",  node, allOfs.keySet());
 				LOG.debug("getResourceExpanded: resource={} allOfs required={}",  node, allOfs.optJSONObject(REQUIRED));

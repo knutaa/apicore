@@ -97,10 +97,12 @@ public class ComplexityAdjustedAPIGraph {
 	    Map<String,Graph<Node,Edge>> graphMap = createSubGraphsGraphFromComplexity(resourceGraph, resourceNode, allResources);
 
 	    LOG.debug("### generateSubGraphsForResource: resource={} graphMap={}", resource, graphMap.keySet());
+	    LOG.debug("### generateSubGraphsForResource: resource={} graphMap={}", resource, graphMap.get(resource).vertexSet());
 
 	    this.allGraphs = adjustSubGraphs(allResources, resourceNode, resourceGraph, graphMap);
 	    	    
 	    LOG.debug("### generateSubGraphsForResource: resource={} allGraphs={}", resource, this.allGraphs.keySet());
+	    
 	    for(String node : this.allGraphs.get(resource).keySet()) {
 		    LOG.debug("### generateSubGraphsForResource: resource={} node={} nodes={}", resource, node, this.allGraphs.get(resource).get(node).vertexSet());
 	    }
@@ -319,7 +321,8 @@ public class ComplexityAdjustedAPIGraph {
 		Map<String, Graph<Node, Edge>> res = new HashMap<>();
 		
 		Set<String> mapping = nodes.stream()
-								.map(Node::getAllDiscriminatorMapping)
+								// .map(Node::getAllDiscriminatorMapping)
+								.map(Node::getLocalDiscriminators)
 								.flatMap(Set::stream)
 								.collect(toSet());
 			    				
@@ -969,7 +972,16 @@ public class ComplexityAdjustedAPIGraph {
 	@LogMethod(level=LogLevel.DEBUG)
 	public List<String> getSubGraphLabels(String resource) {
 		List<String> res = new LinkedList<>();
+		
+		LOG.debug("getSubGraphLabels:: resource={} allGraphs={}",  resource, allGraphs.keySet());
+		LOG.debug("getSubGraphLabels:: resource={} graph={}",  resource, allGraphs.get(resource));
+
 		if(allGraphs.containsKey(resource)) res.addAll( allGraphs.get(resource).keySet() );
+		
+		LOG.debug("getSubGraphLabels:: resource={} allGraphs={}",  resource, allGraphs);
+
+		LOG.debug("getSubGraphLabels:: resource={} res={}",  resource, res);
+
 		return res;
 	}
 

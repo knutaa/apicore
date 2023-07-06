@@ -48,6 +48,9 @@ public class Property {
 		this.visibility = visibility;
 		
 		this.isEnum = APIModel.isEnumType(type);
+		
+		LOG.debug("Property: name={} type={}",  name, type);
+
 				
 	}
 

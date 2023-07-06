@@ -128,7 +128,7 @@ public class Node implements Comparable<Object>  {
 			this.inline = convertExpanded(optExpanded.get());
 			
 			LOG.debug("Node::getExpandedJSON resource={} optExpanded={}" , resource, optExpanded.get().toString(2) );
-			if(!this.inline.isEmpty()) LOG.debug("#2 inline='{}'" , this.inline );
+			if(!this.inline.isEmpty()) LOG.debug("#2 node={} inline='{}'" , this.resource, this.inline );
 
 		} 
 		
@@ -212,6 +212,8 @@ public class Node implements Comparable<Object>  {
 			res = getInlineDefinition(def);
 		
 		if(!res.isEmpty()) LOG.debug("getInlineDefinition: type={} res={}",  this.resource, res);
+		
+		LOG.debug("getInlineDefinition: node={} res='{}'",  this.resource, res);
 		
 		return res;
 	}
@@ -531,7 +533,7 @@ public class Node implements Comparable<Object>  {
 
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
-				
+								
 				LOG.debug("addPropertyDetails: property={} definition={}" , propName, property );
 								
 				if(property==null) {
@@ -569,7 +571,7 @@ public class Node implements Comparable<Object>  {
 
 					type = APIModel.getTypeName(property);
 					coreType = APIModel.removePrefix(type);
-
+					
 					LOG.debug("Node::addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));						
 				} 
 
@@ -588,6 +590,7 @@ public class Node implements Comparable<Object>  {
 				}
 				
 				if(!seen) {
+					
 					Property propDetails = new Property(propName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), visibility );
 					
 					LOG.debug("### addPropertyDetails: node={} property={} " , this, propDetails );
