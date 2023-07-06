@@ -66,8 +66,8 @@ public class Edge {
 		return this.node;
 	}
 	
-	public boolean isRegularEdge() {
-		boolean isInheritance = isOneOf() || isAllOf() || isDiscriminator();
+	public boolean isRegularEdgeCore() {
+		boolean isInheritance = this instanceof AllOf || this instanceof OneOf || this instanceof Discriminator;
 		return !isInheritance;
 	}
 

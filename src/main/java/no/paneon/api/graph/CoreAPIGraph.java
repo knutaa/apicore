@@ -65,6 +65,12 @@ public class CoreAPIGraph {
 	}
 	
 	public CoreAPIGraph(List<String> allResources) {
+		
+		if(!Config.getBoolean("keepMVOFVOResources")) {
+			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			allResources = allResources.stream().filter(MVO_or_FVO.negate()).collect(toList());
+		}
+		
 		this.allResources = allResources;
 		this.graphNodes = new HashMap<>();
 		this.enumNodes = new HashMap<>();
@@ -310,17 +316,24 @@ public class CoreAPIGraph {
 
 		LOG.debug("generateGraph: g=" + g);
 
-		addNodesAndEnums(g);						
+		addNodesAndEnums(g);
+		
+		LOG.debug("generateGraph: g=\n...{}", g.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n... ")));
+
+		LOG.debug("CoreAPIGraph:: nodes={}", g.vertexSet().stream().map(Node::toString).collect(Collectors.joining("\n")) );
+
 		addProperties(g);
 
 		LOG.debug("generateGraph: g=" + g);
 		
 		LOG.debug("CoreAPIGraph:: final edges={}", g.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n")) );
 
-		Predicate<Node> isNotInline = n -> !n.getInline().isBlank();
+		LOG.debug("CoreAPIGraph:: inline nodes={}", g.vertexSet().stream().filter(n->!n.getInline().isEmpty()).map(Node::getName).collect(Collectors.joining("\n")) );
+
+		Predicate<Node> hasInlineDescription = n -> !n.getInline().isEmpty() && !n.getInline().contentEquals("object"); // was !n
 		
 		Set<Node> inlineNodes = g.vertexSet().stream()
-									.filter(isNotInline)
+									.filter(hasInlineDescription)
 									.filter(n -> !this.allResources.contains(n.getName()))
 									.collect(toSet());
 				
@@ -328,11 +341,13 @@ public class CoreAPIGraph {
 
 		Set<Edge> outgoingFromInline = inlineNodes.stream().map(g::outgoingEdgesOf).flatMap(Set::stream).collect(toSet());
 		
-		LOG.debug("generateGraph: outgoingFromInline=" + outgoingFromInline);
+		LOG.debug("generateGraph: outgoingFromInline=\n...{}", outgoingFromInline.stream().map(Edge::toString).collect(Collectors.joining("\n... ")));
 
 		g.removeAllEdges(outgoingFromInline);
 		
 		LOG.debug("generateGraph: edges=" + g.edgeSet().stream().map(Object::toString).collect(Collectors.joining("\n")));
+
+		LOG.debug("generateGraph: g=\n...{}", g.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n... ")));
 
 		return g;
 			
@@ -340,18 +355,27 @@ public class CoreAPIGraph {
 	 
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addNodesAndEnums(Graph<Node, Edge> g) {
-		APIModel.getAllDefinitions().forEach(node -> getOrAddNode(g,node));
 		
-		if(APIModel.getAllDefinitions().size()!=g.vertexSet().size()) {
+		LOG.debug("addNodesAndEnums: g.nodes={}", g.vertexSet());
 
-			final Set<String> graphNodes = g.vertexSet().stream().map(Node::getName).collect(Collectors.toSet());
-			Set<String> newNodes = APIModel.getAllDefinitions().stream().filter(n -> !graphNodes.contains(n)).collect(Collectors.toSet());
-					
-			LOG.debug("addNodesAndEnums: NEW graphNodes={} definitions={}", graphNodes, APIModel.getAllDefinitions());
-			LOG.debug("addNodesAndEnums: NEW definitions={} graph={}", APIModel.getAllDefinitions().size(), g.vertexSet().size());
+		boolean run = true;
+		while(run) {
+			run = false;
+			
+			APIModel.getAllDefinitions().forEach(node -> getOrAddNode(g,node));
+			
+			if(APIModel.getAllDefinitions().size()!=g.vertexSet().size()) {
+	
+				final Set<String> graphNodes = g.vertexSet().stream().map(Node::getName).collect(Collectors.toSet());
+				Set<String> newNodes = APIModel.getAllDefinitions().stream().filter(n -> !graphNodes.contains(n)).collect(Collectors.toSet());
+						
+				LOG.debug("addNodesAndEnums: NEW graphNodes={} definitions={}", graphNodes, APIModel.getAllDefinitions());
+				LOG.debug("addNodesAndEnums: NEW definitions={} graph={}", APIModel.getAllDefinitions().size(), g.vertexSet().size());
+	
+				LOG.debug("addNodesAndEnums: newNodes={}", newNodes);
 
-			// newNodes.forEach(node -> getOrAddNode(g,node));
-			if(newNodes.size()>0) addNodesAndEnums(g);
+				run = !newNodes.isEmpty();
+			}
 		}
 		
 		LOG.debug("addNodesAndEnums: nodes={}", g.vertexSet());
@@ -425,12 +449,15 @@ public class CoreAPIGraph {
 
 		Node node = getOrAddNode(g,coreDefinition);
 		
+		// JSONObject properties = APIModel.getPropertyObjectForResource(definition);
 		JSONObject properties = APIModel.getPropertyObjectForResource(definition);
-		
+
 		LOG.debug("addProperties: node={} properties={}", node, properties);
 
 		addProperties(g, node, definition, properties);			
 		
+		LOG.debug("addProperties: node={} properties={}", node, node.getProperties());
+
 		JSONArray allOfs = APIModel.getAllOfForResource(definition);
 		
 		LOG.debug("addProperties: node={} allOfs={}", node, allOfs);
@@ -483,8 +510,9 @@ public class CoreAPIGraph {
 		Set<Edge> edges = g.outgoingEdgesOf(node);
 		LOG.debug("addProperties:: node={} edges={}", node, edges);
 		Set<Property> referencedProperties = new HashSet<>();
-		edges.stream().filter(Edge::isRegularEdge).forEach(e -> {
+		edges.stream().filter(Edge::isRegularEdgeCore).forEach(e -> {
 			String description = "";
+			
 			Property p = new Property(e.getRelationship(), e.getRelated().getName(), e.cardinality, e.required, description, Property.VISIBLE_INHERITED );
 			referencedProperties.add(p);
 		});
@@ -676,6 +704,7 @@ public class CoreAPIGraph {
 	}
 
 	private void processAllOfReference(Graph<Node, Edge> g, JSONObject allOfObject, Node node) {
+		
 		String type = APIModel.getTypeByReference(allOfObject.optString(REF));
 		
 		boolean flattenInheritance = isBasicInheritanceType(type) || isPatternInheritance(type);
@@ -708,14 +737,15 @@ public class CoreAPIGraph {
 				addEnumsToGraph(g, node, propertiesBefore);				
 			}
 			
-		} else {			
+		} else {		
+			
 			Node to = getOrAddNode(g, type); 
 			
 			Predicate<Edge> isAllOfWithToNode = e -> e.isAllOf() && g.getEdgeTarget(e).equals(to);
 			
 			boolean hasAllOfEdge = g.edgesOf(node).stream().anyMatch(isAllOfWithToNode);
 			
-//			LOG.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
+			LOG.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
 
 			if(!hasAllOfEdge) {
 				Edge edge = new AllOf(node, to);
@@ -881,9 +911,11 @@ public class CoreAPIGraph {
 				boolean isRequired = APIModel.isRequired(typeName, propertyName);
 				String cardinality = APIModel.getCardinality(property, isRequired);
 
-				LOG.debug("addProperties: typeName={} propertyName={} isRequired={}", typeName, propertyName, isRequired);
+				String propType = APIModel.typeOfProperty(property, propertyName);		
 
-				Property propDetails = new Property(propertyName, coreType, cardinality, isRequired, property.optString(DESCRIPTION), Property.VISIBLE_INHERITED );
+				LOG.debug("addProperties: typeName={} propertyName={} propType={} isRequired={}", typeName, propertyName, propType, isRequired);
+
+				Property propDetails = new Property(propertyName, propType, cardinality, isRequired, property.optString(DESCRIPTION), Property.VISIBLE_INHERITED );
 
 				from.addProperty(propDetails);
 				
@@ -1319,11 +1351,13 @@ public class CoreAPIGraph {
 			Set<String> mapped = node.getAllDiscriminatorMapping();
 			Set<Node> mappedNodes = graph.vertexSet().stream().filter(n -> mapped.contains(n.getName())).collect(toSet());
 			
-			Set<Node> neighbours = CoreAPIGraph.getOutboundNeighbours(graph, node);
+			Set<Node> neighbours =  graph.outgoingEdgesOf(node).stream().map(Edge::getRelated).collect(toSet()); // CoreAPIGraph.getOutboundNeighbours(graph, node);
 			
 			neighbours.addAll(mappedNodes);
 			neighbours.removeAll(seen);
 			
+			// Predicate<Node> detailsInOtherGraph = n -> graph.outgoingEdgesOf(n).isEmpty();
+			// neighbours = neighbours.stream().filter(detailsInOtherGraph).collect(toSet());
 			
 			LOG.debug("getReachable:: node={} neighbours={}", node, neighbours);
 
@@ -1514,7 +1548,7 @@ public class CoreAPIGraph {
 	public Node getNode(String node) {
 		return this.graphNodes.get(node);
 	}
-
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Optional<Node> getNodeByName(Graph<Node,Edge> graph, String name) {
 		return graph.vertexSet().stream().filter(gn -> gn.getName().contentEquals(name)).findFirst();
