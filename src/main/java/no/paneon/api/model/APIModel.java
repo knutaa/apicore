@@ -108,8 +108,10 @@ public class APIModel {
 	static Map<String,JSONObject> resourceMapExpanded = new HashMap<>();
 
 	static JSONObject allDefinitions = new JSONObject();
+	static Set<String> seenRefs = new HashSet<>();
 
-	
+	private static Set<String> typeWarnings = new HashSet<>();
+
     public static String getSource() {
     	return swaggerSource;
     }
@@ -194,6 +196,10 @@ public class APIModel {
 		resourceMapExpanded = new HashMap<>();
 		
 		_getResources = null;
+		
+		seenRefs.clear();
+		typeWarnings.clear();
+		
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1506,9 +1512,7 @@ public class APIModel {
 		
 	}
 
-		
-	static Set<String> seenRefs = new HashSet<>();
-	
+			
 	private static JSONObject getExternal(String ref) {
 		JSONObject res=null;
 		
@@ -1875,8 +1879,6 @@ public class APIModel {
 			return typeOfProperty(property);
 		}
 	}
-
-	private static Set<String> typeWarnings = new HashSet<>();
 	
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1933,7 +1935,7 @@ public class APIModel {
 				LOG.debug("typeOfProperty:: name={}", name);
 
 				if(!isSecialProperty(name)) {  
-					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+//					Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
 				}
 				res = "{}"; // property.toString(); // should not really happen
 			}

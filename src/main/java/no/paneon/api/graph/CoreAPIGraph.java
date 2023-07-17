@@ -515,6 +515,9 @@ public class CoreAPIGraph {
 			
 			Property p = new Property(e.getRelationship(), e.getRelated().getName(), e.cardinality, e.required, description, Property.VISIBLE_INHERITED );
 			referencedProperties.add(p);
+			
+			LOG.debug("addProperties:: node={} referenced property={}", node, p);
+
 		});
 		
 		LOG.debug("addProperties:: node={} referencedProperties={}", node, referencedProperties);
