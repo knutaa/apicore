@@ -564,6 +564,8 @@ public class Node implements Comparable<Object>  {
 				boolean isRequired = APIModel.isRequired(this.resource, propName) || required.contains(propName);
 				String cardinality = APIModel.getCardinality(property, isRequired);
 	
+				LOG.debug("Node::addProperties: node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
+
 				if(property.has(REF) && APIModel.isArrayType(type)) {
 					LOG.debug("Node::addProperties: isArrayType node={} propertyName={} type={} property={}", this.getName(), propName, type, property);
 					
@@ -845,6 +847,7 @@ public class Node implements Comparable<Object>  {
 		List<Property> res = new LinkedList<>();
 		List<Node> related = graph.edgesOf(this).stream().filter(Edge::isAllOf).map(e->e.related).collect(toList());
 		
+		LOG.debug("getInheritedProperties:: node={} edges={}", this.getName(), graph.edgesOf(this));
 		LOG.debug("getInheritedProperties:: node={} related={}", this.getName(), related);
 		
 		related.forEach(n -> {
@@ -1191,7 +1194,7 @@ public class Node implements Comparable<Object>  {
 			.forEach(Property::setVendorExtension);
 	}
 
-	public void setVendorAttributeExtension(String propName, boolean required, boolean type) {
+	public void setVendorAttributeExtension(String propName, boolean required, boolean type, boolean cardinality) {
 		
 		LOG.debug("Node:: {} setVendorAttributeExtension {} {}", this.getName(), propName, required);
 
@@ -1200,6 +1203,8 @@ public class Node implements Comparable<Object>  {
 			p.setVendorExtension();
 			if(required) p.setRequiredExtension();
 			if(type) p.setTypeExtension();
+			
+			if(cardinality) p.setCardinalityExtension();
 
 		}
 		

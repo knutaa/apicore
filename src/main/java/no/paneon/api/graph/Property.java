@@ -191,4 +191,14 @@ public class Property {
 		return this.isTypeExtension;
 	}
 
+	private boolean isCardinalityExtension=false;
+	public boolean getCardinalityExtension() {
+		return this.isCardinalityExtension;
+	}
+	
+	public void setCardinalityExtension() {
+		LOG.debug("Property::setCardinalityExtension: property={}", this.name);
+		this.isCardinalityExtension=true;
+	}
+
 }
