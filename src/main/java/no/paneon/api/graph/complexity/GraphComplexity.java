@@ -241,20 +241,26 @@ public class GraphComplexity {
 		
 		complexityContribution = node.equals(this.resource) && complexityContribution==0 ? MAX_DIAGRAM_COMPLEXITY : complexityContribution;
 
-		if(tooSmallGraph(node.getName(),graph)) complexityContribution=0;
+		if(tooSmallGraph(node,graph)) complexityContribution=0;
 		
 		
 		return complexityContribution;
 
 	}	
 
-	public static boolean tooSmallGraph(String pivot, Graph<Node, Edge> graph) {
+	public static boolean tooSmallGraph(Node pivot, Graph<Node, Edge> graph) {
 		boolean res=false;
 		List<String> allResources = APIModel.getResources();
-		if(!allResources.contains(pivot)) {
+		if(!allResources.contains(pivot.getName())) {
 			int minimumGraphSize = Config.getInteger("minimumGraphSize");
 			res = graph.vertexSet().size()<=minimumGraphSize;
+			if(!res) {
+				int discriminatorLimit = Config.getInteger("minimumOnlyDiscriminators", 2);
+				Set<Edge> edges = graph.outgoingEdgesOf(pivot);
+				res = edges.size()<=discriminatorLimit && edges.stream().allMatch(Edge::isDiscriminator);
+			}
 		}
+		
 		return res;
 	}
 

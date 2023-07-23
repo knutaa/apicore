@@ -1322,6 +1322,10 @@ public class Utils {
 
 	}
 
+	public static String joining(Collection<String> items, String joinBy) {
+		return items.stream().collect(Collectors.joining(joinBy));
+	}
+
 	
 	
 }
