@@ -195,7 +195,7 @@ public class ComplexityAdjustedAPIGraph {
 	    	    
 	    	    LOG.debug("createSubGraphsGraphFromComplexity: node={} subGraph={}" , node, subGraph.vertexSet().size());
 
-	    	    if(!GraphComplexity.tooSmallGraph(node.getName(), subGraph)) {
+	    	    if(!GraphComplexity.tooSmallGraph(node, subGraph)) {
 	    	    	graphMap.put(node.getName(), subGraph);
 	    	    }
 	    	    	
