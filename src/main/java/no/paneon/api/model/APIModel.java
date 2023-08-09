@@ -1699,10 +1699,10 @@ public class APIModel {
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
-	public static JSONObject getNotificationFromRules(String resource, String notification) {
+	public static List<JSONObject> getNotificationFromRules(String resource, String notification) {
 		String NOTIF = notification.toUpperCase();
 		
-		JSONObject res = new JSONObject();
+		List<JSONObject> res = new LinkedList<>();
 
 		JSONObject rulesFragment = Config.getRulesForResource(resource); 
 		
@@ -1712,40 +1712,23 @@ public class APIModel {
 		}
 		
 		JSONArray  rules = rulesFragment.getJSONArray("notifications");
-		
-		List<JSONObject> rule = new LinkedList<>();
-		
+				
 		for(int i=0; i<rules.length(); i++) {
 			JSONObject notificationRule = rules.optJSONObject(i);
-			
-			if(!NOTIF.contains(notificationRule.optString("name").toUpperCase())) continue;
-			
-			JSONArray examples = notificationRule.optJSONArray("examples");
-
-			LOG.debug("getNotificationsDetails: NOTIF={} examples={}",  NOTIF, examples);
-
-			if(examples==null) continue;
-
-			LOG.debug("getNotificationsDetails: NOTIF={} examples={}",  NOTIF, examples.toString(2));
-			
-			for(int j=0; j<examples.length(); j++) {
-				JSONObject example = examples.optJSONObject(j);
-				
-				LOG.debug("getNotificationsDetails: NOTIF={} example={}",  NOTIF, example.optString("name").toUpperCase());
-
-				if(example!=null) rule.add(example);
-
+			if(notificationRule!=null) {
+				JSONArray examples = notificationRule.optJSONArray("examples");
+				if(examples!=null) {
+					for(int j=0; j<examples.length(); j++) {
+						JSONObject example = examples.optJSONObject(j);
+						res.add(example);
+					}
+				}
 			}
-			
 		}
-						
-		LOG.debug("getNotificationsDetails: resource={} notification={} rules={}",  resource, notification, rules.toString(2));
-		LOG.debug("getNotificationsDetails: rule={}", rule);
-
-		if(rule.size()>0) res=rule.get(0);
 		
-		LOG.debug("getNotificationsDetails: res={}", res.toString(2));
-
+						
+		LOG.debug("getNotificationsDetails: resource={} notification={} res={}",  resource, notification, res);
+		
 		return res;
 	}
 
