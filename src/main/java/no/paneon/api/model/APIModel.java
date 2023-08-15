@@ -3132,6 +3132,12 @@ public class APIModel {
 				Optional<String> optRes = responseCodes.stream().sorted().distinct().findFirst();
 				if(optRes.isPresent()) res = optRes.get();
 			}
+			if(!Config.getBoolean("ignore204Delete") && op.contentEquals("DELETE") && responseCodes.contains("204")) {
+				res = "204";
+			}
+			
+			LOG.debug("getSuccessResponseCode: path={} op={} responseCodes={} res={}",  path, op, responseCodes, res);
+
 		}
 		
 		if(res.isEmpty()) {
