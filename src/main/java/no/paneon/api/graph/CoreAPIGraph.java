@@ -832,7 +832,7 @@ public class CoreAPIGraph {
 		
 			LOG.debug("addProperties: typeName={} property={}", typeName, property);
 
-			if(property.isEmpty()) continue;
+			if(property==null || property.isEmpty()) continue;
 			
 			LOG.debug("## addProperties: propertyName={} properties={}", propertyName, property);
 
