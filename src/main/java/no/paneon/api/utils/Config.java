@@ -98,7 +98,7 @@ public class Config {
     			is = new ClassPathResource("configuration.json").getInputStream();
     			addConfiguration(is,"configuration.json");    
     			
-    			LOG.debug("config={}", json);
+    			LOG.debug("## config={}", json);
 
     		} 
     		

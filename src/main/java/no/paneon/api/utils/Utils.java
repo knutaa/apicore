@@ -197,6 +197,8 @@ public class Utils {
 		try {
 	        String content = IOUtils.toString(file, StandardCharsets.UTF_8); 
 	        
+			LOG.debug("content={} isYaml={}", content, isYaml(content));
+
 	        if(!content.isEmpty()) {
 	        	LOG.debug("readJSONOrYaml: content={}", content.subSequence(0, Math.min(30,  content.length()-1)));
 	        }
@@ -212,6 +214,9 @@ public class Utils {
 			// e.printStackTrace();
 			System.exit(0);
 		}
+		
+		LOG.debug("readJSONOrYaml:: res={}", res);
+
 		return res;
 	}
 	
