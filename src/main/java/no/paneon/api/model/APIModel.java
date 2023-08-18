@@ -1715,7 +1715,12 @@ public class APIModel {
 				
 		for(int i=0; i<rules.length(); i++) {
 			JSONObject notificationRule = rules.optJSONObject(i);
-			if(notificationRule!=null) {
+			
+			LOG.debug("notificationRule: resource={} notification={} notificationRule={}",  resource, notification, notificationRule.toString(2));
+
+			String name = notificationRule.optString("name", "").toUpperCase();
+			
+			if(notificationRule!=null && notification.toUpperCase().contains(name)) {
 				JSONArray examples = notificationRule.optJSONArray("examples");
 				if(examples!=null) {
 					for(int j=0; j<examples.length(); j++) {
