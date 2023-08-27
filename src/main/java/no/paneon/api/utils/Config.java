@@ -1019,5 +1019,14 @@ public class Config {
 		return res;
 	}
 
+	public static JSONObject getJSONObjectByPath(JSONObject config, String path) {
+		Object o = config.optQuery(path);
+		if(o!=null && o instanceof JSONObject) {
+			return (JSONObject) o;
+		} else {
+			return null;
+		}
+	}
+
 
 }

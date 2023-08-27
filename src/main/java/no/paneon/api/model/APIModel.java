@@ -526,9 +526,9 @@ public class APIModel {
 			String ref=obj.optString(REF);
 			LOG.debug("getResourceFromResponse: ref={}", ref );
 
-			if(swagger.query(ref)!=null) {
-				Object o = swagger.query(ref);
-				if(o instanceof JSONObject) obj = (JSONObject)o;
+			if(swagger.optQuery(ref)!=null) {
+				Object o = swagger.optQuery(ref);
+				if(o != null && o instanceof JSONObject) obj = (JSONObject)o;
 			}
 			// obj = APIModel.getDefinitionByReference(obj.optString(REF));
 		}
@@ -847,7 +847,7 @@ public class APIModel {
 					
 					LOG.debug("APIModel::addLocalReferences:: queryRef={} external={}", queryRef, external );
 
-					Object externalDefinition=external.query(queryRef);
+					Object externalDefinition=external.optQuery(queryRef);
 
 					LOG.debug("APIModel::addLocalReferences:: ref={} queryRef={} externalDefinition={}", ref, queryRef, externalDefinition );
 
@@ -884,10 +884,8 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 
 		try {
-			if(APIModel.swagger.query(ref)!=null) {
-					
-				Object obj = APIModel.swagger.query(ref);
-		
+			Object obj = APIModel.swagger.optQuery(ref);
+			if(obj!=null) {
 				if(obj instanceof JSONObject) {
 					res = (JSONObject) obj;
 					
@@ -3245,7 +3243,7 @@ public class APIModel {
 			Iterator<JSONPointer> iter = alternativePaths.iterator();
 			while(iter.hasNext()) {
 				JSONPointer p = iter.next();
-				Object o = opDetails.query(p);	
+				Object o = opDetails.optQuery(p);
 				if(o!=null && (o instanceof JSONObject) ) {
 					res = (JSONObject)o;
 					
