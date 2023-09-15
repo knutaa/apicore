@@ -691,9 +691,21 @@ public class APIModel {
 
 		if(definition!=null) {
 			if(definition.has(TYPE)) {
-				String jsonType = definition.getString(TYPE);
+				
+				LOG.debug("isSimpleType: definition={}", definition);
 
-				if(jsonType.equals(OBJECT) || jsonType.equals(ARRAY)) res=false;
+				String jsonType = getStringOrNull(definition,TYPE);
+				
+				if(jsonType==null) {
+				
+					Out.printOnce("... expecting the {} property to be a string value in {}", TYPE, definition.toString(2));
+					res=false;
+					
+				} else {
+
+					if(jsonType.equals(OBJECT) || jsonType.equals(ARRAY)) res=false;
+				
+				}
 				
 			} else {
 
@@ -1908,8 +1920,11 @@ public class APIModel {
 	
 			} else if(property.has(TYPE)) {
 	
-				String type = property.getString(TYPE);
-				if(typeMapping.containsKey(type)) {
+				String type = getStringOrNull(property,TYPE);
+								
+				if(type==null) {				
+					Out.printOnce("... expecting the {} property to be a string value in {}", TYPE, property.toString(2));
+				}  else  if(typeMapping.containsKey(type)) {
 					res = typeMapping.get(type);
 				} else if(Config.getTypeMapping().containsKey(type)) {
 					res = Config.getTypeMapping().get(type);
@@ -1969,7 +1984,11 @@ public class APIModel {
 		} else if(property.has(REF)) {
 			res = getReference(property); 
 		} else if(property.has(TYPE)){
-			res = property.getString(TYPE);
+			res = getStringOrNull(property, TYPE);
+						
+			if(res==null) {			
+				Out.printOnce("... expecting the {} property to be a string value in {}", TYPE, property.toString(2));
+			} 
 		}
 
 		if(res==null) {
@@ -1981,6 +2000,14 @@ public class APIModel {
 		}
 		
 		return res;
+	}
+
+	public static String getStringOrNull(JSONObject obj, String key) {
+		try {
+			return obj.getString(key);
+		} catch(Exception ex) {
+			return null;
+		}
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)

@@ -198,7 +198,12 @@ public class Node implements Comparable<Object>  {
 			}
 			
 		} else if(obj.has(TYPE)) {
-			res = obj.getString(TYPE);
+			res = APIModel.getStringOrNull(obj, TYPE);
+			
+			if(res==null) {			
+				Out.printOnce("... expecting the {} property to be a string value in {}", TYPE, obj.toString(2));
+				res="";
+			} 
 		}
 		return res;
 	}
