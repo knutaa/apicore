@@ -870,6 +870,9 @@ public class Node implements Comparable<Object>  {
 	}
 
 	public String getDescription() {
+		
+		LOG.debug("Node::getDescription:: node={} description={}",  this.getName(), this.description);
+		
 		return this.description;
 	}
 	

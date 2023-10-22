@@ -2228,7 +2228,23 @@ public class APIModel {
 	public static String getDescription(String resource) {
 		String res="";
 		JSONObject obj = getDefinition(resource);
-		if(obj!=null) res = obj.optString(DESCRIPTION);
+		if(obj!=null) {
+			res = obj.optString(DESCRIPTION);
+			if(res.isBlank()) {
+				if(obj.has(ALLOF)) {
+					JSONArray allofs = obj.getJSONArray(ALLOF);
+					for(int i=0; i<allofs.length(); i++) {
+						JSONObject allof = allofs.optJSONObject(i);
+						if(allof!=null) {
+							res = allof.optString(DESCRIPTION);
+							if(!res.isEmpty()) break;
+						}					
+					}
+					if(res.isEmpty()) LOG.debug("getDescription: resource={} - EMPTY - after ALLOF check", resource);
+		
+				}
+			}	
+		}
 		return res;
 	}
 
