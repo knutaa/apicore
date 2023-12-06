@@ -80,6 +80,8 @@ public class Node implements Comparable<Object>  {
 	static final String EXPAND_INHERITED = "expandInherited";
 	static final String EXPAND_ALL_PROPERTIES_FROM_ALLOFS = "expandPropertiesFromAllOfs";
 	
+	Set<String> additional_edges;
+	
 	protected Node() {
 		
 		this.properties = new LinkedList<>();
@@ -98,13 +100,15 @@ public class Node implements Comparable<Object>  {
 		this.actualInheritance = new HashSet<>();
 
 		// inheritedDiscriminatorMapping = new HashSet<>();
+		
+		this.additional_edges = new HashSet<>();
 
 	}
 	
 	public Node(String resource) {
 		this();
 		this.resource=resource;		
-		
+				
 		LOG.debug("Node resource={}" , resource );
 
 		nodeMap.put(this.resource, this);
@@ -136,6 +140,7 @@ public class Node implements Comparable<Object>  {
 			
 			LOG.debug("#3 resource={} inline='{}'" , resource, this.inline );
 
+			
 			Property.Visibility visibility = Config.getBoolean(INCLUDE_INHERITED) ? Property.VISIBLE_INHERITED : Property.HIDDEN_INHERITED;
 
 			addPropertyDetails(Property.BASE);									
@@ -421,6 +426,9 @@ public class Node implements Comparable<Object>  {
 		for(Object o : array) {
 			if(o instanceof JSONObject) {
 				JSONObject obj = (JSONObject) o;
+				
+				LOG.debug("getInlineDefinition: obj={}", obj);
+				
 				res = getInlineDefinition(obj);
 			} 
 			if(!res.isBlank()) break;
@@ -510,19 +518,19 @@ public class Node implements Comparable<Object>  {
 
 		if(APIModel.isArrayType(definition)) LOG.debug("## addPropertyDetails: node={} definition={}" , this, definition.toString(2) );
 
-		if(APIModel.isArrayType(definition) && !APIModel.isSimpleType(definition)) {
+		if(APIModel.isArrayType(definition) && !APIModel.isSimpleType(definition) && !APIModel.isAsyncAPI()) {
 			Out.printAlways("addPropertyDetails: ARRAY handled as relationship definition=" + definition.toString(2) );
 			return;
 		} 
 		
-		if(APIModel.isArrayType(propObj) && !APIModel.isSimpleType(propObj)) {
+		if(APIModel.isArrayType(propObj) && !APIModel.isSimpleType(propObj) && !APIModel.isAsyncAPI()) {
 			Out.printAlways("addPropertyDetails: ARRAY handled as relationship propObj=" + propObj.toString(2) );
 			return;
 		} 
 		
 		LOG.debug("addPropertyDetails obj={}", propObj);
 
-		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE))) {
+		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE)) && !APIModel.isAsyncAPI()) {
 			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
 			
@@ -542,10 +550,13 @@ public class Node implements Comparable<Object>  {
 				LOG.debug("addPropertyDetails: property={} definition={}" , propName, property );
 								
 				if(property==null) {
-					// Out.printOnce(".. empty property {}" , propName);
-					String className = Utils.getLastPart(propObj.get(propName).getClass().toString(), ".");
-					Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propName, this.getName(), className);
-					continue;
+					if(!APIModel.isAsyncAPI() ) { // TBD CHECK ON POSSIBLE properties for async || !propName.contentEquals("name")) {
+						String className = Utils.getLastPart(propObj.get(propName).getClass().toString(), ".");
+						Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propName, this.getName(), className);
+						continue;
+					} else {
+						property = new JSONObject();
+					}
 				}
 	
 				if(property.has(TITLE)) {
@@ -558,8 +569,25 @@ public class Node implements Comparable<Object>  {
 
 				String type = APIModel.typeOfProperty(property, propName);		
 				
-				LOG.debug("addPropertyDetails: property={} type={}" , propName, type );
+				LOG.debug("Node::addPropertyDetails: #1 property={} typeOfProperty={}" , propName, type );
 
+				if(APIModel.isAddedType(type)) {
+					LOG.debug("Node::addPropertyDetails: #2 property={} typeOfProperty={}" , propName, type );
+					property = new JSONObject();
+					property.put(TYPE, "object");
+					property.put(REF, "#/components/schemas/" + type);
+					
+					LOG.debug("###### addProperties: isAddedType new property={}", property);
+
+					this.additional_edges.add(propName);
+
+//					Node to = getOrAddNode(graph, type);
+//					Edge edge = new Edge(from, propertyName, to, cardinality, isRequired);
+//					LOG.debug("############# addProperties: edge={} isRequired={}", edge, isRequired);
+//
+				}
+
+				
 				// if(propName.contentEquals("itemTotalPrice")) LOG.debug("Node::addProperties: type={} cproperty={}", type, property );						
 
 				String coreType = APIModel.removePrefix(type);
@@ -1109,7 +1137,7 @@ public class Node implements Comparable<Object>  {
 				.map(this::getPropertyByName)
 				.filter(Objects::nonNull)
 				.forEach(Property::setRequired);
-				// .forEach(p -> Out.debug("p={}", p));
+				// .forEach(p -> LOG.debug("p={}", p));
 
 			
 			if(Config.getBoolean("includeAsRequiredIfNotInPost")) {
@@ -1280,7 +1308,30 @@ public class Node implements Comparable<Object>  {
 
 		return inherited.values();
 	}
+
+	boolean isDynamic = false;
+	public void setDynamic(boolean status) {
+		this.isDynamic = status;		
+	}
 	
+	public boolean isDynamic() {
+		if(this.isDynamic) LOG.debug("Node::isDynamic: node={} isDyanmic={}", this.getName(), this.isDynamic);
+
+		return this.isDynamic;		
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public String getClassName() {
+		String className = APIModel.getMappedResource(this.resource);
+
+		if(this.isDynamic || APIModel.isAsyncAPI()) {
+			className = className.replaceAll("_[0-9]*$", "");
+			LOG.debug("Node: name={} className={}", this.resource, className);
+		}
+		
+		return className;
+		
+	}
 }
 
 

@@ -66,10 +66,13 @@ public class CoreAPIGraph {
 	
 	public CoreAPIGraph(List<String> allResources) {
 		
-		if(!Config.getBoolean("keepMVOFVOResources")) {
-			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-			allResources = allResources.stream().filter(MVO_or_FVO.negate()).collect(toList());
-		}
+//		if(!Config.getBoolean("keepMVOFVOResources")) {
+//			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+//			allResources = allResources.stream().filter(MVO_or_FVO.negate()).collect(toList());
+//		}
+		
+		allResources = APIModel.filterMVOFVO(allResources);
+
 		
 		this.allResources = allResources;
 		this.graphNodes = new HashMap<>();
@@ -318,6 +321,14 @@ public class CoreAPIGraph {
 
 		addNodesAndEnums(g);
 		
+		if(APIModel.isAsyncAPI()) {
+			Set<String> currentNodes = g.vertexSet().stream().map(Node::getName).collect(toSet());
+			Set<String> addedAsync = APIModel.getAddedAsyncTypes();
+			addedAsync.removeAll(currentNodes);
+			
+			addedAsync.forEach(node -> this.getOrAddNode(g,node));
+		}
+		
 		LOG.debug("generateGraph: g=\n...{}", g.edgeSet().stream().map(Edge::toString).collect(Collectors.joining("\n... ")));
 
 		LOG.debug("CoreAPIGraph:: nodes={}", g.vertexSet().stream().map(Node::toString).collect(Collectors.joining("\n")) );
@@ -400,7 +411,31 @@ public class CoreAPIGraph {
 
 		g.addVertex(node);
 		graphNodes.put(coreDefinition, node);
-		
+
+		if(APIModel.isAsyncAPI()) {
+			if(!node.additional_edges.isEmpty()) {
+				LOG.debug("CoreAPIGraph:: node={} additional_edges={}", node, node.additional_edges);
+				node.additional_edges.forEach(propName -> {
+					Property prop = node.getPropertyByName(propName);
+					String propType = prop.getType();
+					JSONObject propDef = APIModel.getDefinition(propType);
+					
+					boolean earlierCreatedNode = g.vertexSet().stream().map(Node::getName).anyMatch(n -> n.contentEquals(propType));
+					
+					LOG.debug("CoreAPIGraph:: node={} to={} earlierCreatedNode={}", node, propType, earlierCreatedNode);
+
+					Node to = getOrAddNode(g, propType);
+					to.setDynamic(!earlierCreatedNode);
+					
+					boolean isRequired = APIModel.isRequired(node.getName(), propName);
+					String cardinality = APIModel.getCardinality(propDef, isRequired);
+
+					g.addEdge(node, to, new Edge(node, propName, to, cardinality, isRequired) );
+					LOG.debug("CoreAPIGraph:: add EDGE node={} to={}", node, to);
+				});
+			}
+		}
+				
 		if(!APIModel.getAllDefinitions().contains(node.getName())) {
 			LOG.debug("... ISSUE missing node={} in API model ({}) ({})", node, coreDefinition, APIModel.getSource());
 		}
@@ -412,7 +447,6 @@ public class CoreAPIGraph {
 		} else {
 			addProperties(g, node.getName());
 		}
-		
 		
 		if(node.getLocalDiscriminators().size()>1) {
 			LOG.debug("getOrAddNode:: non empty local discriminator node={} localDiscriminator={}", node, node.getLocalDiscriminators());
@@ -438,6 +472,8 @@ public class CoreAPIGraph {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addProperties(Graph<Node, Edge> g) {
 		for(String definition : APIModel.getAllDefinitions() ) {
+			LOG.debug("addProperties:: definition={}", definition);
+
 			addProperties(g,definition);
 		}
 	}
@@ -445,6 +481,8 @@ public class CoreAPIGraph {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addProperties(Graph<Node, Edge> g, String definition) {
 	
+		LOG.debug("addProperties: definition={}", definition);
+
 		String coreDefinition = APIModel.removePrefix(definition);
 
 		Node node = getOrAddNode(g,coreDefinition);
@@ -764,6 +802,7 @@ public class CoreAPIGraph {
 		}
 		
 		LOG.debug("processAllOfReference:: node={} properties={}", node, node.getPropertyNames());	
+		LOG.debug("processAllOfReference:: node={} inheritnace={}", node, node.getInheritance());	
 
 		
 	}
@@ -823,8 +862,7 @@ public class CoreAPIGraph {
 		
 		// if("QuoteItem".contentEquals(typeName)) LOG.debug("addProperties: from={} existingProperties={}", from, existingProperties);
 
-		// Set<String> newProperties = properties.keySet(); // .stream().filter(p -> !existingProperties.contains(p)).collect(toSet());
-		
+		// Set<String> newProperties = properties.keySet(); // .stream().filter(p -> !existingProperties.contains(p)).collect(toSet());		
 		
 		for(String propertyName : properties.keySet()) {
 						
@@ -836,34 +874,54 @@ public class CoreAPIGraph {
 			
 			LOG.debug("## addProperties: propertyName={} properties={}", propertyName, property);
 
-			if(property==null) {
-				String className = Utils.getLastPart(properties.get(propertyName).getClass().toString(), ".");
-				Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propertyName, from.getName(), className);
-				continue; 
-			}
+//			if(property==null) {
+//				if(!APIModel.isAsyncAPI() || propertyName.contentEquals("name")) {
+//					String className = Utils.getLastPart(properties.get(propertyName).getClass().toString(), ".");
+//					Out.printOnce("... ERROR: expecting property '{}' of '{}' to be a JSON object, found {}", propertyName, from.getName(), className);
+//					continue; 
+//				}
+//			}
 			
 			String type = APIModel.getTypeName(property, propertyName);
 			
-			if(type.isEmpty()) continue;
+			LOG.debug("addProperties: typeName={} type={}", typeName, type);
+
+			if(type.isEmpty() && !APIModel.isAsyncAPI()) continue;
 			
+			if(type.isEmpty() && APIModel.isAsyncAPI()) {
+				type=APIModel.createAsyncType(typeName,property);
+				Node to = getOrAddNode(graph, type);
+				
+				boolean isRequired = true;
+				String cardinality = "1..1";
+
+				Edge edge = new Edge(from, propertyName, to, cardinality, isRequired);
+				
+				LOG.debug("addProperties: EDGE from={} propertyName={} type={} edge={}", from, propertyName, type, edge);
+
+				property=APIModel.getPropertyObjectForResource(typeName); 
+			}
+
 			String coreType = APIModel.removePrefix(type);
 
-			LOG.debug("addProperties: from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
-			LOG.debug("addProperties: from={} propertyName={} type={} isSimpleType={}", from, propertyName, type, APIModel.isSimpleType(type));
-
-			boolean isArrayType=false;
-			if(property.has(REF) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
-				String externalRef = property.optString(REF);
-				LOG.debug("### addProperties: isExternalReference propertyName={} from={} ref={}", propertyName, from, externalRef);
-
+			if(coreType.contains("_")) {
+				LOG.debug("addProperties: from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
+				LOG.debug("addProperties: from={} propertyName={} type={} isSimpleType={}", from, propertyName, type, APIModel.isSimpleType(type));
 			}
 			
-			if(property.has(ITEMS) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
-				JSONObject items = property.optJSONObject(ITEMS);
-				String externalRef = items.optString(REF);
-				LOG.debug("#### addProperties: isExternalReference from={} ref={}", from, externalRef);
-
-			}
+			boolean isArrayType=false;
+//			if(property.has(REF) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
+//				String externalRef = property.optString(REF);
+//				LOG.debug("### addProperties: isExternalReference propertyName={} from={} ref={}", propertyName, from, externalRef);
+//
+//			}
+//			
+//			if(property.has(ITEMS) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
+//				JSONObject items = property.optJSONObject(ITEMS);
+//				String externalRef = items.optString(REF);
+//				LOG.debug("#### addProperties: isExternalReference from={} ref={}", from, externalRef);
+//
+//			}
 			
 			if(property.has(REF) && APIModel.isArrayType(type)) {
 				LOG.debug("addProperties: isArrayType from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
@@ -916,6 +974,15 @@ public class CoreAPIGraph {
 
 				String propType = APIModel.typeOfProperty(property, propertyName);		
 
+				LOG.debug("###### addProperties: property={} typeOfProperty={}", property, propType);
+
+				if(APIModel.isAddedType(propType)) {
+					Node to = getOrAddNode(graph, propType);
+					Edge edge = new Edge(from, propertyName, to, cardinality, isRequired);
+					LOG.debug("############# addProperties: edge={} isRequired={}", edge, isRequired);
+
+				}
+				
 				LOG.debug("addProperties: typeName={} propertyName={} propType={} isRequired={}", typeName, propertyName, propType, isRequired);
 
 				Property propDetails = new Property(propertyName, propType, cardinality, isRequired, property.optString(DESCRIPTION), Property.VISIBLE_INHERITED );

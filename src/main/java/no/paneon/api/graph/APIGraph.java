@@ -1101,7 +1101,9 @@ public class APIGraph extends CoreAPIGraph {
 		if(graph.vertexSet().contains(node)) {
 			return this.graph.incomingEdgesOf(node);
 		} else {
-			Out.debug("ISSUE: getOutboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			if(Config.getBoolean("keepMVOFVOResources") && (node.getName().endsWith("_FVO") || node.getName().endsWith("_MVO"))) {
+				Out.debug("ISSUE: getInboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			}
 			return new HashSet<>();
 		}
 	}
@@ -1111,7 +1113,9 @@ public class APIGraph extends CoreAPIGraph {
 		if(graph.vertexSet().contains(node)) {
 			return this.graph.outgoingEdgesOf(node);
 		} else {
-			Out.debug("ISSUE: getOutboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			if(Config.getBoolean("keepMVOFVOResources") && (node.getName().endsWith("_FVO") || node.getName().endsWith("_MVO"))) {
+				Out.debug("ISSUE: getOutboundEdges:: node={} not found in graph - vertexSet={}" , node, graph.vertexSet());
+			}
 			return new HashSet<>();
 		}
 	}
