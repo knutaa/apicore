@@ -29,6 +29,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONPointer;
 
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
+
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
@@ -252,7 +258,7 @@ public class APIModel {
 //					String title=propObj.optString(TITLE);
 //					LOG.debug("refactorEmbeddedTitles::embedded {}",  title);
 //					String ref=addResource(title,propObj);
-//					Out.debug("refactorEmbeddedTitles::embedded {} ref={}",  title, ref);
+//					LOG.debug("refactorEmbeddedTitles::embedded {} ref={}",  title, ref);
 //
 //					resetWithReference(propObj,ref);
 //		
@@ -260,8 +266,8 @@ public class APIModel {
 //					JSONObject items=propObj.optJSONObject(ITEMS);
 //					if(items!=null && items.has(TITLE) && propObj.optString(TYPE).contentEquals(ARRAY)) {
 //						String title=items.optString(TITLE);
-//						Out.debug("refactorEmbeddedTitles::embedded ARRAY title={}", title);
-//						Out.debug("refactorEmbeddedTitles::embedded obj={}", propObj.toString(2));
+//						LOG.debug("refactorEmbeddedTitles::embedded ARRAY title={}", title);
+//						LOG.debug("refactorEmbeddedTitles::embedded obj={}", propObj.toString(2));
 //
 //					}
 //
@@ -430,10 +436,11 @@ public class APIModel {
 		
 		List<String> result = res;
 		
-		if(!Config.getBoolean("keepMVOFVOResources")) {
-			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-			result = res.stream().filter(MVO_or_FVO.negate()).collect(toList());
-		} 
+//		if(!Config.getBoolean("keepMVOFVOResources")) {
+//			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+//			result = res.stream().filter(MVO_or_FVO.negate()).collect(toList());
+//		} 
+		result = APIModel.filterMVOFVO(res);
 		
 		LOG.debug("getResources:: {}", result);
 
@@ -449,7 +456,7 @@ public class APIModel {
 		JSONObject definition = getDefinition(resource);
 		if(definition.has(DISCRIMINATOR)) {
 			definition = definition.optJSONObject(DISCRIMINATOR);
-			if(definition.has(MAPPING)) {
+			if(definition!=null && definition.has(MAPPING)) {
 				definition = definition.optJSONObject(MAPPING);
 				String discriminators[] = JSONObject.getNames(definition);
 				LOG.debug("getDiscriminators:: node={} discriminators={}", resource, discriminators);
@@ -462,17 +469,123 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getCoreResources() {
 
-		List<String> res = getAllResponses()
-				.map(APIModel::getNormalResponses)
-				.flatMap(List::stream)
-				.map(APIModel::getResourceFromResponse)
-				.flatMap(List::stream)
-				.distinct()
-				// .map(APIModel::getMappedResource)
-				.collect(toList());
+		List<String> res = new LinkedList<>();
+		
+		if(!isAsyncAPI()) {
+			res = getAllResponses()
+					.map(APIModel::getNormalResponses)
+					.flatMap(List::stream)
+					.map(APIModel::getResourceFromResponse)
+					.flatMap(List::stream)
+					.distinct()
+					// .map(APIModel::getMappedResource)
+					.collect(toList());
+		} else {
+			LOG.debug("getCoreResources:: processing async api");
+			LOG.debug("getCoreResources:: swagger={}", swagger);
+								    
+		     Configuration configuration = Configuration.builder()
+		             .jsonProvider(new JacksonJsonProvider())
+		             .build();
+
+		     DocumentContext jsonContext = JsonPath.using(configuration).parse(swagger.toString());
+		     List<String> tags = jsonContext.read("$.tags..name");			
+
+		     res = tags.stream().map(Utils::upperCaseFirst).collect(toList());
+		     	     
+		}
 		
 		return res;
 		
+	}
+
+	// $.channels..message.['$ref']
+	@LogMethod(level=LogLevel.DEBUG)
+	public static List<String> getAsyncMessageTypes() {
+
+		List<String> res = new LinkedList<>();
+
+		String api = swagger.toString();
+
+		Configuration configuration = Configuration.builder()
+				// .jsonProvider(new JacksonJsonProvider())
+				.build();
+
+		String query = "$.channels..message..['$ref']";
+
+		JsonPath jsonpath = JsonPath.compile(query);
+
+		List<String> msg = jsonpath.read(api, configuration );
+
+		LOG.debug("getAsyncMessages:: messages={}", Utils.joining(msg, "\n"));  
+
+		return msg;
+	}
+
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static Map<String,AsyncResourceInfo> getAsyncDetails() {
+
+		Map<String,AsyncResourceInfo> res = new HashMap<>();
+
+		String api = swagger.toString();
+
+		Configuration configuration = Configuration.builder()
+				.jsonProvider(new JacksonJsonProvider())
+				.build();
+
+		DocumentContext jsonContext = JsonPath.using(configuration).parse(swagger.toString());
+		List<String> tags = jsonContext.read("$.tags..name");			
+
+		tags.forEach(tag -> {
+
+			String resource = Utils.upperCaseFirst(tag);
+
+			String query = String.format("$.channels..tags.[?(@.name=='%s')]", tag);
+
+			JsonPath jsonpath = JsonPath.compile(query);
+
+			List<String> paths = jsonpath.read(api, Configuration.builder().options(Option.AS_PATH_LIST).build() );
+
+			paths.forEach(path -> {
+				path = path.replace("['tags'][0]", "");
+
+				Map<String,Object> obj = jsonContext.read(path);
+				// DocumentContext obj = jsonContext.read(path);
+
+				LOG.debug("getCoreResources:: path={} obj={}", path, obj.getClass());  
+
+				LOG.debug("getCoreResources:: obj={}", obj.keySet());  
+
+				String opId = obj.get("operationId").toString();
+				String baseId = obj.get("operationId").toString().replaceAll("Request$", "").replaceAll("Reply$", "");
+
+				LOG.debug("getCoreResources:: baseId={}", baseId );  
+
+				if(!res.containsKey(resource)) {
+					res.put(resource, new AsyncResourceInfo(resource));
+				}
+				
+				if(opId.endsWith("Request") ) {
+					res.get(resource).addRequest(baseId,obj,path);
+				} else if (opId.endsWith("Reply") ) {
+					res.get(resource).addReply(baseId,obj,path);
+				}
+
+			});
+
+			LOG.debug("getCoreResources:: paths={}", paths);  
+
+		});
+
+
+		return res;
+	}
+
+	
+	public static boolean isAsyncAPI() {
+		boolean res = swagger!=null && swagger.has("asyncapi");
+		return res;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -488,7 +601,7 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	private static Stream<JSONObject> getAllResponses() {
 		
-//		Out.debug("getAllResponses: getPaths={}", 
+//		LOG.debug("getAllResponses: getPaths={}", 
 //				getPaths().stream()
 //				.map(APIModel::getPathObjectByKey)
 //				.map(APIModel::getChildElements)
@@ -1001,6 +1114,18 @@ public class APIModel {
 		} else {
 			res = getDefinition(coreResource, PROPERTIES);
 			
+			if(res.isEmpty() && APIModel.isAsyncAPI()) {
+				
+				res = getDefinition(coreResource);
+
+				if(res.isEmpty()) {
+					res = getAsyncMessageDefinition(coreResource);
+				}
+
+				LOG.debug("#### getPropertyObjectForResource: resource={} res={}",  coreResource, res.keySet());
+
+			}
+			
 			LOG.debug("getPropertyObjectForResource: resource={} res={}",  coreResource, res.keySet());
 			LOG.debug("getPropertyObjectForResource: resource={} {}={}",  coreResource, FLATTEN_INHERITANCE, Config.getBoolean(FLATTEN_INHERITANCE));
 
@@ -1025,6 +1150,23 @@ public class APIModel {
 	}
 
 	
+    static Map<String,AsyncResourceInfo> asyncDetails = null;
+    
+	private static JSONObject getAsyncMessageDefinition(String node) {
+		JSONObject res = new JSONObject();
+		
+		Object obj = swagger.query("#/components/messages/" + node);
+		
+		if(obj!=null) {
+			LOG.debug("getAsyncMessageDefinition: node={} obj={}", node, obj.toString());
+			if(obj instanceof JSONObject) {
+				res = (JSONObject) obj;
+			}
+		}
+		
+		return res;
+	}
+
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getFlattenAllOfs(String resource) {
 		LOG.debug("getFlattenAllOfs: resource={}", resource);
@@ -1251,7 +1393,12 @@ public class APIModel {
 			} else {
 				res = null;
 			}
-		} else {
+		} else if(isAsyncAPI()) {
+			
+			LOG.debug("getDefinition: node={} ASYNC", node);
+			res = getAsyncMessageDefinition(node);
+
+	    } else {
 			res = null;
 		}
 
@@ -1276,7 +1423,29 @@ public class APIModel {
 			addExternalReferences(swagger);
 			
 			JSONObject res=null;
-			if(isOpenAPIv2(swagger))
+			if(isAsyncAPI()) {
+				JSONObject components = swagger.optJSONObject("components");
+				if(components!=null) {	
+					 res = components.optJSONObject("schemas");		
+					
+					 JSONObject messages = components.optJSONObject("messages");
+					 if(messages!=null) {
+						 JSONObject tmp = new JSONObject();
+						 for(String key : res.keySet() ) {
+							 tmp.put(key, res.get(key));
+						 };
+						 for(String key : messages.keySet() ) {
+							 tmp.putOnce(key, messages.get(key));
+							 
+							LOG.debug("APIModel::getDefinitions:: async adding item={}", key);
+
+						 };
+						 res=tmp;
+					 }
+					 
+				}
+				
+			} else if(isOpenAPIv2(swagger))
 				res=swagger.optJSONObject("definitions");
 			else {
 				JSONObject components = swagger.optJSONObject("components");
@@ -1616,9 +1785,14 @@ public class APIModel {
 
 		String prefix = "/" + resource.toUpperCase();
 
-		return allpaths.keySet().stream()
-				.filter(path -> isPathForResource(path,prefix))
-				.collect(toList());
+		if(allpaths!=null) {
+			res = allpaths.keySet().stream()
+					.filter(path -> isPathForResource(path,prefix))
+					.collect(toList());
+		}
+		
+		return res;
+		
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1721,8 +1895,13 @@ public class APIModel {
 			return res;
 		}
 		
-		JSONArray  rules = rulesFragment.getJSONArray("notifications");
+		JSONArray  rules = rulesFragment.optJSONArray("notifications");
 				
+		if(rules==null) {
+			Out.printOnce("... WARNING: notification rules not found for resource {}", resource);
+			return res;
+		}
+		
 		for(int i=0; i<rules.length(); i++) {
 			JSONObject notificationRule = rules.optJSONObject(i);
 			
@@ -1774,14 +1953,29 @@ public class APIModel {
 		
 		Set<String> res = getDefinitions().keySet();
 		
-//		if(!Config.getBoolean("keepMVOFVOResources")) {
-//			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-//			res = res.stream().filter(MVO_or_FVO.negate()).collect(toSet());
-//		} 
+		// included 2023-11-19
+		res = filterMVOFVO(res);
+		
 
 		return res.stream()
 				// 2022-11-04 .map(APIModel::getMappedResource)
 				.collect(toList());
+	}
+
+	public static Set<String> filterMVOFVO(Set<String> resources) {
+		if(!Config.getBoolean("keepMVOFVOResources")) {
+			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			resources = resources.stream().filter(MVO_or_FVO.negate()).collect(toSet());
+		} 
+		return resources;
+	}
+	
+	public static List<String> filterMVOFVO(List<String> resources) {
+		if(!Config.getBoolean("keepMVOFVOResources")) {
+			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			resources = resources.stream().filter(MVO_or_FVO.negate()).collect(toList());
+		} 
+		return resources;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1935,14 +2129,25 @@ public class APIModel {
 			} else {
 				LOG.debug("typeOfProperty:: name={}", name);
 
-				if(!isSecialProperty(name)) {  
-//					Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+				if(isAsyncAPI()) {
+					
+					if(!isSecialProperty(name)) { 
+						
+						LOG.debug("## typeOfProperty:: adding definition name={} definition={}", name, property);
+
+						res = APIModel.createAsyncType(name, property);
+						
+					}
+				
+				} else if(!isSecialProperty(name)) {  
+					Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+					res = "{}"; // property.toString(); // should not really happen
+
 				}
-				res = "{}"; // property.toString(); // should not really happen
 			}
 		} catch(Exception ex) {
-			Out.debug("APIModel::type: execption={}", ex.getLocalizedMessage());
-			ex.printStackTrace();
+			LOG.debug("APIModel::type: execption={}", ex.getLocalizedMessage());
+			// ex.printStackTrace();
 		}
 
 		LOG.debug("... format: res={}", res);
@@ -1992,7 +2197,21 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			if(!isSecialProperty(name)) {
+			if(isAsyncAPI() ) {
+				
+				Out.printOnce("... ### Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+
+				if(!isSecialProperty(name)) { 
+					
+					LOG.debug("typeOfProperty:: adding definition name={} definition={}", name, property);
+
+					res = APIModel.createAsyncType(name, property);
+					
+				} else {						
+					res = name;	
+				}
+				
+			} else if(!isSecialProperty(name)) {
 				Out.printOnce("... ## Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
 			}
 				// System.exit(1);
@@ -2474,28 +2693,63 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getOperationsByResource(String resource) {
 
-		List<String> allPaths = getPathsForResource(resource);
-
-		List<String> res = allPaths.stream()
-				.map(APIModel::getPath)
-				.map(JSONObject::keySet)
-				.flatMap(Set::stream)
-				.map(String::toUpperCase)
-				.distinct()
-				.collect(Collectors.toList());
-
-		// the first part will not find DELETE operations
-		// look for paths of the form /.../{..} where we have seen the first part, i.e. /.../
-		getPaths().forEach( path ->  {
-			String corePath = path.replaceAll("/\\{[^}]+\\}$", "");
-
-			if(!allPaths.contains(corePath)) return;
-
-			res.addAll( getOperationsForPath(path) );
-
-		});
-
-		return res.stream().distinct().map(String::toUpperCase).collect(Collectors.toList());
+		if(isAsyncAPI()) {
+		
+			List<String> res = new LinkedList<>();
+			
+			Map<String, AsyncResourceInfo> asyncDetails = APIModel.getAsyncDetails();
+			
+			AsyncResourceInfo resourceInfo = asyncDetails.get(resource);
+			
+			if(resourceInfo!=null) {
+				res.addAll(resourceInfo.operations.keySet());
+			}
+			
+			return res;
+			
+//			List<String> res = new LinkedList<>();
+//
+//			String api = swagger.toString();
+//
+//			Configuration configuration = Configuration.builder()
+//					// .jsonProvider(new JacksonJsonProvider())
+//					.build();
+//
+//			String query = "$.channels..message..['$ref']";
+//
+//			JsonPath jsonpath = JsonPath.compile(query);
+//
+//			List<String> msg = jsonpath.read(api, configuration );
+//
+//			LOG.debug("getAsyncMessages:: messages={}", Utils.joining(msg, "\n"));  
+//
+//			return msg;
+		
+		
+		} else {
+			List<String> allPaths = getPathsForResource(resource);
+	
+			List<String> res = allPaths.stream()
+					.map(APIModel::getPath)
+					.map(JSONObject::keySet)
+					.flatMap(Set::stream)
+					.map(String::toUpperCase)
+					.distinct()
+					.collect(Collectors.toList());
+	
+			// the first part will not find DELETE operations
+			// look for paths of the form /.../{..} where we have seen the first part, i.e. /.../
+			getPaths().forEach( path ->  {
+				String corePath = path.replaceAll("/\\{[^}]+\\}$", "");
+	
+				if(!allPaths.contains(corePath)) return;
+	
+				res.addAll( getOperationsForPath(path) );
+	
+			});
+	
+			return res.stream().distinct().map(String::toUpperCase).collect(Collectors.toList());
+		}
 
 	}
 
@@ -2991,7 +3245,7 @@ public class APIModel {
 		}
 		
 		if(false && res!=null) {
-			Out.debug("getResourceForPost: OPDETAIL resource={} res={}", resource, res.keySet());
+			LOG.debug("getResourceForPost: OPDETAIL resource={} res={}", resource, res.keySet());
 			return res;
 			
 		} else {
@@ -3145,7 +3399,7 @@ public class APIModel {
 
 		JSONObject allPaths = swagger.optJSONObject(PATHS);
 
-		if(allPaths.has(path) && allPaths.optJSONObject(path)!=null) {
+		if(allPaths!=null && allPaths.has(path) && allPaths.optJSONObject(path)!=null) {
 			JSONObject endpoint = allPaths.optJSONObject(path);
 			if(endpoint.has(op.toLowerCase())) {
 				res = endpoint.optJSONObject(op.toLowerCase());
@@ -3379,5 +3633,41 @@ public class APIModel {
 		return res;
 	}
 
+	static Map<String,Integer> createdTypeCount = new HashMap<>();
+	static Set<String> addedTypes = new HashSet<>();
+
+	public static String createAsyncType(String typeName, JSONObject property) {
+		LOG.debug("createAsyncType: typeName={} res={} property={}", typeName, property);
+		
+		String name = Utils.upperCaseFirst(typeName);
+		
+		if(createdTypeCount.containsKey(name)) {
+			createdTypeCount.put(name, createdTypeCount.get(name)+1);
+		} else {
+			createdTypeCount.put(name, 1);
+		}
+		
+		name = name + "_" + createdTypeCount.get(name);
+
+		addedTypes.add(name);
+
+		JSONObject def = new JSONObject();
+		def.put("type",  "object");
+		for(String key : property.keySet()) {
+			def.put(key,  property.get(key));
+		}
+		
+		allDefinitions.put(name, def);
+		
+		return name;
+	}
+
+	public static Set<String> getAddedAsyncTypes() {
+		return addedTypes;
+	}
+	
+	public static boolean isAddedType(String type) {
+		return addedTypes.contains(type);
+	}
 
 }

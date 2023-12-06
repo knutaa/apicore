@@ -71,7 +71,7 @@ public class ComplexityAdjustedAPIGraph {
 	    Node resourceNode = graph.getNode(resource);
 	    
 	    if(resourceNode==null) {
-	    	Out.printAlways("... specified resource '" + resource + "' not found in API - no further processing");
+	    	Out.printAlways("# ... specified resource '" + resource + "' not found in API - no further processing");
 	    	return;
 	    }
 	    
@@ -81,8 +81,12 @@ public class ComplexityAdjustedAPIGraph {
 
 		LOG.debug("generateSubGraphsForResource:: #1 resource={} resourceGraph={}",  resource, resourceGraph.vertexSet() );
 		
+		LOG.debug("generateSubGraphsForResource:: #1 resource={} resourceGraph={}",  resource, resourceGraph.vertexSet() );
+
 	    resourceGraph = CoreAPIGraph.cleanExplicitResources(resourceGraph, allResources, resource);
 	    resourceGraph = CoreAPIGraph.cleanDiscriminatorEdges(resourceGraph, resource);
+
+		LOG.debug("generateSubGraphsForResource:: #1 resource={} resourceGraph={}",  resource, resourceGraph.vertexSet() );
 
 		LOG.debug("###### generateSubGraphsForResource: #0 node={} edgesForResourceNode={}",  resource, resourceGraph.edgesOf(resourceNode));
 
@@ -150,6 +154,7 @@ public class ComplexityAdjustedAPIGraph {
 		LOG.debug("## createSubGraphsGraphFromComplexity: node={} complexity={}",  resource, complexity.keySet());
 
 		LOG.debug("createSubGraphsGraphFromComplexity: #1 node={} resourceGraph={}",  resource, resourceGraph.vertexSet().size());
+		LOG.debug("createSubGraphsGraphFromComplexity: #1 node={} complexity={}",  resource, complexity);
 
 	    if(complexity.isEmpty()) {    	
 	    	graphMap.put(resource, resourceGraph);
@@ -163,6 +168,8 @@ public class ComplexityAdjustedAPIGraph {
 	    	subGraphs.remove(resourceNode);
 	    	subGraphs.add(resourceNode);
 	    	
+			LOG.debug("createSubGraphsGraphFromComplexity: #1 node={} subGraphs={}",  resource, subGraphs);
+
 	    	for(Node node : subGraphs ) {
 	    		
 	    		LOG.debug("## createSubGraphsGraphFromComplexity: resource={} node={}",  resource, node);
@@ -195,8 +202,11 @@ public class ComplexityAdjustedAPIGraph {
 	    	    
 	    	    LOG.debug("createSubGraphsGraphFromComplexity: node={} subGraph={}" , node, subGraph.vertexSet().size());
 
-	    	    if(!GraphComplexity.tooSmallGraph(node, subGraph)) {
+	    	    if(!GraphComplexity.tooSmallGraph(node, subGraph) || APIModel.isAsyncAPI()) {
 	    	    	graphMap.put(node.getName(), subGraph);
+	    	    } else {
+		    	    LOG.debug("createSubGraphsGraphFromComplexity: node={} tooSmallGraph=" , node );
+
 	    	    }
 	    	    	
 	    	}

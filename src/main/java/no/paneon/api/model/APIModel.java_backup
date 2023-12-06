@@ -1942,6 +1942,8 @@ public class APIModel {
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getTypeName(JSONObject property, String name) {
 
+		Out.debug("getTypeName::name={} property={}", name, property);	
+
 		String res=null;
 		if(property==null) {
 			res = "";
@@ -1955,12 +1957,17 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			if(!isSecialProperty(name)) {
-				Out.printOnce("... ## Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+			if(isAsyncAPI() ) {
+				Out.debug("getTypeName::name={} property={}", name, property);	
+				res="{}";
+				
+			} else {
+				if(!isSecialProperty(name)) {
+					Out.printOnce("... !!!! Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				}
+					// System.exit(1);
+				res="{}";
 			}
-				// System.exit(1);
-			res="{}";
-		}
 		
 		return res;
 	}

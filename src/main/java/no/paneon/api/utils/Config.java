@@ -116,7 +116,7 @@ public class Config {
     		Config.readRules();
     	    
 		} catch (Exception e) {
-			Out.println("Error processing configuration files: " + e);
+			System.out.println("Error processing configuration files: " + e);
 			System.exit(1);
 		}
     }
