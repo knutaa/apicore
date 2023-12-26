@@ -1,6 +1,5 @@
 package no.paneon.api.graph;
 
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +35,7 @@ public enum Place {
     
 	@LogMethod(level=LogLevel.DEBUG)
     public boolean isForced() {
-    	List<Place> forced = Arrays.asList(Place.FORCELEFT, Place.FORCERIGHT, Place.FORCEABOVE, Place.FORCEBELOW, Place.FORCEFLOAT);
+    	List<Place> forced = List.of(Place.FORCELEFT, Place.FORCERIGHT, Place.FORCEABOVE, Place.FORCEBELOW, Place.FORCEFLOAT);
     	return forced.stream()
     			.map(Object::toString)
     			.anyMatch(p -> p.equals(this.toString()));
@@ -44,7 +43,7 @@ public enum Place {
     
 	@LogMethod(level=LogLevel.DEBUG)
     public static List<Place> coreValues() {
-    	return Arrays.asList(Place.LEFT, Place.RIGHT, Place.ABOVE, Place.BELOW);
+    	return List.of(Place.LEFT, Place.RIGHT, Place.ABOVE, Place.BELOW);
     }
     
 	private static Map<Place,Place> mapping = new EnumMap<>(Place.class); 

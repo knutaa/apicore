@@ -1,7 +1,11 @@
 package no.paneon.api.model;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+
+import org.json.JSONObject;
 
 public class AsyncResourceInfo {
 
@@ -43,6 +47,26 @@ public class AsyncResourceInfo {
 		public Map<String,Object> request;		
 		public Map<String,Object> reply;
 		
+		public List<String> getRequestMessages() {
+			return getMessages(request.get("message"));
+		}
+		
+		public List<String> getReplyMessages() {
+			return getMessages(request.get("message"));
+		}
+		
+		private List<String> getMessages(Object o) {
+			List<String> res = new LinkedList<>();
+			
+			if(o==null) return res;
+			
+			if(o instanceof JSONObject) {
+				JSONObject obj = (JSONObject)o;
+				
+			}
+			
+			return res;
+		}
 	}
 		
 }

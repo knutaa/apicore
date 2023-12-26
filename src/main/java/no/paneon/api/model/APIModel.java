@@ -56,7 +56,7 @@ public class APIModel {
 	private static JSONObject resourceMapping;
 	private static JSONObject reverseMapping;
 
-	public static final List<String> ALL_OPS = Arrays.asList("GET", "POST", "DELETE", "PUT", "PATCH");
+	public static final List<String> ALL_OPS = List.of("GET", "POST", "DELETE", "PUT", "PATCH");
 
 	private static final String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
 	private static final String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
@@ -515,13 +515,48 @@ public class APIModel {
 
 		JsonPath jsonpath = JsonPath.compile(query);
 
+		Predicate<String> selectPayloadMessages = s -> !s.startsWith("30") && !s.startsWith("40") && !s.startsWith("50");
+
 		List<String> msg = jsonpath.read(api, configuration );
 
+		msg = msg.stream()
+				.map(Utils::selectLastReferencePart)
+				.filter(selectPayloadMessages)
+				.collect(toList());
+		
 		LOG.debug("getAsyncMessages:: messages={}", Utils.joining(msg, "\n"));  
 
 		return msg;
 	}
 
+	@LogMethod(level=LogLevel.DEBUG)
+	public static List<String> getAsyncMessagesByOperation(String op) {
+
+		List<String> res = new LinkedList<>();
+
+		String api = swagger.toString();
+
+		Configuration configuration = Configuration.builder()
+				// .jsonProvider(new JacksonJsonProvider())
+				.build();
+
+		String query = "$..[?(@.operationId=='" + op + "')]..['$ref']";
+
+		JsonPath jsonpath = JsonPath.compile(query);
+
+		List<String> msg = jsonpath.read(api, configuration );
+
+		LOG.debug("getAsyncMessagesByOperation:: messages={}", Utils.joining(msg, "\n"));  
+
+		Predicate<String> selectPayloadMessages = s -> !s.startsWith("30") && !s.startsWith("40") && !s.startsWith("50");
+
+		msg = msg.stream()
+				.map(Utils::selectLastReferencePart)
+				.filter(selectPayloadMessages)
+				.collect(toList());
+		
+		return msg;
+	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Map<String,AsyncResourceInfo> getAsyncDetails() {
@@ -927,8 +962,11 @@ public class APIModel {
 	public static String getTypeByReference(String ref) {
 		String[] parts=ref.split("/");
 		String type = parts[parts.length-1];
-				
+			
+		LOG.debug("getTypeByReference: ref={} type={}",  ref, type);
+
 		if(isExternalReference(ref)) {
+			
 			JSONObject external=getExternal(ref);
 			
 			if(external!=null) {
@@ -1859,7 +1897,7 @@ public class APIModel {
 				if(!list.isEmpty()) {
 					String[] parts = list.split(",");
 					if(parts.length>0) {
-						res.addAll(Arrays.asList(parts));
+						res.addAll(List.of(parts));
 					}
 				}
 			}
@@ -2199,8 +2237,10 @@ public class APIModel {
 		if(res==null) {
 			if(isAsyncAPI() ) {
 				
-				Out.printOnce("... ### Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
-
+				if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
+					Out.printOnce("... ### Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				}
+				
 				if(!isSecialProperty(name)) { 
 					
 					LOG.debug("typeOfProperty:: adding definition name={} definition={}", name, property);
@@ -3250,7 +3290,7 @@ public class APIModel {
 			
 		} else {
 			String name = getReverseResourceMapping(resource);
-			List<String> suffix = Arrays.asList("_Create", "_FVO", "_Input", "_MVO");
+			List<String> suffix = List.of("_Create", "_FVO", "_Input", "_MVO");
 			
 			for(String suff : suffix) {
 				res = APIModel.getResourceExpanded(name+suff); // getPropertyObjectForResourceExpanded( name + suff);
@@ -3533,9 +3573,9 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 
 		try {
-			List<JSONPointer> alternativePaths = Arrays.asList ( 
-													new JSONPointer( Arrays.asList( "requestBody", "content", "application/json") ),
-													new JSONPointer( Arrays.asList( "requestBody" ) ) );
+			List<JSONPointer> alternativePaths = List.of ( 
+													new JSONPointer( List.of( "requestBody", "content", "application/json") ),
+													new JSONPointer( List.of( "requestBody" ) ) );
 
 			Iterator<JSONPointer> iter = alternativePaths.iterator();
 			while(iter.hasNext()) {

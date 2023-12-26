@@ -185,7 +185,7 @@ public class Utils {
 			}
 		} catch(Exception e) {
 			Out.println("... unable to read source " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
-			// e.printStackTrace();
+			e.printStackTrace();
 			System.exit(0);
 		}
 		return res;
@@ -211,7 +211,7 @@ public class Utils {
 	        
 		} catch(Exception e) {
 			Out.println("... unable to read source: : error: " + e.getLocalizedMessage() );
-			// e.printStackTrace();
+			e.printStackTrace();
 			System.exit(0);
 		}
 		
@@ -801,7 +801,7 @@ public class Utils {
 					
 		try {
 			URI uri = new URI(source);
-			boolean isWeb = uri.getScheme()!=null && Arrays.asList("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
+			boolean isWeb = uri.getScheme()!=null && List.of("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
 			if(isWeb) {
 				URL url = uri.toURL(); 
 				URLConnection con = url.openConnection();   
@@ -818,6 +818,8 @@ public class Utils {
 				res = new FileInputStream(source);
 			} catch(Exception ey) {
 				Out.printOnce("... unable to read source {}", source);
+				Out.debug("ERROR: {}",  ex.getLocalizedMessage());
+
 			}
 		}
 		
@@ -868,7 +870,7 @@ public class Utils {
 
 		String candidate = Config.getString(property); 
 
-		List<String> sourceDirs = new LinkedList<>(Arrays.asList(directories));
+		List<String> sourceDirs = new LinkedList<>(List.of(directories));
 		
 		if(fileName !=null && ".".contentEquals(fileName)) {
 			sourceDirs.add(".");
@@ -1260,7 +1262,7 @@ public class Utils {
 	@LogMethod(level=LogLevel.TRACE)
 	public static List<String> getFiles(String fileType, String ... dirArgs) {
 		
-		String dir = Arrays.asList(dirArgs).stream().collect(Collectors.joining("/"));
+		String dir = List.of(dirArgs).stream().collect(Collectors.joining("/"));
 		
     	List<String> res = Stream.of(new File(dir).listFiles())
 					        .filter(file -> !file.isDirectory())
@@ -1331,6 +1333,13 @@ public class Utils {
 		return items.stream().collect(Collectors.joining(joinBy));
 	}
 
+	public static String selectLastPart(String s, String delim) {
+		String[] parts = s.split(delim);
+		return parts[parts.length-1];
+	}
 	
+	public static String selectLastReferencePart(String s) {
+		return selectLastPart(s,"/");
+	}
 	
 }

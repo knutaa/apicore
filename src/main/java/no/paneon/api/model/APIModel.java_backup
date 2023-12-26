@@ -50,7 +50,7 @@ public class APIModel {
 	private static JSONObject resourceMapping;
 	private static JSONObject reverseMapping;
 
-	public static final List<String> ALL_OPS = Arrays.asList("GET", "POST", "DELETE", "PUT", "PATCH");
+	public static final List<String> ALL_OPS = List.of("GET", "POST", "DELETE", "PUT", "PATCH");
 
 	private static final String CARDINALITY_REQUIRED_ONE = "cardinalityOne";
 	private static final String CARDINALITY_ZERO_OR_ONE  = "cardinalityZeroOne"; 
@@ -1666,7 +1666,7 @@ public class APIModel {
 				if(!list.isEmpty()) {
 					String[] parts = list.split(",");
 					if(parts.length>0) {
-						res.addAll(Arrays.asList(parts));
+						res.addAll(List.of(parts));
 					}
 				}
 			}
@@ -2892,7 +2892,7 @@ public class APIModel {
 			
 		} else {
 			String name = getReverseResourceMapping(resource);
-			List<String> suffix = Arrays.asList("_Create", "_FVO", "_Input", "_MVO");
+			List<String> suffix = List.of("_Create", "_FVO", "_Input", "_MVO");
 			
 			for(String suff : suffix) {
 				res = APIModel.getResourceExpanded(name+suff); // getPropertyObjectForResourceExpanded( name + suff);
@@ -3169,9 +3169,9 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 
 		try {
-			List<JSONPointer> alternativePaths = Arrays.asList ( 
-													new JSONPointer( Arrays.asList( "requestBody", "content", "application/json") ),
-													new JSONPointer( Arrays.asList( "requestBody" ) ) );
+			List<JSONPointer> alternativePaths = List.of ( 
+													new JSONPointer( List.of( "requestBody", "content", "application/json") ),
+													new JSONPointer( List.of( "requestBody" ) ) );
 
 			Iterator<JSONPointer> iter = alternativePaths.iterator();
 			while(iter.hasNext()) {

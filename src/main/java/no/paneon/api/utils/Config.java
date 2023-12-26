@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -356,6 +357,8 @@ public class Config {
 			LOG.log(Level.TRACE, "getConfig: key={} model={}", key, json.toString(2));
 		}
 	
+		if(json==null) return new JSONObject();
+		
 		return json.optJSONObject(key);
 	}
 
@@ -405,7 +408,7 @@ public class Config {
 		if(has("simpleTypes")) {
 			return get("simpleTypes");
 		} else {
-			return new LinkedList<>( Arrays.asList("TimePeriod", "Money", "Quantity", "Tax", 
+			return new LinkedList<>( List.of("TimePeriod", "Money", "Quantity", "Tax", 
 								 	 "Value", "Any", "object", "Number", "Date") );
 		}
 	}
@@ -415,7 +418,7 @@ public class Config {
 		if(has("simpleEndings")) {
 			return get("simpleEndings");
 		} else {
-			return Arrays.asList("Type", "Error");
+			return List.of("Type", "Error");
 		}
 	}
 
@@ -424,7 +427,7 @@ public class Config {
 		if(has("nonSimpleEndings")) {
 			return get("nonSimpleEndings");
 		} else {
-			return Arrays.asList("RefType", "TypeRef");
+			return List.of("RefType", "TypeRef");
 		}
 	}  
 	
@@ -1029,4 +1032,28 @@ public class Config {
 	}
 
 
+	public static void getCommandLineArgumentsFromConfig(Object args) {
+		JSONObject cmdArgs = Config.getConfig("commandLineArguments");
+		
+		if(cmdArgs==null) return;
+		
+		for(String key : cmdArgs.keySet()) {
+		    try {
+
+		    	Class cls = Class.forName(args.getClass().getCanonicalName() );  // ("no.paneon.api.diagram.app.args.Diagram");
+
+		        Field fld = cls.getField(key);
+		        
+				Object value = cmdArgs.get(key);
+		        fld.set(args, value);
+		        
+				Out.debug("... using argument from configuration: {}={}", key, cmdArgs.get(key));
+
+		    }
+		    catch (Exception ex) {
+				Out.debug("... unable to use argument '{}' from the configuration file, error={}", key, ex);
+		    }
+		}
+	}
+	
 }

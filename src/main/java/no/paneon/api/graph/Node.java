@@ -925,9 +925,24 @@ public class Node implements Comparable<Object>  {
 	}
 	
 	public String getName() {
-		return this.resource;
+		String res=this.resource;
+		return res;
 	}
 
+	public String getDisplayName() {
+		String res=this.resource;
+		res=rewriteIfDynamic(res);
+		return res;
+	}
+	
+	private String rewriteIfDynamic(String label) {
+		String res=label;
+		if(this.isDynamic) {
+			res=res.replaceAll("_[0-9]+", "");
+		}
+		return res;
+	}
+	
 	public List<String> getEnums() {
 		return this.enums;
 	}
