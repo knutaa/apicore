@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import static java.util.stream.Collectors.toList;
+
 
 public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
        
@@ -62,7 +64,7 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
         
         properties.removeAll(ordering);
         
-        properties = properties.stream().sorted().collect(Collectors.toList());
+        properties = properties.stream().sorted().collect(toList());
         
         ordering.addAll(properties);
         

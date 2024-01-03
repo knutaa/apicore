@@ -129,7 +129,7 @@ public class ComplexityAdjustedAPIGraph {
 		
 		Set<Node> otherResources = resourceGraph.vertexSet().stream()
 										.filter(otherResource)
-										.collect(Collectors.toSet());
+										.collect(toSet());
 		
 		LOG.debug("##### createSubGraphsGraphFromComplexity: node={} otherResources={} allResources={}",  resource, otherResources, allResources);
 
@@ -787,13 +787,13 @@ public class ComplexityAdjustedAPIGraph {
 							.filter(isNotInheritanceFromAllResources)
 							.allMatch(n -> superior.edgeSet().contains(n));
 					
-					Set<Node> nodesNotCovered = graphMap.get(node).vertexSet().stream().filter(n -> !allResources.contains(n.getName())).filter(n -> !superior.vertexSet().contains(n)).collect(Collectors.toSet());
+					Set<Node> nodesNotCovered = graphMap.get(node).vertexSet().stream().filter(n -> !allResources.contains(n.getName())).filter(n -> !superior.vertexSet().contains(n)).collect(toSet());
 			
 					LOG.debug("removeSubGraphsCoveredByContainingGraph: resource={} node={} nodesNotCovered={}", resource, node, nodesNotCovered);
 
 					Set<Edge> edgesNotCovered = graphMap.get(node).edgeSet().stream()
 							.filter(isNotInheritanceFromAllResources)
-							.filter(e -> !superior.edgeSet().contains(e)).collect(Collectors.toSet());
+							.filter(e -> !superior.edgeSet().contains(e)).collect(toSet());
 
 					LOG.debug("removeSubGraphsCoveredByContainingGraph: resource={} node={} edgesNotCovered={}", resource, node, edgesNotCovered);
 

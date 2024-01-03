@@ -641,7 +641,7 @@ public class Utils {
 		JSONObject def = Utils.getDefinition(swagger,node);
 		if(def!=null && def.has("enum")) {
 			JSONArray values = def.optJSONArray("enum");
-			if(values!=null) res.addAll(values.toList().stream().map(Object::toString).collect(toList()));
+			if(values!=null) res.addAll(values.toList().stream().map(Object::toString).toList());
 		}
 		return res;
 	}
@@ -722,7 +722,9 @@ public class Utils {
 				if(rules.has(apiKey)) rules = rules.optJSONObject(apiKey);
 				if(rules!=null && rules.has("resources")) {
 					JSONArray resources = rules.optJSONArray("resources");
-					res = resources.toList().stream().map(Object::toString).collect(toList());
+					res = resources.toList().stream()
+							.map(Object::toString)
+							.collect(toList());
 				}
 			}
 		} catch(Exception e) {
@@ -1268,7 +1270,7 @@ public class Utils {
 					        .filter(file -> !file.isDirectory())
 					        .map(File::getName)
 					        .filter(f -> f.endsWith(fileType))
-					        .collect(Collectors.toList());
+					        .collect(toList());
     	
     	return res;
     	

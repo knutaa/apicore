@@ -65,7 +65,7 @@ public class Complexity {
 		Out.debug("graph=" + graph);
 		
 		if(!shortestPath.isEmpty() && !longestPath.isEmpty()) {
-			for(Node node : graph.vertexSet().stream().sorted().collect(toList())) {
+			for(Node node : graph.vertexSet().stream().sorted().toList()) {
 	
 				int complexityContribution = computeComplexityContribution(graph, node, shortestPath.get(node), longestPath.get(node));
 				

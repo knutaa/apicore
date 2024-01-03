@@ -360,11 +360,11 @@ public class APIGraph extends CoreAPIGraph {
 		
 	    res = getInboundNeighbours(target).stream()
 	    				.filter(x-> !x.equals(nodeA) && !x.equals(nodeB))
-	    				.collect(toList()).isEmpty();
+	    				.toList().isEmpty();
 	    
 	    res = res && getOutboundNeighboursByName(target).stream()
 	    				.filter(x-> !x.equals(nodeA) && !x.equals(nodeB))
-	    				.collect(toList()).isEmpty();
+	    				.toList().isEmpty();
 	    	    
 		return res;
 	}
