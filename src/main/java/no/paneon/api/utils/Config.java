@@ -356,7 +356,7 @@ public class Config {
 			LOG.log(Level.TRACE, "getConfig: key={} model={}", key, json.toString(2));
 		}
 	
-		if(json==null) return new JSONObject();
+		if(json==null || !json.has(key)) return new JSONObject();
 		
 		return json.optJSONObject(key);
 	}

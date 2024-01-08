@@ -3349,7 +3349,11 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 		JSONObject variables = new JSONObject();
 
-		if(swagger==null) return res;
+		JSONObject rules = Config.getRules();
+		
+		LOG.debug("getDocumentDetails: rules={}", rules);
+
+		if(swagger==null && rules==null) return res;
 
 		JSONObject info = swagger.optJSONObject("info");
 
@@ -3367,8 +3371,20 @@ public class APIModel {
 				documentNumber = matcher.group(1);
 			}
 
-			if(!documentNumber.isEmpty()) variables.put("DocumentNumber", "TMF" + documentNumber);
+			LOG.debug("getDocumentDetails: description={}", description);
+			LOG.debug("getDocumentDetails: info={}", info.keySet());
 
+			if(!documentNumber.isEmpty()) 
+				variables.put("DocumentNumber", "TMF" + documentNumber);
+			else if(rules!=null) {
+				Object id = rules.optQuery("#/tmfId");
+				if(id!=null) variables.put("DocumentNumber",id.toString());
+			}
+
+			LOG.debug("getDocumentDetails: variables={}", variables);
+
+			// variables.put("DocumentNumber", "TMF" + 999);
+			
 			LocalDate localDate = LocalDate.now();
 			int year  = localDate.getYear();
 			String month = Utils.pascalCase(localDate.getMonth().name());
