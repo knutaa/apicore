@@ -117,7 +117,7 @@ public class Utils {
 	        res=simpleEndings.stream().anyMatch(type::endsWith);
 	    }
         
-        Out.debug("isSimpleType: type={} res={}", type, res);
+        LOG.debug("isSimpleType: type={} res={}", type, res);
         
         return res;
 	}
@@ -716,15 +716,25 @@ public class Utils {
 		
 		try {
 			JSONObject rules = readYamlAsJSON(rulesFile,true);
-			Iterator<String> iter = rules.keySet().iterator();
-			if(iter.hasNext()) {
-				String apiKey = iter.next();
-				if(rules.has(apiKey)) rules = rules.optJSONObject(apiKey);
-				if(rules!=null && rules.has("resources")) {
-					JSONArray resources = rules.optJSONArray("resources");
-					res = resources.toList().stream().map(Object::toString).collect(toList());
-				}
-			}
+			
+			if(rules!=null && rules.has("api")) rules = rules.optJSONObject("api");
+
+			JSONArray resources = rules.optJSONArray("resources");
+			
+			res = Utils.extractJSONObjects(resources).stream().map(n -> n.optString("name")).collect(toList());
+
+//			Iterator<String> iter = rules.keySet().iterator();
+//			if(iter.hasNext()) {
+//				String apiKey = iter.next();
+//				if(rules.has(apiKey)) rules = rules.optJSONObject(apiKey);
+//				if(rules!=null && rules.has("resources")) {
+//					JSONArray resources = rules.optJSONArray("resources");
+//					res = resources.toList().stream().map(Object::toString).collect(toList());
+//				}
+//			}
+			
+			LOG.debug("extractResourcesFromRules::res={}", res);
+
 		} catch(Exception e) {
 			LOG.error("unable to read API rules from " + rulesFile);
 		}
@@ -1340,6 +1350,15 @@ public class Utils {
 	
 	public static String selectLastReferencePart(String s) {
 		return selectLastPart(s,"/");
+	}
+	
+	public static Collection<JSONObject> extractJSONObjects(JSONArray array) {
+		List<JSONObject> res = new LinkedList<>();
+		for(int i=0; i<array.length(); i++) {
+			JSONObject o = array.optJSONObject(i);
+			if(o!=null) res.add(o);
+		}
+		return res;
 	}
 	
 }
