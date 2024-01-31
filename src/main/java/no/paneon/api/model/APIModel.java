@@ -3726,5 +3726,17 @@ public class APIModel {
 	public static boolean isAddedType(String type) {
 		return addedTypes.contains(type);
 	}
+	
+	public static Map<String,List<String>> getOperationsForAllResources() {
+		
+		Map<String,List<String>> res = new HashMap<>();
+		
+		APIModel.getResources().forEach( resource -> {
+			res.put(resource, new LinkedList<>() );
+			res.get(resource).addAll( getOperationsByResource(resource));
+		});
+		
+		return res;
+	}
 
 }
