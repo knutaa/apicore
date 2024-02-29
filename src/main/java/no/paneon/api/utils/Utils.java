@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -118,7 +117,7 @@ public class Utils {
 	        res=simpleEndings.stream().anyMatch(type::endsWith);
 	    }
         
-        Out.debug("isSimpleType: type={} res={}", type, res);
+        LOG.debug("isSimpleType: type={} res={}", type, res);
         
         return res;
 	}
@@ -642,7 +641,7 @@ public class Utils {
 		JSONObject def = Utils.getDefinition(swagger,node);
 		if(def!=null && def.has("enum")) {
 			JSONArray values = def.optJSONArray("enum");
-			if(values!=null) res.addAll(values.toList().stream().map(Object::toString).toList());
+			if(values!=null) res.addAll(values.toList().stream().map(Object::toString).collect(toList()));
 		}
 		return res;
 	}
@@ -717,29 +716,24 @@ public class Utils {
 		
 		try {
 			JSONObject rules = readYamlAsJSON(rulesFile,true);
-
+			
 			if(rules!=null && rules.has("api")) rules = rules.optJSONObject("api");
 
 			JSONArray resources = rules.optJSONArray("resources");
 			
 			res = Utils.extractJSONObjects(resources).stream().map(n -> n.optString("name")).collect(toList());
-			
+
 //			Iterator<String> iter = rules.keySet().iterator();
-//			while(iter.hasNext()) {
+//			if(iter.hasNext()) {
 //				String apiKey = iter.next();
-//				
-//				Out.debug("extractResourcesFromRules::apiKey={}", apiKey);
-//
 //				if(rules.has(apiKey)) rules = rules.optJSONObject(apiKey);
 //				if(rules!=null && rules.has("resources")) {
 //					JSONArray resources = rules.optJSONArray("resources");
-//					res = resources.toList().stream()
-//							.map(Object::toString)
-//							.collect(toList());
+//					res = resources.toList().stream().map(Object::toString).collect(toList());
 //				}
 //			}
-						
-			Out.debug("extractResourcesFromRules::res={}", res);
+			
+			LOG.debug("extractResourcesFromRules::res={}", res);
 
 		} catch(Exception e) {
 			LOG.error("unable to read API rules from " + rulesFile);
@@ -1284,7 +1278,7 @@ public class Utils {
 					        .filter(file -> !file.isDirectory())
 					        .map(File::getName)
 					        .filter(f -> f.endsWith(fileType))
-					        .collect(toList());
+					        .collect(Collectors.toList());
     	
     	return res;
     	
@@ -1366,6 +1360,5 @@ public class Utils {
 		}
 		return res;
 	}
-
-
+	
 }
