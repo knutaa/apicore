@@ -505,7 +505,7 @@ public class Node implements Comparable<Object>  {
 		LOG.debug("toRemove={}", toRemove);
 		LOG.debug("properties={}", this.properties);
 
-		this.setProperties(this.properties.stream().filter(p->!toRemove.contains(p.getName())).collect(toList()) );
+		this.setProperties(this.properties.stream().filter(p->!toRemove.contains(p.getName())).toList() );
 		
 		LOG.debug("properties={}", this.properties);
 
@@ -634,7 +634,7 @@ public class Node implements Comparable<Object>  {
 						
 						List<Object> elements = Config.getListAsObject(property,ENUM);
 
-						propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.toList()) );
+						propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).toList() );
 
 						LOG.debug("addPropertyDetails: property={} values={}" , propName, propDetails.getValues() );
 
@@ -878,7 +878,7 @@ public class Node implements Comparable<Object>  {
 
 	public List<Property> getInheritedProperties(Graph<Node, Edge> graph) {
 		List<Property> res = new LinkedList<>();
-		List<Node> related = graph.edgesOf(this).stream().filter(Edge::isAllOf).map(e->e.related).collect(toList());
+		List<Node> related = graph.edgesOf(this).stream().filter(Edge::isAllOf).map(e->e.related).toList();
 		
 		LOG.debug("getInheritedProperties:: node={} edges={}", this.getName(), graph.edgesOf(this));
 		LOG.debug("getInheritedProperties:: node={} related={}", this.getName(), related);
@@ -1141,11 +1141,11 @@ public class Node implements Comparable<Object>  {
 			if(!nodeMap.containsKey(fvo)) return;
 			Node fvoNode = nodeMap.get(fvo);
 				
-			List<Property> requiredProperties = fvoNode.getProperties().stream().filter(Property::isRequired).collect(toList());
+			List<Property> requiredProperties = fvoNode.getProperties().stream().filter(Property::isRequired).toList();
 
-			List<String> requiredPropertiesByName = requiredProperties.stream().map(Property::getName).collect(toList());
+			// List<String> requiredPropertiesByName = requiredProperties.stream().map(Property::getName).toList();
 
-			LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
+			// LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
 
 			requiredProperties.stream()
 				.map(Property::getName)

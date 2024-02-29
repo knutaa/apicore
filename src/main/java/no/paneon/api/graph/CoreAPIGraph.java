@@ -68,7 +68,7 @@ public class CoreAPIGraph {
 		
 //		if(!Config.getBoolean("keepMVOFVOResources")) {
 //			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-//			allResources = allResources.stream().filter(MVO_or_FVO.negate()).collect(toList());
+//			allResources = allResources.stream().filter(MVO_or_FVO.negate()).toList();
 //		}
 		
 		allResources = APIModel.filterMVOFVO(allResources);
@@ -994,7 +994,7 @@ public class CoreAPIGraph {
 		
 		Set<Edge> edgesOfFromNode = graph.edgesOf(from);
 				
-		LOG.debug("addProperties: #1 from={} edgesOfFromNode={}", from, edgesOfFromNode.stream().filter(e -> graph.getEdgeSource(e).equals(from)).map(graph::getEdgeTarget).collect(toList()));
+		LOG.debug("addProperties: #1 from={} edgesOfFromNode={}", from, edgesOfFromNode.stream().filter(e -> graph.getEdgeSource(e).equals(from)).map(graph::getEdgeTarget).toList());
 
 		LOG.debug("addProperties: typeName={} node.properties={}", typeName, from.properties);
 
@@ -1987,6 +1987,6 @@ public class CoreAPIGraph {
 		return res;
 	}
 
-
+	
 }
 

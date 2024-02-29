@@ -415,8 +415,10 @@ public class APIModel {
 				
 			LOG.debug("getResources:: {}", res);
 			
-			fromRules = fromRules.stream().filter(notAlreadySeen).collect(Collectors.toList());
+			fromRules = fromRules.stream().filter(notAlreadySeen).collect(toList());
 
+			LOG.debug("getResources:: {}", res);
+	
 			res.addAll(fromRules);
 			
 		}
@@ -438,7 +440,7 @@ public class APIModel {
 		
 //		if(!Config.getBoolean("keepMVOFVOResources")) {
 //			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-//			result = res.stream().filter(MVO_or_FVO.negate()).collect(toList());
+//			result = res.stream().filter(MVO_or_FVO.negate()).toList();
 //		} 
 		result = APIModel.filterMVOFVO(res);
 		
@@ -480,6 +482,7 @@ public class APIModel {
 					.distinct()
 					// .map(APIModel::getMappedResource)
 					.collect(toList());
+			
 		} else {
 			LOG.debug("getCoreResources:: processing async api");
 			LOG.debug("getCoreResources:: swagger={}", swagger);
@@ -630,7 +633,7 @@ public class APIModel {
 				.map(x -> x.replaceAll(".*/([A-Za-z0-9.]*)", "$1"))
 				.distinct()
 				.map(Utils::upperCaseFirst)
-				.collect(Collectors.toList());
+				.collect(toList());
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1800,14 +1803,12 @@ public class APIModel {
 
 		String prefix = "/" + resource.toUpperCase();
 
-		List<String> paths = allpaths.keySet().stream()
+		allpaths.keySet().stream()
 				.filter(path -> isPathForResource(path,prefix))
-				.collect(toList());
-
-		paths.forEach(path -> {
-			JSONObject allOps = allpaths.optJSONObject(path);
-			if(allOps!=null && allOps.has(operation.toLowerCase())) res.add(path); 
-		});
+				.forEach(path -> {
+					JSONObject allOps = allpaths.optJSONObject(path);
+					if(allOps!=null && allOps.has(operation.toLowerCase())) res.add(path); 
+				});
 
 		return res;
 
@@ -1865,7 +1866,7 @@ public class APIModel {
 			if(rule!=null) {
 				JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
 				if(notif!=null) {
-					res.put(resource, notif.toList().stream().map(Object::toString).collect(toList()));
+					res.put(resource, notif.toList().stream().map(Object::toString).toList());
 				}
 			}
 		}
@@ -1891,7 +1892,7 @@ public class APIModel {
 		if(rule!=null) {
 			JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
 			if(notif!=null) {
-				res.addAll(notif.toList().stream().map(Object::toString).collect(toList()));
+				res.addAll(notif.toList().stream().map(Object::toString).toList());
 			} else {
 				String list = rule.optString(NOTIFICATIONS);
 				if(!list.isEmpty()) {
@@ -2011,7 +2012,9 @@ public class APIModel {
 	public static List<String> filterMVOFVO(List<String> resources) {
 		if(!Config.getBoolean("keepMVOFVOResources")) {
 			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-			resources = resources.stream().filter(MVO_or_FVO.negate()).collect(toList());
+			resources = resources.stream()
+					.filter(MVO_or_FVO.negate())
+					.collect(toList());
 		} 
 		return resources;
 	}
@@ -2775,7 +2778,7 @@ public class APIModel {
 					.flatMap(Set::stream)
 					.map(String::toUpperCase)
 					.distinct()
-					.collect(Collectors.toList());
+					.collect(toList());
 	
 			// the first part will not find DELETE operations
 			// look for paths of the form /.../{..} where we have seen the first part, i.e. /.../
@@ -2788,7 +2791,7 @@ public class APIModel {
 	
 			});
 	
-			return res.stream().distinct().map(String::toUpperCase).collect(Collectors.toList());
+			return res.stream().distinct().map(String::toUpperCase).collect(toList());
 		}
 
 	}
@@ -2800,7 +2803,7 @@ public class APIModel {
 		if(pathObj!=null) {
 			res.addAll( pathObj.keySet().stream()
 					.map(String::toUpperCase)
-					.collect(Collectors.toList()) );
+					.toList() );
 		}
 		return res;
 	}
@@ -2847,7 +2850,7 @@ public class APIModel {
 				.map(APIModel::getResourceFromResponse)
 				.flatMap(List::stream)
 				// 2022-11-04 .map(APIModel::getMappedResource)
-				.collect(Collectors.toList());
+				.collect(toList());
 
 	}
 
@@ -3318,7 +3321,7 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private static List<JSONObject> getPathObjs() {
-		return getPaths().stream().map(APIModel::getPathObjectByKey).collect(Collectors.toList());
+		return getPaths().stream().map(APIModel::getPathObjectByKey).collect(toList());
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -3337,7 +3340,7 @@ public class APIModel {
 					);
 		});
 
-		return res.stream().distinct().collect(Collectors.toList());
+		return res.stream().distinct().collect(toList());
 
 	}
 
@@ -3346,7 +3349,11 @@ public class APIModel {
 		JSONObject res = new JSONObject();
 		JSONObject variables = new JSONObject();
 
-		if(swagger==null) return res;
+		JSONObject rules = Config.getRules();
+		
+		LOG.debug("getDocumentDetails: rules={}", rules);
+
+		if(swagger==null && rules==null) return res;
 
 		JSONObject info = swagger.optJSONObject("info");
 
@@ -3364,8 +3371,20 @@ public class APIModel {
 				documentNumber = matcher.group(1);
 			}
 
-			if(!documentNumber.isEmpty()) variables.put("DocumentNumber", "TMF" + documentNumber);
+			LOG.debug("getDocumentDetails: description={}", description);
+			LOG.debug("getDocumentDetails: info={}", info.keySet());
 
+			if(!documentNumber.isEmpty()) 
+				variables.put("DocumentNumber", "TMF" + documentNumber);
+			else if(rules!=null) {
+				Object id = rules.optQuery("#/tmfId");
+				if(id!=null) variables.put("DocumentNumber",id.toString());
+			}
+
+			LOG.debug("getDocumentDetails: variables={}", variables);
+
+			// variables.put("DocumentNumber", "TMF" + 999);
+			
 			LocalDate localDate = LocalDate.now();
 			int year  = localDate.getYear();
 			String month = Utils.pascalCase(localDate.getMonth().name());
@@ -3416,16 +3435,14 @@ public class APIModel {
 
 		String prefix = "/" + resource.toUpperCase();
 
-		List<String> paths = allpaths.keySet().stream()
+		allpaths.keySet().stream()
 				.filter(path -> isPathForResource(path,prefix))
 				.sorted()
 				.distinct()
-				.collect(toList());
-
-		paths.forEach(path -> {
-			JSONObject ops = allpaths.optJSONObject(path);					
-			if(ops!=null && ops.has(operation.toLowerCase())) res.add(ops.optJSONObject(operation.toLowerCase())); 
-		});
+				.forEach(path -> {
+					JSONObject ops = allpaths.optJSONObject(path);					
+					if(ops!=null && ops.has(operation.toLowerCase())) res.add(ops.optJSONObject(operation.toLowerCase())); 
+				});
 
 		return res;
 
@@ -3531,7 +3548,7 @@ public class APIModel {
 						.map(APIModel::getResourceFromResponse)
 						.flatMap(List::stream)
 						// 2022-11-04 .map(APIModel::getMappedResource)
-						.collect(Collectors.toList());
+						.toList();
 
 				for(String resource : resources) {
 					res.get(op).increment(resource);
@@ -3708,6 +3725,18 @@ public class APIModel {
 	
 	public static boolean isAddedType(String type) {
 		return addedTypes.contains(type);
+	}
+	
+	public static Map<String,List<String>> getOperationsForAllResources() {
+		
+		Map<String,List<String>> res = new HashMap<>();
+		
+		APIModel.getResources().forEach( resource -> {
+			res.put(resource, new LinkedList<>() );
+			res.get(resource).addAll( getOperationsByResource(resource));
+		});
+		
+		return res;
 	}
 
 }

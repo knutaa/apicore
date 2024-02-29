@@ -81,7 +81,7 @@ public class GraphComplexity {
 		LOG.debug("computeGraphComplexity:: nodes={}", nodes);
 		LOG.debug("computeGraphComplexity:: mappings={}", mappings);
 
-		for(Node node : graph.vertexSet().stream().sorted().collect(toList())) {
+		for(Node node : graph.vertexSet().stream().sorted().toList()) {
 
 			LOG.debug("computeGraphComplexity:: node={}", node );
 

@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -194,7 +193,7 @@ public class Config {
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
-	private static JSONObject getConfiguration() {  	 		
+	public static JSONObject getConfiguration() {  	 		
 		return json;   	
 	}
 	
@@ -357,7 +356,7 @@ public class Config {
 			LOG.log(Level.TRACE, "getConfig: key={} model={}", key, json.toString(2));
 		}
 	
-		if(json==null) return new JSONObject();
+		if(json==null || !json.has(key)) return new JSONObject();
 		
 		return json.optJSONObject(key);
 	}
@@ -475,7 +474,7 @@ public class Config {
 		}
 	
 		if(config!=null) {
-			res.addAll(config.toList().stream().map(Object::toString).collect(toList()));
+			res.addAll(config.toList().stream().map(Object::toString).toList());
 		}
 		
 		return res;
@@ -584,7 +583,9 @@ public class Config {
 		if(config.has(resource)) {
 			JSONArray enums = config.optJSONArray(resource);
 			if(enums!=null)
-				res = enums.toList().stream().map(Object::toString).collect(toList());
+				res = enums.toList().stream()
+				.map(Object::toString)
+				.collect(toList());
 		}
 				
 		return res;
@@ -609,7 +610,7 @@ public class Config {
 			
 				List<String> resources=new LinkedList<>();
 				if(enum_config.has("orphan-enums") && enum_config.optJSONArray("orphan-enums")!=null) {
-					resources.addAll( enum_config.getJSONArray("orphan-enums").toList().stream().map(Object::toString).collect(toList()) );
+					resources.addAll( enum_config.getJSONArray("orphan-enums").toList().stream().map(Object::toString).toList() );
 					
 				}
 				
@@ -618,7 +619,7 @@ public class Config {
 					json.put("orphan-enums-by-resource", config);
 					resources.addAll( config.keySet().stream()
 										.filter(item -> !resources.contains(item))
-										.collect(toList()));
+										.toList());
 										
 				}
 
