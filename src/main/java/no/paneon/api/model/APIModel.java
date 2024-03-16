@@ -2283,6 +2283,10 @@ public class APIModel {
 		int min=0;
 		String max="*";
 
+		LOG.debug("getCardinality: property={} ", property );
+		LOG.debug("getCardinality: required={} minItems={} maxItems={}", isRequired, minItems, maxItems);
+		LOG.debug("getCardinality: isArrayType={}", isArrayType(property));
+
 		if(minItems.isPresent()) {
 			min = minItems.get(); 
 		} else if(property.has(MIN_ITEMS)) {
@@ -2299,7 +2303,7 @@ public class APIModel {
 		}
 
 		String res="";
-		if( isArrayType(property) ) { 
+		if( isArrayType(property) || min>1) { 
 			res = Integer.toString(min) +  ".." + max;
 		} else {
 			res = (min==1) ? Config.getString(CARDINALITY_REQUIRED_ONE) : Config.getString(CARDINALITY_ZERO_OR_ONE);

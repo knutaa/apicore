@@ -140,7 +140,6 @@ public class Node implements Comparable<Object>  {
 			
 			LOG.debug("#3 resource={} inline='{}'" , resource, this.inline );
 
-			
 			Property.Visibility visibility = Config.getBoolean(INCLUDE_INHERITED) ? Property.VISIBLE_INHERITED : Property.HIDDEN_INHERITED;
 
 			addPropertyDetails(Property.BASE);									
@@ -194,10 +193,16 @@ public class Node implements Comparable<Object>  {
 	
 	private String convertExpanded(JSONObject obj) {
 		String res = "";
+		
+		LOG.debug("Node::convertExpanded node={} obj={}" , this.getName(), obj.toString() );
+
 		if(obj.has(ITEMS)) {
 			res = convertExpanded(obj.optJSONObject(ITEMS));
 			
 			String cardinality = APIModel.getCardinality(obj,false);
+			
+			LOG.debug("Node::convertExpanded node={} cardinality={}" , this.getName(), cardinality );
+
 			if(!cardinality.isBlank()) {
 				res = res + " [" + cardinality + "]";
 			}
@@ -215,13 +220,21 @@ public class Node implements Comparable<Object>  {
 
 	private String getInlineDefinition() {
 		String res="";
-		JSONObject def = APIModel.getDefinition(this.resource);
-		if(APIModel.isArrayType(this.resource) && !APIModel.isSimpleType(def)) 
-			res="";
-		else 
-			res = getInlineDefinition(def);
 		
-		if(!res.isEmpty()) LOG.debug("getInlineDefinition: type={} res={}",  this.resource, res);
+		JSONObject def = APIModel.getDefinition(this.resource);
+		
+		if(APIModel.isArrayType(this.resource) && !APIModel.isSimpleType(def)) {
+			res="";
+			
+		} else { 
+		
+			List<String> required = getRequired(def);
+
+			res = getInlineDefinition(def, required);
+			
+		}
+		
+		if(!res.isEmpty()) LOG.debug("XX Node::getInlineDefinition: type={} res={}",  this.resource, res);
 		
 		LOG.debug("getInlineDefinition: node={} res='{}'",  this.resource, res);
 		
@@ -343,7 +356,7 @@ public class Node implements Comparable<Object>  {
 		}
 	}
 
-	private String getInlineDefinition(JSONObject def) {
+	private String getInlineDefinition(JSONObject def, List<String> required) {
 		String res = "";
 		
 		List<String> inlineException = Config.get("inlineException");
@@ -357,6 +370,10 @@ public class Node implements Comparable<Object>  {
 		if(def!=null) {
 			LOG.debug("Node::getInlineDefinition resource={} def={}" , resource, def.toString() );
 			
+			required.addAll( getRequired(def) );
+			
+			if(!required.isEmpty()) LOG.debug("XX Node::getInlineDefinition resource={} required={}" , resource, required );
+
 			if(def.has(DISCRIMINATOR)) {
 				res = "";
 			} else if(def.has(ENUM)) {
@@ -367,7 +384,7 @@ public class Node implements Comparable<Object>  {
 				JSONObject refDef = APIModel.getDefinitionBySchemaObject(def);
 				String cardinality = APIModel.getCardinality(refDef, false);
 
-				res = getInlineDefinition(refDef) ;
+				res = getInlineDefinition(refDef, required);
 				
 				if(!res.isEmpty() && !cardinality.isBlank()) res = res + getCardinalityString(cardinality);
 				
@@ -376,7 +393,7 @@ public class Node implements Comparable<Object>  {
 			} else if(def.has(ALLOF)) {
 				JSONArray array = def.optJSONArray(ALLOF);
 				
-				res = getInlineDefinition(array);
+				res = getInlineDefinition(array,required);
 
 				if(!res.isEmpty()) {
 					String cardinality = getCardinality(array, res);
@@ -388,7 +405,7 @@ public class Node implements Comparable<Object>  {
 
 				JSONObject obj = def.optJSONObject(ITEMS);
 				if(obj!=null) {
-					res = getInlineDefinition(obj);
+					res = getInlineDefinition(obj, required);
 				} else {
 					JSONArray array = def.optJSONArray(ITEMS);
 					Iterator<Object> iter = array.iterator();
@@ -396,7 +413,7 @@ public class Node implements Comparable<Object>  {
 						Object o = iter.next();
 						if(o instanceof JSONObject) {
 							obj = (JSONObject) o;
-							res = getInlineDefinition(obj);
+							res = getInlineDefinition(obj, required);
 						} 
 						if(!res.isBlank()) break;
 					}
@@ -421,15 +438,29 @@ public class Node implements Comparable<Object>  {
 		
 	}
 
-	private String getInlineDefinition(JSONArray array) {
+	private List<String> getRequired(JSONObject def) {
+		List<String> required = new LinkedList<>();
+		
+		if(def!=null && def.has(REQUIRED)) {
+			required.addAll( def.optJSONArray(REQUIRED).toList().stream().map(Object::toString).toList() );
+			
+			LOG.debug("Node::getRequired() required={} def={}" , required, def.toString() );
+		}
+		
+		return required;
+		
+	}
+
+	private String getInlineDefinition(JSONArray array, List<String> required) {
 		String res = "";
+				
 		for(Object o : array) {
 			if(o instanceof JSONObject) {
 				JSONObject obj = (JSONObject) o;
 				
-				LOG.debug("getInlineDefinition: obj={}", obj);
+				LOG.debug("getInlineDefinition: obj={} required={}", obj, required);
 				
-				res = getInlineDefinition(obj);
+				res = getInlineDefinition(obj,required);
 			} 
 			if(!res.isBlank()) break;
 		}
