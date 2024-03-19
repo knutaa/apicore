@@ -1972,7 +1972,15 @@ public class APIModel {
 		List<String> allDefs = getAllDefinitions();
 		List<String> allResources = getResources();
 
+		LOG.debug("getNotificationsFromSwagger: allDefs={}", allDefs);
+
+		List<String> notifications = APIModel.getAllNotifications();
+
 		Set<String> events = allDefs.stream().filter(x -> x.startsWith(resource) &&  x.endsWith("Event")).collect(toSet());			
+
+		events.addAll(notifications);
+		
+		LOG.debug("getNotificationsFromSwagger: resource={} events={}", resource, events);
 
 		Set<String> moreSpecificResources = allResources.stream().filter(x -> x.startsWith(resource) && x.length()>resource.length()).collect(toSet());
 		
@@ -1984,6 +1992,8 @@ public class APIModel {
 		res.addAll(events);
 		res.removeAll(removeCandidates);
 		
+		LOG.debug("getNotificationsFromSwagger: resource={} res={}", resource, res);
+
 		return res;
 	}
 
@@ -1992,6 +2002,8 @@ public class APIModel {
 		
 		Set<String> res = getDefinitions().keySet();
 		
+		LOG.debug("getAllDefinitions: res={}", res);
+
 		// included 2023-11-19
 		res = filterMVOFVO(res);
 		

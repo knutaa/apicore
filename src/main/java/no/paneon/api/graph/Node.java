@@ -441,10 +441,12 @@ public class Node implements Comparable<Object>  {
 	private List<String> getRequired(JSONObject def) {
 		List<String> required = new LinkedList<>();
 		
+		LOG.debug("Node::getRequired() node={} def={}" , this.getName(), def.toString() );
+
 		if(def!=null && def.has(REQUIRED)) {
 			required.addAll( def.optJSONArray(REQUIRED).toList().stream().map(Object::toString).toList() );
 			
-			LOG.debug("Node::getRequired() required={} def={}" , required, def.toString() );
+			LOG.debug("Node::getRequired() node={} required={} def={}" , this.getName(), required, def.toString() );
 		}
 		
 		return required;
@@ -1176,7 +1178,7 @@ public class Node implements Comparable<Object>  {
 
 			// List<String> requiredPropertiesByName = requiredProperties.stream().map(Property::getName).toList();
 
-			// LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
+			// Out.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
 
 			requiredProperties.stream()
 				.map(Property::getName)
