@@ -116,6 +116,8 @@ public class APIModel {
 	static JSONObject allDefinitions = new JSONObject();
 	static Set<String> seenRefs = new HashSet<>();
 
+	private static Map<String,Boolean> isRequiredSeen = new HashMap<>();
+
 	private static Set<String> typeWarnings = new HashSet<>();
 
     public static String getSource() {
@@ -206,6 +208,8 @@ public class APIModel {
 		seenRefs.clear();
 		typeWarnings.clear();
 		
+		isRequiredSeen.clear();
+
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
@@ -2389,23 +2393,61 @@ public class APIModel {
 	public static boolean isSpecialSimpleType(String type) {
 		return type.contains("/");
 	}
-
+	
 	@LogMethod(level=LogLevel.DEBUG)
-	public static boolean isRequired(String resource, String property) {
+	public static boolean isRequired(String resource, String property) {		
 		boolean res=false;
 		
-		JSONObject definition = getDefinition(resource);
-		if(definition!=null) {	
-			JSONArray required = definition.optJSONArray("required");
-
-			if(required!=null) {
-				res = required.toList().stream().filter(o -> o instanceof String).map(o -> (String)o).anyMatch(s -> s.equals(property));
+		if(isRequiredSeen.containsKey(resource)) {
+			res=isRequiredSeen.get(property);
+		} else {
+			JSONObject definition = getDefinition(resource);
+			
+			if(definition!=null) {
+				res = isRequired(definition,property);
 				
-				LOG.debug("isRequired: resource={} property={} required={} res={}",  resource, property, required, res);
-
+				res = res || isRequired(resource + "_FVO", property);
+			
+				isRequiredSeen.put(property, res);
+			}
+		}
+			
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isRequired(JSONObject definition, String property) {
+		boolean res=false;
+		JSONArray required=null;
+		
+		if(definition!=null) {	
+			required = definition.optJSONArray("required");
+		}
+		
+		if(required!=null) {
+			res = required.toList().stream().filter(o -> o instanceof String).map(o -> (String)o).anyMatch(s -> s.equals(property));
+			LOG.debug("isRequired: property={} required={} res={}", property, required, res);
+		}
+		
+		if(!res && definition!=null && definition.has(ALLOF)) {
+			JSONArray allOfs = definition.optJSONArray(ALLOF);
+			if(allOfs!=null) {
+				res = allOfs.toList().stream().anyMatch(o -> isRequired(o,property));
 			}
 		}
 
+		return res;
+	}
+	
+	public static boolean isRequired(Object o, String property) {
+		boolean res=false;
+		if(o instanceof JSONObject) {
+			JSONObject def = (JSONObject)o;
+			if(def.has(REF)) {
+				def = APIModel.getDefinitionByReference(def.getString(REF));
+			}
+			res = isRequired(def,property);
+		}
 		return res;
 	}
 
