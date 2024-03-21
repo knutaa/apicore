@@ -123,7 +123,7 @@ public class Node implements Comparable<Object>  {
 
 		Optional<JSONObject> optExpanded = getExpandedJSON();
 		
-		LOG.debug("Node optExpanded={}" , optExpanded );
+		LOG.debug("Node node={} optExpanded={}", this.resource, optExpanded );
 
 		if(optExpanded.isPresent() && !optExpanded.get().isEmpty()) {
 			
@@ -441,7 +441,7 @@ public class Node implements Comparable<Object>  {
 	private List<String> getRequired(JSONObject def) {
 		List<String> required = new LinkedList<>();
 		
-		LOG.debug("Node::getRequired() node={} def={}" , this.getName(), def.toString() );
+		if(def!=null) LOG.debug("Node::getRequired() node={} def={}" , this.getName(), def.toString() );
 
 		if(def!=null && def.has(REQUIRED)) {
 			required.addAll( def.optJSONArray(REQUIRED).toList().stream().map(Object::toString).toList() );

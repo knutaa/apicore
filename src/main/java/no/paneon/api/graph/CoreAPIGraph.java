@@ -910,31 +910,74 @@ public class CoreAPIGraph {
 			}
 			
 			boolean isArrayType=false;
-//			if(property.has(REF) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
-//				String externalRef = property.optString(REF);
-//				LOG.debug("### addProperties: isExternalReference propertyName={} from={} ref={}", propertyName, from, externalRef);
-//
-//			}
-//			
-//			if(property.has(ITEMS) /* && APIModel.isExternalReference(property.optString(REF)) */ ) {
-//				JSONObject items = property.optJSONObject(ITEMS);
-//				String externalRef = items.optString(REF);
-//				LOG.debug("#### addProperties: isExternalReference from={} ref={}", from, externalRef);
-//
-//			}
+
 			
-			if(property.has(REF) && APIModel.isArrayType(type)) {
-				LOG.debug("addProperties: isArrayType from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
+			//
+			// NEW handling of array types
+			// 
+			if(!Config.getBoolean("old_style_array_types")) {
 				
-				property = APIModel.getDefinition(type);
+				// if(!APIModel.isArrayType(type)) continue;
+				
+				LOG.debug("addProperties: type={} property={} ", type, property );
 
-				type = APIModel.getTypeName(property, propertyName);
+				// property = APIModel.getDefinition(type);
+
+				// type = APIModel.getTypeName(property, propertyName);
+				
 				coreType = APIModel.removePrefix(type);
-
-				LOG.debug("addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));
-				isArrayType=true;
 				
-			} 
+//				Node to = getOrAddNode(graph, coreType);
+//				
+//				LOG.debug("addProperties: NEW style type={} coreType={} property={}", type, coreType, property );
+//
+//				Set<Edge> existingEdgesToType = graph.edgesOf(from);
+//				
+//				LOG.debug("addProperties: from={} type={} to={} existingEdgesToType={}", from, coreType, to, existingEdgesToType);
+//
+//				existingEdgesToType = existingEdgesToType.stream().filter(e -> e.getRelated().getName().contentEquals(to.getName())).collect(toSet());
+//
+//				LOG.debug("addProperties: from={} type={} to={} existingEdgesToType={}", from, coreType, to, existingEdgesToType);
+//
+//				boolean existingEdgesToProperty = existingEdgesToType.stream().anyMatch( e -> e.getRelationship().contentEquals(propertyName));
+//								
+//				LOG.debug("addProperties: from={} type={} to={} existingEdgesToProperty={}", from, coreType, to, existingEdgesToProperty);
+//
+//				if(existingEdgesToProperty) continue;
+//
+//				boolean isRequired = APIModel.isRequired(typeName, propertyName);
+//				String cardinality = APIModel.getCardinality(property, isRequired);
+//
+//				Edge edge = APIModel.isEnumType(type) ? 
+//								new EdgeEnum(from, propertyName, to, cardinality, isRequired) :
+//								new Edge(from, propertyName, to, cardinality, isRequired);
+//			
+//				LOG.debug("addProperties: NEW edge={} isRequired={} typeName={} propertyName={}", edge, isRequired, typeName, propertyName);
+//
+//				addGraphEdge(graph, from, to, edge);
+		
+				
+			} else {
+			
+				// 
+				// continue with the old version
+				//
+				
+				if(property.has(REF) && APIModel.isArrayType(type)) {
+					LOG.debug("addProperties: isArrayType from={} propertyName={} type={} coreType={} property={}", from, propertyName, type, coreType, property);
+					
+					property = APIModel.getDefinition(type);
+	
+					type = APIModel.getTypeName(property, propertyName);
+					coreType = APIModel.removePrefix(type);
+	
+					LOG.debug("addProperties: isArrayType #2 type={} coreType={} property={} isSimpleType={}", type, coreType, property, APIModel.isSimpleType(type));
+					isArrayType=true;
+					
+				} 
+			
+			}
+			
 			
 			if(type.isEmpty()) continue;
 			
