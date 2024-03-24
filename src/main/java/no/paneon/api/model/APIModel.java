@@ -1989,7 +1989,7 @@ public class APIModel {
 
 		events.addAll(notifications);
 		
-		Out.debug("getNotificationsFromSwagger: resource={} events={}", resource, events);
+		LOG.debug("getNotificationsFromSwagger: resource={} events={}", resource, events);
 
 		Set<String> moreSpecificResources = allResources.stream().filter(x -> x.startsWith(resource) && x.length()>resource.length()).collect(toSet());
 		
@@ -2009,7 +2009,7 @@ public class APIModel {
 	private static List<String> getAllNotificationsByResource(String resource) {
 		List<String> res = new LinkedList<>();
 		
-		final Set<String> events = Set.of("Create", "Delete", "Status", "State", "AttributeValue");
+		final Set<String> events = Set.of("Create", "Delete", "Status", "State", "AttributeValue", "InformationRequired");
 		
 		Predicate<String> isEvent = s -> events.stream().anyMatch( e -> s.toUpperCase().contains(e.toUpperCase()) );
 		
@@ -2022,7 +2022,7 @@ public class APIModel {
 											.filter(isEvent)
 											.collect(Collectors.toSet());
 			
-			Out.debug("getAllNotificationsByResource: resource={} potentialEvents={}", resource, potentialEvents);
+			LOG.debug("getAllNotificationsByResource: resource={} potentialEvents={}", resource, potentialEvents);
 
 			res.addAll(potentialEvents);
 			
