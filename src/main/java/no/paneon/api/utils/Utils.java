@@ -808,7 +808,9 @@ public class Utils {
 	@LogMethod(level=LogLevel.TRACE)
 	public static InputStream getSource(String source, List<String> directories) throws Exception {
 		InputStream res=null;
-					
+				
+		if(source==null) return res;
+		
 		try {
 			URI uri = new URI(source);
 			boolean isWeb = uri.getScheme()!=null && List.of("HTTP", "HTTPS").contains(uri.getScheme().toUpperCase());
