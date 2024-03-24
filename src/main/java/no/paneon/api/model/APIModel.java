@@ -1886,33 +1886,38 @@ public class APIModel {
 		List<String> res = new LinkedList<>();
 
 		if(rules==null || rules.isEmpty()) {
+			
 			Out.printOnce("... extracting notification support from API");
 			return getNotificationsFromSwagger(resource);
-		}
-
-		String key = "rules " + resource;
-
-		JSONObject rule = rules.optJSONObject(key);
-		if(rule!=null) {
-			JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
-			if(notif!=null) {
-				res.addAll(notif.toList().stream().map(Object::toString).toList());
-			} else {
-				String list = rule.optString(NOTIFICATIONS);
-				if(!list.isEmpty()) {
-					String[] parts = list.split(",");
-					if(parts.length>0) {
-						res.addAll(List.of(parts));
+			
+		} else {
+	
+			String key = "rules " + resource;
+	
+			JSONObject rule = rules.optJSONObject(key);
+			if(rule!=null) {
+				JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
+				if(notif!=null) {
+					res.addAll(notif.toList().stream().map(Object::toString).toList());
+				} else {
+					String list = rule.optString(NOTIFICATIONS);
+					if(!list.isEmpty()) {
+						String[] parts = list.split(",");
+						if(parts.length>0) {
+							res.addAll(List.of(parts));
+						}
 					}
 				}
 			}
+	
+			res = res.stream()
+					.map(notification -> getNotificationLabel(resource, notification))
+					.collect(toList());
+	
+			return res;
+		
 		}
-
-		res = res.stream()
-				.map(notification -> getNotificationLabel(resource, notification))
-				.collect(toList());
-
-		return res;
+		
 	}
 
 	
@@ -1978,7 +1983,7 @@ public class APIModel {
 
 		LOG.debug("getNotificationsFromSwagger: allDefs={}", allDefs);
 
-		List<String> notifications = APIModel.getAllNotifications();
+		List<String> notifications = APIModel.getAllNotificationsByResource(resource);
 
 		Set<String> events = allDefs.stream().filter(x -> x.startsWith(resource) &&  x.endsWith("Event")).collect(toSet());			
 
@@ -1999,6 +2004,32 @@ public class APIModel {
 		LOG.debug("getNotificationsFromSwagger: resource={} res={}", resource, res);
 
 		return res;
+	}
+
+	private static List<String> getAllNotificationsByResource(String resource) {
+		List<String> res = new LinkedList<>();
+		
+		final Set<String> events = Set.of("Create", "Delete", "Status", "State", "AttributeValue", "InformationRequired");
+		
+		Predicate<String> isEvent = s -> events.stream().anyMatch( e -> s.toUpperCase().contains(e.toUpperCase()) );
+		
+		Object requests = APIModel.swagger.optQuery("#/components/requestBodies");
+		if(requests!=null) {
+			JSONObject req = (JSONObject) requests;
+			
+			Set<String> potentialEvents = req.keySet().stream()
+											.filter(s -> s.startsWith(resource))
+											.filter(isEvent)
+											.collect(Collectors.toSet());
+			
+			LOG.debug("getAllNotificationsByResource: resource={} potentialEvents={}", resource, potentialEvents);
+
+			res.addAll(potentialEvents);
+			
+		}
+		
+		return res;
+		
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
