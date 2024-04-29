@@ -1883,44 +1883,61 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getNotificationsByResource(String resource, JSONObject rules) {
-		List<String> res = new LinkedList<>();
 
-		if(rules==null || rules.isEmpty()) {
-			
+		if(rules!=null && !rules.isEmpty()) {
+			return getNotificationsFromRules(resource,rules);			
+		} else {
+	
 			Out.printOnce("... extracting notification support from API");
 			return getNotificationsFromSwagger(resource);
 			
-		} else {
+//			String key = "rules " + resource;
+//	
+//			JSONObject rule = rules.optJSONObject(key);
+//			if(rule!=null) {
+//				JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
+//				if(notif!=null) {
+//					res.addAll(notif.toList().stream().map(Object::toString).toList());
+//				} else {
+//					String list = rule.optString(NOTIFICATIONS);
+//					if(!list.isEmpty()) {
+//						String[] parts = list.split(",");
+//						if(parts.length>0) {
+//							res.addAll(List.of(parts));
+//						}
+//					}
+//				}
+//			}
+//	
+//			res = res.stream()
+//					.map(notification -> getNotificationLabel(resource, notification))
+//					.collect(toList());
 	
-			String key = "rules " + resource;
-	
-			JSONObject rule = rules.optJSONObject(key);
-			if(rule!=null) {
-				JSONArray notif = rule.optJSONArray(NOTIFICATIONS);
-				if(notif!=null) {
-					res.addAll(notif.toList().stream().map(Object::toString).toList());
-				} else {
-					String list = rule.optString(NOTIFICATIONS);
-					if(!list.isEmpty()) {
-						String[] parts = list.split(",");
-						if(parts.length>0) {
-							res.addAll(List.of(parts));
-						}
-					}
-				}
-			}
-	
-			res = res.stream()
-					.map(notification -> getNotificationLabel(resource, notification))
-					.collect(toList());
-	
-			return res;
+//			return res;
 		
 		}
 		
 	}
 
 	
+	private static List<String> getNotificationsFromRules(String resource, JSONObject rules) {
+		List<String> res = new LinkedList<>();
+
+		if(rules.has(NOTIFICATIONS)) {
+			List<String> schemas = Config.getValuesForKey(rules.optJSONArray(NOTIFICATIONS), "schema");
+			
+			res = schemas.stream()
+					.map(s -> s.replaceAll("[^/]*/", ""))
+					.map(s -> s.replace(resource, ""))
+					.collect(Collectors.toList());
+			
+			LOG.debug("getNotificationsFromRules: resource={} res={}",  resource, res);
+
+		}
+		
+		return res;
+	}
+
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getNotificationsDetails(String resource, JSONObject rules, String notification) {
 		List<String> res = new LinkedList<>();
@@ -1955,9 +1972,10 @@ public class APIModel {
 			
 			LOG.debug("notificationRule: resource={} notification={} notificationRule={}",  resource, notification, notificationRule.toString(2));
 
-			String name = notificationRule.optString("name", "").toUpperCase();
-			
-			if(notificationRule!=null && notification.toUpperCase().contains(name)) {
+			// String name = notificationRule.optString("name", "").toUpperCase();
+			String schema = notificationRule.optString("schema", "").toUpperCase();
+
+			if(notificationRule!=null && schema.contains(notification.toUpperCase())) {
 				JSONArray examples = notificationRule.optJSONArray("examples");
 				if(examples!=null) {
 					for(int j=0; j<examples.length(); j++) {
@@ -2440,6 +2458,9 @@ public class APIModel {
 				res = res || isRequired(resource + "_FVO", property);
 			
 				isRequiredSeen.put(property, res);
+				
+				LOG.debug("isRequired: resource={} property={} res={}", resource, property, res);
+
 			}
 		}
 			
@@ -2456,6 +2477,7 @@ public class APIModel {
 		}
 		
 		if(required!=null) {
+			
 			res = required.toList().stream().filter(o -> o instanceof String).map(o -> (String)o).anyMatch(s -> s.equals(property));
 			LOG.debug("isRequired: property={} required={} res={}", property, required, res);
 		}
@@ -2463,6 +2485,9 @@ public class APIModel {
 		if(!res && definition!=null && definition.has(ALLOF)) {
 			JSONArray allOfs = definition.optJSONArray(ALLOF);
 			if(allOfs!=null) {
+				
+				LOG.debug("isRequired: property={} allOfs={}", property, allOfs.toString());
+
 				res = allOfs.toList().stream().anyMatch(o -> isRequired(o,property));
 			}
 		}
@@ -2472,12 +2497,24 @@ public class APIModel {
 	
 	public static boolean isRequired(Object o, String property) {
 		boolean res=false;
-		if(o instanceof JSONObject) {
-			JSONObject def = (JSONObject)o;
-			if(def.has(REF)) {
-				def = APIModel.getDefinitionByReference(def.getString(REF));
+		
+		LOG.debug("isRequired: property={} object={}", property, o);
+
+		if(o instanceof Map) {
+			Map<String,Object> def = (Map<String,Object>)o;
+			
+			LOG.debug("isRequired: property={} def={}", property, def.toString());
+
+			if(def.containsKey(REQUIRED)) {
+				List<String> required = (List<String>) def.get(REQUIRED);
+				res = required.contains(property);
 			}
-			res = isRequired(def,property);
+			
+			if(!res && def.containsKey(REF)) {
+				JSONObject def2 = APIModel.getDefinitionByReference(def.get(REF).toString());
+				res = isRequired(def2,property);
+			}
+			
 		}
 		return res;
 	}
@@ -3827,5 +3864,7 @@ public class APIModel {
 		
 		return res;
 	}
+
+	public static Predicate<String> isFVO_MVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
 
 }

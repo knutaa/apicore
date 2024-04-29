@@ -80,6 +80,8 @@ public class Node implements Comparable<Object>  {
 	static final String EXPAND_INHERITED = "expandInherited";
 	static final String EXPAND_ALL_PROPERTIES_FROM_ALLOFS = "expandPropertiesFromAllOfs";
 	
+	static final String DEPRECATED = "deprecated";
+	
 	Set<String> additional_edges;
 	
 	protected Node() {
@@ -563,6 +565,7 @@ public class Node implements Comparable<Object>  {
 		
 		LOG.debug("addPropertyDetails obj={}", propObj);
 
+		
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE)) && !APIModel.isAsyncAPI()) {
 			Out.printAlways("addPropertyDetails: NOT PROCESSED propObj=" + propObj.toString(2) );
 		} else  {
@@ -592,14 +595,22 @@ public class Node implements Comparable<Object>  {
 					}
 				}
 	
-				if(property.has(TITLE)) {
-					Out.printOnce(".. found unexpected EMBEDDED {}", property.optString(TITLE));
+				if(property.has(TITLE) && !property.optString(TITLE).contentEquals("header") ) {
+					Out.printOnce("... found unexpected EMBEDDED {} in {}", property.optString(TITLE), property.toString());
 				} 	
 				
 				LOG.debug("addPropertyDetails: property={} isEmpty={}" , propName, property.isEmpty() );
 
 				if(property.isEmpty()) continue;
 
+				boolean isDeprecated = property.optBoolean(DEPRECATED);
+				
+				LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
+
+				if(isDeprecated) {
+					LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
+				}
+				
 				String type = APIModel.typeOfProperty(property, propName);		
 				
 				LOG.debug("Node::addPropertyDetails: #1 property={} typeOfProperty={}" , propName, type );
@@ -676,6 +687,8 @@ public class Node implements Comparable<Object>  {
 						if(property.optBoolean(NULLABLE) && candidateNullable) propDetails.setNullable();
 
 					}
+					
+					propDetails.setDeprected(isDeprecated);
 					
 					this.addProperty( propDetails );
 					
@@ -1380,6 +1393,24 @@ public class Node implements Comparable<Object>  {
 		return className;
 		
 	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public boolean isAbstract() {
+		boolean res = false;
+		
+		res = res | this.description.contains("is an abstract");
+		
+		List<String> abstracts = Config.get("abstractResources");
+		
+		res = res | abstracts.contains(this.getName());
+		
+		if(res) {
+			Out.debug("Node: name={} isAbstract={}", this.resource, res);
+		}
+		
+		return res;
+	}
+	
 }
 
 

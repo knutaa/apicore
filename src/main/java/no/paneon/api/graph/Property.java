@@ -24,6 +24,7 @@ public class Property {
 	Visibility visibility;
 	boolean isNullable = false;
 	boolean isEnum = false;
+	boolean isDeprected=false;
 
 	String defaultValue = null;
 	
@@ -200,5 +201,12 @@ public class Property {
 		LOG.debug("Property::setCardinalityExtension: property={}", this.name);
 		this.isCardinalityExtension=true;
 	}
+	
+	public boolean getDeprected() {
+		return isDeprected;
+	}
 
+	public void setDeprected(boolean value) {
+		this.isDeprected=value;
+	}
 }

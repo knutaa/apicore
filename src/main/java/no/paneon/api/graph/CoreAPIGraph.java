@@ -53,6 +53,8 @@ public class CoreAPIGraph {
     static final String SET_DISCRIMINATOR_DEFAULT = "setDiscriminatorDefault";
     static final String DESCRIPTION = "description";
     
+	static final String DEPRECATED = "deprecated";
+
     static final String REF = "$ref";
     static final String ITEMS = "items";
 
@@ -856,7 +858,7 @@ public class CoreAPIGraph {
 		
 		if(properties==null) properties = new JSONObject();
 		
-		LOG.debug("addProperties: typeName={} properties={}", typeName, properties.keySet());
+		LOG.debug("addProperties: typeName={} deprecated={}", typeName, properties.optBoolean(DEPRECATED));
 
 		// Set<String> existingProperties = from.getProperties().stream().map(Property::getName).collect(toSet());
 		
@@ -868,6 +870,8 @@ public class CoreAPIGraph {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
 		
+			LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, property.optBoolean(DEPRECATED) );
+
 			LOG.debug("addProperties: typeName={} property={}", typeName, property);
 
 			if(property==null || property.isEmpty()) continue;
@@ -881,6 +885,15 @@ public class CoreAPIGraph {
 //					continue; 
 //				}
 //			}
+			
+			
+			boolean isDeprecated = property.optBoolean(DEPRECATED);
+			
+			LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, isDeprecated );
+
+			if(isDeprecated) {
+				LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, isDeprecated );
+			}
 			
 			String type = APIModel.getTypeName(property, propertyName);
 			
@@ -1030,6 +1043,11 @@ public class CoreAPIGraph {
 
 				Property propDetails = new Property(propertyName, propType, cardinality, isRequired, property.optString(DESCRIPTION), Property.VISIBLE_INHERITED );
 
+				if(isDeprecated) {
+					LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, isDeprecated );
+					propDetails.setDeprected(isDeprecated);
+				}
+				
 				from.addProperty(propDetails);
 				
 			}
@@ -2028,6 +2046,14 @@ public class CoreAPIGraph {
 			});
 			
 		return res;
+	}
+
+	public List<String> getSubclasses(String resource) {
+		return getInboundEdges(this.getCompleteGraph(), this.getNode(resource)).stream()
+				.filter(Edge::isAllOf)
+				.map(Edge::getNode)
+				.map(Node::getName)
+				.collect(Collectors.toList());
 	}
 
 	

@@ -3,6 +3,7 @@ package no.paneon.api.graph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -796,6 +797,23 @@ public class APIGraph extends CoreAPIGraph {
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
+	public List<Node> getSubGraph(Node node, SearchOrder order) {
+		return getSubGraph(node,node,order);
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public List<Node> getSubGraph(Node parent, Node node, SearchOrder order) {
+		Set<Node> seen = new HashSet<>();
+		seen.add(parent);
+		List<Node>  res = getSubGraphHelper(node, seen, order);
+		
+		res.remove(parent);
+		
+		return res;
+	}
+	
+	
+	@LogMethod(level=LogLevel.DEBUG)
 	private Set<Node> getSubGraphHelper(Node node, Set<Node> seen) {
 		Set<Node> neighbours = this.getOutboundNeighbours(node);
 		
@@ -815,6 +833,40 @@ public class APIGraph extends CoreAPIGraph {
 		return res;
 	}
 
+	@LogMethod(level=LogLevel.DEBUG)
+	private List<Node> getSubGraphHelper(Node node, Set<Node> seen, SearchOrder order) {
+		List<Node> res = new LinkedList<>();
+				
+		Set<Node> neighbours = this.getOutboundNeighbours(node);
+		
+		
+		for(Node n : neighbours) {
+			Set<Edge> edges = this.getEdges(node, n);
+			Out.debug("resource={} edges={}",  node, edges);
+			
+			List<Node> outbound = edges.stream().
+							filter(Predicate.not(Edge::isAllOf))
+							.map(Edge::getRelated)
+							.sorted()
+							.filter(Predicate.not(res::contains))
+							.collect(Collectors.toList());
+			
+			res.addAll( outbound );
+				
+		}
+			
+		seen.add(node);
+		
+		for(Node n : res.stream().collect(Collectors.toSet()) ) {
+			if(!seen.contains(n)) {
+				List<Node> sub = getSubGraphHelper(n,seen,order);
+				res.addAll(sub);
+			}
+		}
+		
+		return res;
+	}
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public Set<Node> getReverseSubGraph(Node node) {
 		Set<Node> seen = new HashSet<>();
@@ -868,6 +920,11 @@ public class APIGraph extends CoreAPIGraph {
 	static final String CASE_ITEM = "Item";
 	static final String CASE_ITEMS = "Items";
 
+	public enum SearchOrder {
+		BREADTH_FIRST,
+		DEPTH_FIRST
+	}
+
 	@LogMethod(level=LogLevel.DEBUG)
 	public boolean isItemSubResource(Node node, Node toNode) {
 		return isItemSubResource(node.getName(), toNode.getName());
@@ -902,6 +959,11 @@ public class APIGraph extends CoreAPIGraph {
 		List<Node> res = new LinkedList<>();
 		res.addAll( getSubGraph(resource) );
 		return res;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public List<Node> getSubGraphList(Node resource, SearchOrder order) {
+		return getSubGraph(resource,order);
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1158,6 +1220,10 @@ public class APIGraph extends CoreAPIGraph {
 	
 	private void removeDuplicatedInheritedRelationships() {
 		CoreAPIGraph.removeDuplicatedInheritedRelationships(graph, resourceNode);
+	}
+
+	public List<Node> getSubClasses(Node node) {
+		return this.getInboundEdges(node).stream().filter(Edge::isAllOf).map(Edge::getNode).collect(Collectors.toList());
 	}
 	
 }
