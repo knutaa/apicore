@@ -256,7 +256,7 @@ public class Config {
 		rulesSource=rulesFile;
 		readRules();
 		
-		Out.debug("setRulesSource: rulesFile={}", rulesFile);
+		LOG.debug("setRulesSource: rulesFile={}", rulesFile);
 
 	}
 	

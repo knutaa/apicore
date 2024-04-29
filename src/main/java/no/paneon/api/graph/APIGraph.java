@@ -842,7 +842,7 @@ public class APIGraph extends CoreAPIGraph {
 		
 		for(Node n : neighbours) {
 			Set<Edge> edges = this.getEdges(node, n);
-			Out.debug("resource={} edges={}",  node, edges);
+			LOG.debug("resource={} edges={}",  node, edges);
 			
 			List<Node> outbound = edges.stream().
 							filter(Predicate.not(Edge::isAllOf))
