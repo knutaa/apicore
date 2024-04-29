@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -254,6 +255,9 @@ public class Config {
 		
 		rulesSource=rulesFile;
 		readRules();
+		
+		Out.debug("setRulesSource: rulesFile={}", rulesFile);
+
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
@@ -377,7 +381,13 @@ public class Config {
 		return res;
 	}
 
-
+	@LogMethod(level=LogLevel.TRACE)
+	public static List<String> getValuesForKey(JSONArray array, String key) {
+	    return IntStream.range(0, array.length())
+	      .mapToObj(index -> ((JSONObject)array.get(index)).optString(key))
+	      .collect(Collectors.toList());
+	}
+	
 	public static void setBoolean(String key, boolean value) {
 		json.put(key, value);
 	}
