@@ -19,17 +19,27 @@ public class Edge {
 	public String cardinality;
 	public Node node;
 	public boolean required=false;
+	public boolean deprecated=false;
 	
 	public boolean isMarked = false;
 		
-	public Edge(Node node, String relation, Node related, String cardinality, boolean required) {
+	public Edge(Node node, String relation, Node related, String cardinality, boolean required, boolean isDeprecated) {
 		this.node=node;
 		this.relation=relation;
 		this.related=related;
 		this.cardinality=cardinality;
 		this.required=required;
+		this.deprecated=isDeprecated;
 	}
 		
+//	public Edge(Node node, String relation, Node related, String cardinality, boolean isRequired) {
+//		this.node=node;
+//		this.relation=relation;
+//		this.related=related;
+//		this.cardinality=cardinality;
+//		this.required=isRequired;
+//	}
+
 	private boolean isPlaced(List<Object> processed) {
 		boolean res = processed.contains(this);
 		
@@ -48,6 +58,10 @@ public class Edge {
 	
 	public boolean isRequired() {
 		return required;
+	}
+	
+	public boolean isDeprecated() {
+		return deprecated;
 	}
 	
 	public boolean isEnumEdge() {
@@ -154,6 +168,10 @@ public class Edge {
 
 	public String getSourceName() {
 		return getNode().getName();
+	}
+
+	public boolean getDeprecated() {
+		return this.deprecated;
 	}
 	
 }

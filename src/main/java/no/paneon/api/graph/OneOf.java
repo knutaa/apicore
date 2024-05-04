@@ -8,7 +8,7 @@ public class OneOf extends Edge {
     static final Logger LOG = LogManager.getLogger(OneOf.class);
 	
 	public OneOf(Node node, Node related ) {
-		super(node, "oneOf", related, "", true);
+		super(node, "oneOf", related, "", true, false);
 	}
 
 	@Override

@@ -538,6 +538,11 @@ public class Config {
 		}
 	}
 	
+	@LogMethod(level=LogLevel.TRACE)
+	public static String getDeprecatedFormatting() {
+		return getString("deprecatedFormatting");
+	}
+	
 	private static Optional<Boolean> optRequiredHighlighting = Optional.empty();
 	
 	@LogMethod(level=LogLevel.TRACE)

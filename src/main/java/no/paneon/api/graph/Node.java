@@ -605,7 +605,7 @@ public class Node implements Comparable<Object>  {
 
 				boolean isDeprecated = property.optBoolean(DEPRECATED);
 				
-				LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
+				if(isDeprecated) Out.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
 
 				if(isDeprecated) {
 					LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );

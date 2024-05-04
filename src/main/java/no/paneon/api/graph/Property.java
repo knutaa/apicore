@@ -191,7 +191,7 @@ public class Property {
 	public boolean getTypeExtension() {
 		return this.isTypeExtension;
 	}
-
+ 
 	private boolean isCardinalityExtension=false;
 	public boolean getCardinalityExtension() {
 		return this.isCardinalityExtension;

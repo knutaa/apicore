@@ -7,8 +7,8 @@ public class EdgeEnum extends Edge {
 	
     static final Logger LOG = LogManager.getLogger(EdgeEnum.class);
 	
-	public EdgeEnum(Node node, String relation, Node related, String cardinality, boolean required) {
-		super(node, relation, related, cardinality, required);
+	public EdgeEnum(Node node, String relation, Node related, String cardinality, boolean required, boolean deprecated) {
+		super(node, relation, related, cardinality, required, deprecated);
 	}
 
 	

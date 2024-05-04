@@ -84,6 +84,7 @@ public class APIModel {
 	private static final String MAX_ITEMS = "maxItems";
 
 	private static final String REQUIRED = "required";
+	private static final String DEPRECATED = "deprecated";
 
 	private static final String EXAMPLE  = "example";
 	private static final String EXAMPLES = "examples";
@@ -113,10 +114,13 @@ public class APIModel {
 	static Map<String,JSONObject> flattened = new HashMap<>();
 	static Map<String,JSONObject> resourceMapExpanded = new HashMap<>();
 
+	static Map<String,JSONObject> flattenedSubclasses = new HashMap<>();
+
 	static JSONObject allDefinitions = new JSONObject();
 	static Set<String> seenRefs = new HashSet<>();
 
 	private static Map<String,Boolean> isRequiredSeen = new HashMap<>();
+	private static Map<String,Boolean> isDeprecatedSeen = new HashMap<>();
 
 	private static Set<String> typeWarnings = new HashSet<>();
 
@@ -203,12 +207,15 @@ public class APIModel {
 		flattened = new HashMap<>();
 		resourceMapExpanded = new HashMap<>();
 		
+		flattenedSubclasses = new HashMap<>();
+
 		_getResources = null;
 		
 		seenRefs.clear();
 		typeWarnings.clear();
 		
 		isRequiredSeen.clear();
+		isDeprecatedSeen.clear();
 
 	}
 	
@@ -938,6 +945,9 @@ public class APIModel {
 	public static String getReferencedType(String type, String property) {
 		JSONObject specification = APIModel.getResourceExpanded(type);
 //		JSONObject specification = getPropertySpecification(type,property);
+		
+		LOG.debug("getReferencedType: property={} specification={}",  property, specification.toString(2));
+
 		return getReferencedType(specification,property);	    	    
 	}
 
@@ -961,6 +971,8 @@ public class APIModel {
 				res = parts[parts.length-1];
 			}
 		}
+
+		LOG.debug("getReferencedType: property={} specification={} res={}",  property, specification, res);
 
 		return res;
 	}
@@ -2155,10 +2167,17 @@ public class APIModel {
 	private static JSONObject getProperty(JSONObject definition, String property) {
 		JSONObject res = null;
 
-		if(definition!=null && definition.has(PROPERTIES) && definition.optJSONObject(PROPERTIES)!=null) {
+		if(definition==null) return res;
+		
+		if(definition.has(property)) {
+			JSONObject def = definition.optJSONObject(property);
+			return def.optJSONObject(property);
+		}
+		
+		if(definition.has(PROPERTIES) && definition.optJSONObject(PROPERTIES)!=null) {
 			JSONObject properties = definition.optJSONObject(PROPERTIES);
 			res = properties.optJSONObject(property);
-		}
+		} 
 
 		return res;
 
@@ -2468,6 +2487,35 @@ public class APIModel {
 	}
 	
 	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isDeprecated(String resource, String property) {		
+		boolean res=false;
+		
+		if(isDeprecatedSeen.containsKey(resource)) {
+			res=isDeprecatedSeen.get(property);
+		} else {
+			
+			JSONObject definition = APIModel.getResourceExpanded(resource);
+			
+			LOG.debug("isDeprecated: resource={} definition={}", resource, definition);
+
+			if(definition!=null) {
+				res = isDeprecated(definition,property);
+				
+				res = res || isDeprecated(resource + "_FVO", property);
+			
+				isDeprecatedSeen.put(property, res);
+				
+				LOG.debug("isDeprecated: resource={} property={} res={}", resource, property, res);
+
+			}
+		}
+			
+		return res;
+	}
+	
+	
+	
+	@LogMethod(level=LogLevel.DEBUG)
 	public static boolean isRequired(JSONObject definition, String property) {
 		boolean res=false;
 		JSONArray required=null;
@@ -2493,6 +2541,21 @@ public class APIModel {
 		}
 
 		return res;
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isDeprecated(JSONObject definition, String property) {
+
+		JSONObject propDefinition = getProperty(definition, property);
+		
+		LOG.debug("isDeprecated: property={} propDefinition={}", property, propDefinition);
+
+		if(propDefinition!=null) {
+			return propDefinition.optBoolean(DEPRECATED);
+		} else {
+			return false;
+		}
+		
 	}
 	
 	public static boolean isRequired(Object o, String property) {
@@ -3866,5 +3929,115 @@ public class APIModel {
 	}
 
 	public static Predicate<String> isFVO_MVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+
+	
+	public static JSONObject getAllPropertiesInSubclasses(String resource) {
+		LOG.debug("getAllPropertiesInSubclasses: resource={}", resource);
+		
+		if(flattenedSubclasses.containsKey(resource)) return flattenedSubclasses.get(resource);
+		
+		flattenedSubclasses.put(resource, new JSONObject());
+		
+		final JSONObject target = new JSONObject();
+		JSONObject definition = getDefinition(resource);
+
+		JSONObject allProps = APIModel.getPropertyObjectForResourceExpanded(resource);   // getFlattenAllOfs(resource);
+
+		LOG.debug("getAllPropertiesInSubclasses: resource={} allProps={}", resource, allProps);
+
+		mergeJSON(target,allProps);
+
+		if(definition==null) {
+			return target;
+		}
+		
+		
+		JSONObject mapDefinition = APIModel.getMappingForResource(resource);
+		
+		LOG.debug("getAllPropertiesInSubclasses: resource={} mapping={}", resource, mapDefinition);
+
+		Set<String> keys = mapDefinition.keySet();
+		for(String key : keys) {
+			String disc = mapDefinition.optString(key);
+			String[] parts = disc.split("/");
+			disc = parts[parts.length-1];
+
+			LOG.debug("getAllPropertiesInSubclasses: resource={} discriminator={}", resource, disc);
+
+			JSONObject all = getPropertyObjectForResource(disc);
+			
+			LOG.debug("merging with resource {} keys {}",  resource, all.keySet());
+			LOG.debug("merging with resource {} ",  all.toString(2));
+
+			mergeJSON(target,all);
+			
+			all = getAllPropertiesInSubclasses(disc);
+			mergeJSON(target,all);
+
+		}
+
+		
+		LOG.debug("getAllPropertiesInSubclasses: resource={} definition={}", resource, definition);
+
+		
+		
+		if(definition.has(ALLOF)) {
+			JSONArray allofs = definition.optJSONArray(ALLOF);
+			LOG.debug("getAllPropertiesInSubclasses: resource={} allofs={}", resource, allofs);
+
+			if(allofs!=null && !allofs.isEmpty()) {
+				allofs.forEach(allof -> {
+					if(allof instanceof JSONObject) {
+						LOG.debug("getAllPropertiesInSubclasses: resource={} allof={}", resource, allof);
+
+						JSONObject allOfDefinition = (JSONObject) allof;
+						if(allOfDefinition.has(REF)) {
+							String superior = getReferencedType(allOfDefinition, null); 
+							
+							LOG.debug("getAllPropertiesInSubclasses: allOf={} superior={}", allOfDefinition, superior);
+
+							JSONObject inheritsFrom =  getPropertyObjectForResourceExpanded(superior);
+							
+							LOG.debug("merging with resource {} keys {}",  resource, inheritsFrom.keySet());
+							LOG.debug("merging with superior={} resource {} ", superior, inheritsFrom.toString(2));
+	
+							mergeJSON(target,inheritsFrom);
+							
+							JSONObject all = getAllPropertiesInSubclasses(superior);
+							mergeJSON(target,all);
+							
+//							JSONObject map = APIModel.getMappingForResource(superior);
+//							
+//							LOG.debug("getAllPropertiesInSubclasses:: resource {} mapping={}",  resource, map.toString());
+//
+//							Set<String> keys = map.keySet();
+//							for(String key : keys) {
+//								String disc = map.optString(key);
+//								disc = disc.replaceAll("/[.]*\\//", "");
+//
+//								LOG.debug("getAllPropertiesInSubclasses: resource={} discriminator={}", resource, disc);
+//
+//								JSONObject all = getPropertyObjectForResource(disc);
+//								
+//								LOG.debug("merging with resource {} keys {}",  resource, all.keySet());
+//								LOG.debug("merging with resource {} ",  all.toString(2));
+//		
+//								mergeJSON(target,all);
+//							}
+						}
+					}
+				});
+			}
+
+		}
+		
+		
+		flattenedSubclasses.put(resource, target);
+		
+		return target;
+
+	}
+	
+
 
 }

@@ -160,7 +160,7 @@ public class CoreAPIGraph {
   	    		enums.forEach(e -> {
   	    			Node orphanNode = this.getNode(e);
   	    			if(orphanNode!=null) {
-  	    		 	    Edge edge = new EdgeEnum(node,"", orphanNode,"",false);
+  	    		 	    Edge edge = new EdgeEnum(node,"", orphanNode,"",false,false);
   	  	    	  	    this.completeGraph.addEdge(node, orphanNode, edge);
   	  	    	 
   	    			}
@@ -431,8 +431,9 @@ public class CoreAPIGraph {
 					
 					boolean isRequired = APIModel.isRequired(node.getName(), propName);
 					String cardinality = APIModel.getCardinality(propDef, isRequired);
+					boolean isDeprecated = APIModel.isDeprecated(node.getName(), propName);
 
-					g.addEdge(node, to, new Edge(node, propName, to, cardinality, isRequired) );
+					g.addEdge(node, to, new Edge(node, propName, to, cardinality, isRequired, isDeprecated) );
 					LOG.debug("CoreAPIGraph:: add EDGE node={} to={}", node, to);
 				});
 			}
@@ -553,7 +554,14 @@ public class CoreAPIGraph {
 		edges.stream().filter(Edge::isRegularEdgeCore).forEach(e -> {
 			String description = "";
 			
-			Property p = new Property(e.getRelationship(), e.getRelated().getName(), e.cardinality, e.required, description, Property.VISIBLE_INHERITED );
+			Property p = new Property(e.getRelationship(), 
+									e.getRelated().getName(), 
+									e.cardinality, 
+									e.required, description, 
+									Property.VISIBLE_INHERITED );
+			
+			p.setDeprected(e.getDeprecated());
+			
 			referencedProperties.add(p);
 			
 			LOG.debug("addProperties:: node={} referenced property={}", node, p);
@@ -690,7 +698,11 @@ public class CoreAPIGraph {
 
 		for(Edge enumEdgeToAdd : inheritedEnumEdgesNotPresent) {
 						
-			Edge edge = new EdgeEnum(node, enumEdgeToAdd.getRelationship(), enumEdgeToAdd.getRelated(), enumEdgeToAdd.cardinality, enumEdgeToAdd.required );
+			Edge edge = new EdgeEnum(node, enumEdgeToAdd.getRelationship(), 
+								enumEdgeToAdd.getRelated(), 
+								enumEdgeToAdd.cardinality, 
+								enumEdgeToAdd.required,
+								enumEdgeToAdd.deprecated );
 			
 			addGraphEdge(g, node, enumEdgeToAdd.getRelated(), edge);		
 			LOG.debug("addProperties:: adding inherited enum {} edge={}", enumEdgeToAdd, edge);	
@@ -819,7 +831,7 @@ public class CoreAPIGraph {
 			enumsAdded.forEach(property -> {
 				Node to = getOrAddNode(g, property.type); // graphNodes.get(property.getType());
 				if(to!=null) {
-					Edge edge = new EdgeEnum(node, property.name, to, property.cardinality, property.required);
+					Edge edge = new EdgeEnum(node, property.name, to, property.cardinality, property.required, property.isDeprected);
 					addGraphEdge(g, node, to, edge);	
 				} else {
 					Out.printAlways("ERROR: Missing enum definition for resource {} property {}", node, property);
@@ -908,7 +920,7 @@ public class CoreAPIGraph {
 				boolean isRequired = true;
 				String cardinality = "1..1";
 
-				Edge edge = new Edge(from, propertyName, to, cardinality, isRequired);
+				Edge edge = new Edge(from, propertyName, to, cardinality, isRequired, isDeprecated);
 				
 				LOG.debug("addProperties: EDGE from={} propertyName={} type={} edge={}", from, propertyName, type, edge);
 
@@ -1014,12 +1026,13 @@ public class CoreAPIGraph {
 
 				boolean isRequired = APIModel.isRequired(typeName, propertyName);
 				String cardinality = APIModel.getCardinality(property, isRequired);
+				isDeprecated = APIModel.isDeprecated(typeName, propertyName);
 
 				Edge edge = APIModel.isEnumType(type) ? 
-								new EdgeEnum(from, propertyName, to, cardinality, isRequired) :
-								new Edge(from, propertyName, to, cardinality, isRequired);
+								new EdgeEnum(from, propertyName, to, cardinality, isRequired, isDeprecated) :
+								new Edge(from, propertyName, to, cardinality, isRequired, isDeprecated);
 			
-				LOG.debug("addProperties: edge={} isRequired={}", edge, isRequired);
+				LOG.debug("addProperties: edge={} isRequired={} isDeprecated={}", edge, isRequired, isDeprecated);
 
 				addGraphEdge(graph, from, to, edge);
 
@@ -1034,14 +1047,19 @@ public class CoreAPIGraph {
 
 				if(APIModel.isAddedType(propType)) {
 					Node to = getOrAddNode(graph, propType);
-					Edge edge = new Edge(from, propertyName, to, cardinality, isRequired);
+					Edge edge = new Edge(from, propertyName, to, cardinality, isRequired, isDeprecated);
 					LOG.debug("############# addProperties: edge={} isRequired={}", edge, isRequired);
 
 				}
 				
 				LOG.debug("addProperties: typeName={} propertyName={} propType={} isRequired={}", typeName, propertyName, propType, isRequired);
 
-				Property propDetails = new Property(propertyName, propType, cardinality, isRequired, property.optString(DESCRIPTION), Property.VISIBLE_INHERITED );
+				Property propDetails = new Property(propertyName, 
+													propType, 
+													cardinality, 
+													isRequired, 
+													property.optString(DESCRIPTION), 
+													Property.VISIBLE_INHERITED );
 
 				if(isDeprecated) {
 					LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, isDeprecated );
