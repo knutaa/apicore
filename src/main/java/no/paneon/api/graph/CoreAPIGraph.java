@@ -57,6 +57,7 @@ public class CoreAPIGraph {
 
     static final String REF = "$ref";
     static final String ITEMS = "items";
+	static final String ENUM = "enum";
 
 	Graph<Node,Edge> completeGraph;
 	
@@ -1061,6 +1062,16 @@ public class CoreAPIGraph {
 													property.optString(DESCRIPTION), 
 													Property.VISIBLE_INHERITED );
 
+				LOG.debug("addProperties: typeName={} property={}", propType, property);
+
+				List<String> enumValues = Config.getList(property, ENUM);
+				propDetails.addEnumValues(enumValues);
+				
+				if(property.has(ENUM)) {
+					LOG.debug("addProperties: ENUM typeName={} values={}", propType, enumValues);
+
+				}
+				
 				if(isDeprecated) {
 					LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, isDeprecated );
 					propDetails.setDeprected(isDeprecated);

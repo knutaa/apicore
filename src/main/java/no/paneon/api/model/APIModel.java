@@ -2466,8 +2466,10 @@ public class APIModel {
 	public static boolean isRequired(String resource, String property) {		
 		boolean res=false;
 		
-		if(isRequiredSeen.containsKey(resource)) {
-			res=isRequiredSeen.get(property);
+		String key = resource + "_" + property;
+		
+		if(isRequiredSeen.containsKey(key)) {
+			res=isRequiredSeen.get(key);
 		} else {
 			JSONObject definition = getDefinition(resource);
 			
@@ -2476,8 +2478,8 @@ public class APIModel {
 				
 				res = res || isRequired(resource + "_FVO", property);
 			
-				isRequiredSeen.put(property, res);
-				
+				isRequiredSeen.put(key, res);
+
 				LOG.debug("isRequired: resource={} property={} res={}", resource, property, res);
 
 			}
@@ -2490,8 +2492,10 @@ public class APIModel {
 	public static boolean isDeprecated(String resource, String property) {		
 		boolean res=false;
 		
-		if(isDeprecatedSeen.containsKey(resource)) {
-			res=isDeprecatedSeen.get(property);
+		String key = resource + "_" + property;
+
+		if(isDeprecatedSeen.containsKey(key)) {
+			res=isDeprecatedSeen.get(key);
 		} else {
 			
 			JSONObject definition = APIModel.getResourceExpanded(resource);
@@ -2503,7 +2507,7 @@ public class APIModel {
 				
 				res = res || isDeprecated(resource + "_FVO", property);
 			
-				isDeprecatedSeen.put(property, res);
+				isDeprecatedSeen.put(key, res);
 				
 				LOG.debug("isDeprecated: resource={} property={} res={}", resource, property, res);
 
@@ -3693,10 +3697,12 @@ public class APIModel {
 		return res;
 	}
 
-	public static JSONObject getMappingForResource(String resource) {
-		
+	public static JSONObject getMappingForResource(String resource) {	
 		return getDefinition(resource, DISCRIMINATOR, MAPPING);
-
+	}
+	
+	public static Set<String> getDisriminatorKeys(String resource) {	
+		return getDefinition(resource, DISCRIMINATOR, MAPPING).keySet();
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)

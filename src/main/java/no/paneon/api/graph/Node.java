@@ -84,6 +84,8 @@ public class Node implements Comparable<Object>  {
 	
 	Set<String> additional_edges;
 	
+	public static Predicate<Node> isFVO_MVO = n -> n.getName().endsWith("_FVO") || n.getName().endsWith("_MVO");
+
 	protected Node() {
 		
 		this.properties = new LinkedList<>();
@@ -605,7 +607,7 @@ public class Node implements Comparable<Object>  {
 
 				boolean isDeprecated = property.optBoolean(DEPRECATED);
 				
-				if(isDeprecated) Out.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
+				if(isDeprecated) LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
 
 				if(isDeprecated) {
 					LOG.debug("addPropertyDetails: property={} deprecated={}" , propName, isDeprecated );
@@ -677,6 +679,8 @@ public class Node implements Comparable<Object>  {
 					if(property.has(ENUM)) {
 						
 						List<Object> elements = Config.getListAsObject(property,ENUM);
+
+						LOG.debug("### addPropertyDetails: node={} elements={} " , this, elements );
 
 						propDetails.addEnumValues( elements.stream().filter(Objects::nonNull).map(Object::toString).toList() );
 
@@ -922,6 +926,28 @@ public class Node implements Comparable<Object>  {
 		return this.properties;
 	}
 
+	public List<Property> getAllProperties() {
+		List<Property> local = this.properties;
+		
+		Collection<Property> inherited = this.getInheritedProperties();
+		
+		Set<Property> res = new HashSet<>();
+		
+		res.addAll(local);
+		
+		Set<String> seen = res.stream().map(Property::getName).collect(Collectors.toSet());
+
+		for(Property p : inherited) {
+			if(!seen.contains(p.getName())) {
+				res.add(p);
+				seen.add(p.getName());
+			}
+		}
+		
+		return new LinkedList<>(res);
+		
+	}
+	
 	public List<Property> getInheritedProperties(Graph<Node, Edge> graph) {
 		List<Property> res = new LinkedList<>();
 		List<Node> related = graph.edgesOf(this).stream().filter(Edge::isAllOf).map(e->e.related).toList();
@@ -1339,10 +1365,6 @@ public class Node implements Comparable<Object>  {
 		return this.inheritanceExtension;
 	}
 
-	public Set<Property> getAllProperties() {
-		// TODO Auto-generated method stub
-		return null;
-	}
 
 	public Collection<String> getPropertyNames() {
 		return properties.stream().map(Property::getName).collect(toList());

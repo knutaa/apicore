@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -1223,7 +1224,27 @@ public class APIGraph extends CoreAPIGraph {
 	}
 
 	public List<Node> getSubClasses(Node node) {
-		return this.getInboundEdges(node).stream().filter(Edge::isAllOf).map(Edge::getNode).collect(Collectors.toList());
+		List<Node> res = this.getInboundEdges(node).stream().filter(Edge::isAllOf).map(Edge::getNode).collect(Collectors.toList());
+		
+		LOG.debug("getSubClasses: node={} inboundEdges res={}", node, res);
+
+		Set<String> mapping = node.getInheritedDiscriminatorMapping();
+		
+		Set<Node> mappingNodes = mapping.stream().map(this::getNode).filter(Predicate.not(Objects::isNull)).collect(toSet());
+		
+		mappingNodes.removeAll(res);
+		
+		res.addAll(mappingNodes);
+		
+		LOG.debug("getSubClasses: node={} mapping res={}", node, mapping);
+		LOG.debug("getSubClasses: node={} mapping mappingNodes={}", node, mappingNodes);
+
+		
+		Node n = this.getNode("ApiProductOrderItemAdd");
+		
+		LOG.debug("getSubClasses: node={}  n={}", "ApiProductOrderItemAdd", n);
+
+		return res;
 	}
 	
 }
