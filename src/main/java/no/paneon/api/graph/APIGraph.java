@@ -1237,12 +1237,9 @@ public class APIGraph extends CoreAPIGraph {
 		res.addAll(mappingNodes);
 		
 		LOG.debug("getSubClasses: node={} mapping res={}", node, mapping);
-		LOG.debug("getSubClasses: node={} mapping mappingNodes={}", node, mappingNodes);
+		LOG.debug("getSubClasses: node={} mapping={} mappingNodes={}", node, mapping, mappingNodes);
 
-		
-		Node n = this.getNode("ApiProductOrderItemAdd");
-		
-		LOG.debug("getSubClasses: node={}  n={}", "ApiProductOrderItemAdd", n);
+		LOG.debug("getSubClasses: node={} inboundEdges res={}", node, res);
 
 		return res;
 	}
