@@ -230,12 +230,87 @@ public class APIModel {
 
 		fixResourceMapping();
 		
+		checkSwagger(swagger);
+		
 		// rearrangeDefinitions(swagger);
 		
 		// refactorEmbeddedTitles();
 
 	}
 
+	private static void checkSwagger(JSONObject obj) {
+		checkSwagger(obj,"#/");
+	}
+	
+	private final static String camelCasePattern = "^[a-z]+[A-Za-z0-9]+";
+	
+	private static void checkSwagger(JSONObject obj,String path) {
+		
+		if(obj == null) {
+			Out.debug("... ERROR: Found null value in the OAS (swagger)");
+			System.exit(-1);
+		}
+		
+		for(String key : obj.keySet()) {
+			
+			if(key.contentEquals(REF)) {
+				String ref = obj.getString(REF);
+				LOG.debug("... checking obj={} ref={}", obj, ref);
+
+				Object referenced = swagger.optQuery(ref);
+				if(referenced==null) {
+					Out.debug("... ERROR: Reference {} not found in the OAS/swagger", ref);
+					System.exit(-1);
+				}
+				LOG.debug("... checking referenced={}", referenced);
+
+			}
+			
+			if(key.contentEquals(PROPERTIES)) {
+				JSONObject properties = obj.optJSONObject(key);
+				if(properties==null) {
+					Out.debug("... possible issue: found {} in {} - should be a JSONObject if modelling resource properties", key, path);
+				} else {
+					for(String property : properties.keySet()) {
+						String propertyPath = nextPath( nextPath(path,key), property);
+						
+						LOG.debug("... checking path={} property={}", propertyPath, property);
+
+						if(!property.matches(camelCasePattern)) {
+							
+							Out.debug("... possible issue: found property '{}' in {} - expecting camelcase", property, propertyPath);
+						}
+					}
+					
+				}
+		
+			}
+			
+			if(obj.optJSONObject(key)!=null) {
+				LOG.debug("... checking key={}", key);
+
+				checkSwagger(obj.optJSONObject(key), nextPath(path,key));
+			}
+			
+			if(obj.optJSONArray(key)!=null) {
+				JSONArray array = obj.optJSONArray(key);
+				for(int i=0; i<array.length(); i++) {
+					if(array.optJSONObject(i)!=null) {
+						checkSwagger(array.optJSONObject(i), nextPath(path,key+"/["+i+"]"));
+					}
+				}
+			} 
+
+		}
+	}
+	
+	private static String nextPath(String p1, String p2) {
+		if(p1.contentEquals("#/")) {
+			return p1 + p2;
+		} else {
+			return p1 + "/" + p2;
+		}
+	}
 	private static void fixResourceMapping() {
 		LOG.debug("fixResourceMapping:: resourceMapping={} reverseMapping={}", resourceMapping, reverseMapping);
 
@@ -3212,7 +3287,9 @@ public class APIModel {
 
 		LOG.debug("getResourceExpanded: resource={} res={}",  node, resourceMapExpanded.get(node));
 
-		return resourceMapExpanded.get(node);
+		res = resourceMapExpanded.get(node);
+		if(res==null) res=new JSONObject();
+		return res;
 		
 	}
 
