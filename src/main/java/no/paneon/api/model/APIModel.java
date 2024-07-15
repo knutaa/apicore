@@ -239,17 +239,27 @@ public class APIModel {
 	}
 
 	private static void checkSwagger(JSONObject obj) {
-		checkSwagger(obj,"#/");
+		boolean res = checkSwagger(obj,"#/");
+		if(!res) {
+			if(Config.getBoolean("stop_if_diagram_errors")) {
+				Out.debug("... aborting diagram generation due to errors found in OAS");
+				System.exit(-1);
+			}
+		}
 	}
 	
-	private final static String camelCasePattern = "^[a-z]+[A-Za-z0-9]+";
+	private final static String camelCasePattern = "^[@]?[a-z]+[A-Za-z0-9]+";
 	
-	private static void checkSwagger(JSONObject obj,String path) {
+	private static boolean checkSwagger(JSONObject obj,String path) {
+		
+		boolean res=true;
 		
 		if(obj == null) {
 			Out.debug("... ERROR: Found null value in the OAS (swagger)");
-			System.exit(-1);
+			res=false;
+			return res;
 		}
+		
 		
 		for(String key : obj.keySet()) {
 			
@@ -257,12 +267,17 @@ public class APIModel {
 				String ref = obj.getString(REF);
 				LOG.debug("... checking obj={} ref={}", obj, ref);
 
-				Object referenced = swagger.optQuery(ref);
-				if(referenced==null) {
-					Out.debug("... ERROR: Reference {} not found in the OAS/swagger", ref);
-					System.exit(-1);
+				if(!isLocalReference(ref)) {
+					Out.debug("... not checking reference {}", ref);
+				} else {
+					Object referenced = swagger.optQuery(ref);
+					if(referenced==null) {
+						Out.debug("... ERROR: Reference {} not found in the OAS/swagger", ref);
+						res=false;
+					}
+					LOG.debug("... checking referenced={}", referenced);
+
 				}
-				LOG.debug("... checking referenced={}", referenced);
 
 			}
 			
@@ -289,21 +304,30 @@ public class APIModel {
 			if(obj.optJSONObject(key)!=null) {
 				LOG.debug("... checking key={}", key);
 
-				checkSwagger(obj.optJSONObject(key), nextPath(path,key));
+				boolean b = checkSwagger(obj.optJSONObject(key), nextPath(path,key));
+				res = res && b;
 			}
 			
 			if(obj.optJSONArray(key)!=null) {
 				JSONArray array = obj.optJSONArray(key);
 				for(int i=0; i<array.length(); i++) {
 					if(array.optJSONObject(i)!=null) {
-						checkSwagger(array.optJSONObject(i), nextPath(path,key+"/["+i+"]"));
+						boolean b = checkSwagger(array.optJSONObject(i), nextPath(path,key+"/["+i+"]"));
+						res = res && b;
 					}
 				}
 			} 
 
 		}
+		
+		return res;
+		
 	}
 	
+	private static boolean isLocalReference(String ref) {
+		return ref.startsWith("#");
+	}
+
 	private static String nextPath(String p1, String p2) {
 		if(p1.contentEquals("#/")) {
 			return p1 + p2;
@@ -482,13 +506,19 @@ public class APIModel {
 	}
 
 
-	static List<String> _getResources = null;
+	private static List<String> _getResources = null;
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static List<String> getResources() {
 
-		if(_getResources!=null) return _getResources;
-		
+		LOG.debug("#0 getResources:: _getResources={}", _getResources);
+
+		if(_getResources!=null) { //  return _getResources; // new LinkedList<>(_getResources);
+			List<String> res = new LinkedList<>();
+			res.addAll(_getResources);
+			return res;
+		}
+			
 		List<String> res = getCoreResources(); 
 							
 		Predicate<String> notAlreadySeen = s -> !res.contains(s);
@@ -519,6 +549,8 @@ public class APIModel {
 				discriminators.addAll(getDiscriminators(resource));
 			});
 			
+			LOG.debug("getResources:: from discriminators={}", discriminators);
+
 			res.addAll(discriminators.stream().filter(notAlreadySeen).collect(Collectors.toSet()));
 		}
 		
@@ -528,17 +560,24 @@ public class APIModel {
 //			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
 //			result = res.stream().filter(MVO_or_FVO.negate()).toList();
 //		} 
+		
 		result = APIModel.filterMVOFVO(res);
 		
-		LOG.debug("getResources:: {}", result);
+		LOG.debug("## getResources:: res={}", res);
+		LOG.debug("## getResources:: result={}", result);
 
-		_getResources = result;
+		update_getResources(result);
 		
 		return result;
 		
 	}
 	
 	
+	private static void update_getResources(List<String> result) {
+		// Out.debug("## update_getResources:: res={}", result);
+		_getResources = result;
+	}
+
 	private static Set<String> getDiscriminators(String resource) {
 		Set<String> res = new HashSet<>();
 		JSONObject definition = getDefinition(resource);
@@ -1913,6 +1952,8 @@ public class APIModel {
 
 		JSONObject allpaths = swagger.optJSONObject(PATHS);
 
+		LOG.debug("getPaths: resource={} allpaths={}", resource, allpaths.keySet());
+
 		String prefix = "/" + resource.toUpperCase();
 
 		if(allpaths!=null) {
@@ -1920,6 +1961,21 @@ public class APIModel {
 					.filter(path -> isPathForResource(path,prefix))
 					.collect(toList());
 		}
+		
+		if(allpaths!=null) {
+			
+			String regexp = ".*\\/" + resource.toUpperCase() + "(\\/\\{[a-zA-Z0-9]+\\})?";
+			Pattern pattern = Pattern.compile(regexp);
+
+			res = allpaths.keySet().stream()
+                    // .filter(pattern.asPredicate())
+                    .filter(s -> pattern.matcher(s.toUpperCase()).matches())
+                    .collect(Collectors.toList());
+
+			LOG.debug("getPaths: resource={} res={}", resource, res);
+			
+		}
+		
 		
 		return res;
 		
@@ -2166,7 +2222,7 @@ public class APIModel {
 			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
 			resources = resources.stream()
 					.filter(MVO_or_FVO.negate())
-					.collect(toList());
+					.collect(Collectors.toList());
 		} 
 		return resources;
 	}
@@ -2340,9 +2396,16 @@ public class APIModel {
 					}
 				
 				} else if(!isSecialProperty(name)) {  
-					Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
-					res = "{}"; // property.toString(); // should not really happen
+					
+					if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
 
+						Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
+						res = "{}"; // property.toString(); // should not really happen
+						
+					} else if(property.has(ALLOF) || property.has(ONEOF) || name.contentEquals("value")) {
+						res="{}";
+					}
+					
 				}
 			}
 		} catch(Exception ex) {
@@ -2400,7 +2463,7 @@ public class APIModel {
 			if(isAsyncAPI() ) {
 				
 				if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
-					Out.printOnce("... ### Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
 				}
 				
 				if(!isSecialProperty(name)) { 
@@ -2413,11 +2476,17 @@ public class APIModel {
 					res = name;	
 				}
 				
+			} else 	if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
+				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				res="{}";
 			} else if(!isSecialProperty(name)) {
-				Out.printOnce("... ## Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+				res="{}";
+			} else if(property.has(ALLOF) || property.has(ONEOF) || name.contentEquals("value")) {
+				res="{}";
 			}
 				// System.exit(1);
-			res="{}";
+				// res="{}";
 		}
 		
 		return res;
