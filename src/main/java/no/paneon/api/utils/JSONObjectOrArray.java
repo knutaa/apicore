@@ -26,31 +26,64 @@ public class JSONObjectOrArray {
 	Optional<JSONObject> objectValue = Optional.empty();
 	Optional<JSONArray>  arrayValue  = Optional.empty();
 	
+	public JSONObjectOrArray() {						
+	}
+	
+	public JSONObjectOrArray(String value) {
+		
+		String content = value;
+		try {
+			this.set(new JSONObject(content) );		
+		} catch(Exception e1) {
+			try {
+				this.set(new JSONArray(content) );
+				
+			} catch(Exception e2) {
+				Out.printAlways("... unable to initialize JSONObjectOrArray from value=" + value );
+			}
+		}
+						
+	}
 	
 	public static JSONObjectOrArray readJSONObjectOrArray(String file) {
 		
-		JSONObjectOrArray res = new JSONObjectOrArray();
-			
+//		JSONObjectOrArray res = new JSONObjectOrArray();
+//			
+//		Out.println("readJSONObjectOrArray ##: file={}", file);
+//
+//		String content = null;
+//		try {
+//			content = Utils.readFile(file);
+//			return res.set(new JSONObject(content) );		
+//		} catch(FileNotFoundException e1) {
+//			LOG.debug("... file not found: {}", Utils.getBaseFileName(file) );
+//		} catch(Exception e1) {
+//		
+//			try {
+//				return res.set(new JSONArray(content) );
+//				
+//			} catch(Exception e2) {
+//				Out.printAlways("... unable to read JSON from " + Utils.getBaseFileName(file) );
+//			}
+//			
+//		}
+//				
+//		return res;
+				
 		Out.println("readJSONObjectOrArray ##: file={}", file);
-
+	
 		String content = null;
 		try {
 			content = Utils.readFile(file);
-			return res.set(new JSONObject(content) );		
+			return new JSONObjectOrArray(content);		
 		} catch(FileNotFoundException e1) {
 			LOG.debug("... file not found: {}", Utils.getBaseFileName(file) );
-		} catch(Exception e1) {
-		
-			try {
-				return res.set(new JSONArray(content) );
-				
-			} catch(Exception e2) {
-				Out.printAlways("... unable to read JSON from " + Utils.getBaseFileName(file) );
-			}
-			
+		} catch(Exception e2) {
+			Out.printAlways("... unable to read JSON from " + Utils.getBaseFileName(file) );
 		}
 				
-		return res;
+		return new JSONObjectOrArray();
+		
 		
 	}
 	

@@ -36,6 +36,7 @@ import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 
 import no.paneon.api.utils.Config;
+import no.paneon.api.utils.JSONObjectOrArray;
 import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
@@ -1191,9 +1192,11 @@ public class APIModel {
 	//				if(res!=null && res.has("application/json")) res = res.optJSONObject("application/json");
 	//				if(res!=null && res.has("schema")) res = res.optJSONObject("schema");
 					
-					if(res!=null) res = res.optJSONObject("content");
-					if(res!=null) res = res.optJSONObject("application/json");
-					if(res!=null) res = res.optJSONObject("schema");
+					if(res!=null && res.has("content")) {
+						if(res!=null) res = res.optJSONObject("content");
+						if(res!=null) res = res.optJSONObject("application/json");
+						if(res!=null) res = res.optJSONObject("schema");
+					}
 					
 					LOG.debug("## getDefinitionByReference: #1 ref={} schema={}",  ref, res);
 	
@@ -3956,16 +3959,22 @@ public class APIModel {
 		
 	}
 
-	public static Map<String, JSONObject> getOperationExamples(JSONObject data) {
-		Map<String,JSONObject> res = new HashMap<>();
+	public static Map<String, JSONObjectOrArray> getOperationExamples(JSONObject data) {
+		Map<String,JSONObjectOrArray> res = new HashMap<>();
 		
 		LOG.debug("getOperationExamples:: data={}",  data.keySet());
+		LOG.debug("getOperationExamples:: data={}",  data);
 
 		if(data.has(REF)) {
 			data = APIModel.getDefinitionByReference(data.getString(REF));
-			data = APIModel.getDefinition(data, "content", "application/json");
 			
-			LOG.debug("getOperationExamples:: data={}",  data);
+			LOG.debug("getOperationExamples:: #2A data={}",  data);
+
+			if(data.has("content")) {
+				data = APIModel.getDefinition(data, "content", "application/json");
+			}
+			
+			LOG.debug("getOperationExamples:: #2 data={}",  data);
 
 		}
 			
@@ -3981,11 +3990,28 @@ public class APIModel {
 
 					if(payload.has(REF)) payload = APIModel.getDefinitionByReference(payload.getString(REF));
 				
-					if(payload.has(VALUE)) payload = payload.optJSONObject(VALUE);
-					
-					LOG.debug("getOperationExamples:: payload={}",  payload);
+					LOG.debug("getOperationExamples:: #2 payload={}",  payload);
 
-					res.put(key, payload);
+					JSONObjectOrArray value = new JSONObjectOrArray();
+					
+//					if(payload.has(VALUE)) {
+//						
+//						if(payload.optJSONArray(VALUE) != null ) {
+//							value.set(payload.optJSONArray(VALUE));
+//						} else if(payload.optJSONObject(VALUE) != null ) {
+//							value.set(payload.optJSONObject(VALUE));
+//						}
+//						
+//						res.put(key, value);
+//						
+//						Out.debug("getOperationExamples:: #3 payload={}",  value);
+//
+//					}
+					
+					value.set(payload);
+					res.put(key, value);
+					
+					// res.put(key, payload);
 				}
 			}
 		} else if(data.has(EXAMPLE)) {
@@ -3993,7 +4019,11 @@ public class APIModel {
 			if(example.has(REF)) example = APIModel.getDefinitionByReference(example.getString(REF));
 
 			if(example !=null) {
-				res.put("default",  example);
+				JSONObjectOrArray value = new JSONObjectOrArray();
+				// value.set(example.optJSONObject(VALUE));
+				// res.put("default",  value);
+				value.set(example);
+				res.put("default", value);
 			}
 		} else {
 	
