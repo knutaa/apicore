@@ -31,6 +31,18 @@ public class Edge {
 		this.required=required;
 		this.deprecated=isDeprecated;
 	}
+	
+	public Edge(Edge edge, Node newFrom) {
+		this.node=edge.node;
+		this.relation=edge.relation;
+		this.cardinality=edge.cardinality;
+		this.required=edge.required;
+		this.deprecated=edge.deprecated;
+		
+		this.node=newFrom;
+		this.related=edge.related;
+
+	}
 		
 //	public Edge(Node node, String relation, Node related, String cardinality, boolean isRequired) {
 //		this.node=node;

@@ -582,7 +582,7 @@ public class APIModel {
 	private static Set<String> getDiscriminators(String resource) {
 		Set<String> res = new HashSet<>();
 		JSONObject definition = getDefinition(resource);
-		if(definition.has(DISCRIMINATOR)) {
+		if(definition!=null && definition.has(DISCRIMINATOR)) {
 			definition = definition.optJSONObject(DISCRIMINATOR);
 			if(definition!=null && definition.has(MAPPING)) {
 				definition = definition.optJSONObject(MAPPING);
@@ -590,7 +590,10 @@ public class APIModel {
 				LOG.debug("getDiscriminators:: node={} discriminators={}", resource, discriminators);
 				for(String d : discriminators) res.add(d);
 			}
+		} else if(definition==null) {
+			Out.debug("... possible issue: definition for resource {} not found", resource);
 		}
+		
 		return res;
 	}
 
@@ -3514,6 +3517,8 @@ public class APIModel {
 			if(propertyDef!=null && propertyDef.optInt("minItems")>0) required=true;
 		}
 
+		LOG.debug("getMandatoryOptionalHelper: property={} required={}", property, required);
+
 		return required ? "M" : "O";
 
 	}
@@ -3545,7 +3550,7 @@ public class APIModel {
 
 		JSONObject core = getResourceExpanded(resource); // getPropertyObjectForResource( coreResource );
 
-		LOG.debug("getMandatoryOptional: resource={} core={}",  resource, core);
+		LOG.debug("#### getMandatoryOptional: resource={} core={}",  resource, core);
 
 		if(core==null) return res;
 
@@ -3598,8 +3603,20 @@ public class APIModel {
 
 				Set<String> setByServer = Utils.difference(coreProperties, createProperties);
 				List<String> globals = Config.get("globalsSetByServer");  // Arrays.asList("href", "id");
+			
+				List<String> topLevelResources = APIModel.getResources();
+				
+				LOG.debug("getMandatoryOptional: resource={} property={} topLevelResources={}",  resource, property, topLevelResources);
 
-				if(includeSetByServer && setByServer.contains(property) && globals.contains(property)) {
+				boolean includeSetBy = includeSetByServer && setByServer.contains(property) && globals.contains(property);
+				
+				if(!topLevelResources.contains(resource) && !Config.getBoolean("includeSubResourcesForSetByServer"))
+					includeSetBy = false;
+				
+				LOG.debug("getMandatoryOptional: resource={} property={} includeSetBy={}",  resource, property, includeSetBy);
+
+				// 2024-10-01
+				if(includeSetBy) {
 					res.put(property, Config.getString("setByServerRule"));
 				}
 			}

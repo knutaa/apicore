@@ -46,6 +46,7 @@ public class Out {
 	}
 	
 	public static void debug(String format, Object ...args) {
+		// System.out.println("debug ..");
 		LOG.log(AspectLogger.VERBOSE, format, args);
 	}
 

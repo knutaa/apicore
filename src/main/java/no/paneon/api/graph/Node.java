@@ -52,6 +52,8 @@ public class Node implements Comparable<Object>  {
 	Optional<Set<String>> inheritance;
 	Set<String> actualInheritance;
 
+	Optional<Set<String>> customFlatten;
+
 	// Set<String> discriminatorMapping;
 	Set<String> localDiscriminatorMapping;
 
@@ -98,6 +100,8 @@ public class Node implements Comparable<Object>  {
 		this.inheritance = Optional.empty();
 		//discriminatorMapping = new HashSet<>();
 		this.externalDiscriminatorMapping = Optional.empty();
+		
+		this.customFlatten = Optional.empty();
 		
 		this.localDiscriminatorMapping = new HashSet<>();
 		
@@ -1096,6 +1100,18 @@ public class Node implements Comparable<Object>  {
 	public void addInheritance(String type) {
 		if(!this.inheritance.isPresent()) this.inheritance = Optional.of(new HashSet<>());
 		this.inheritance.get().add(type);
+	}
+	
+	public void addCustomFlatten(String type) {
+		if(!this.customFlatten.isPresent()) this.customFlatten = Optional.of(new HashSet<>());
+		this.customFlatten.get().add(type);
+	}
+	
+	public Set<String> getCustomFlatten() {
+		if(this.customFlatten.isPresent()) 
+			return this.customFlatten.get();
+		else
+			return new HashSet<>();
 	}
 	
 	public void addInheritance(Set<String> types) {

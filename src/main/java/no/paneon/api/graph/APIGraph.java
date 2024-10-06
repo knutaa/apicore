@@ -91,11 +91,15 @@ public class APIGraph extends CoreAPIGraph {
 		this.allResources.add(resource);
 		this.resourceNode = getNode(resource);
 		
-		this.graph = getSubGraphWithInheritance(this.allResources, this.completeGraph, this.resourceNode, this.resourceNode);
-
-		CoreAPIGraph.cleanDiscriminatorEdges(this.graph, this.mainResource);
-		
-		init();
+		if(this.resourceNode!=null) {
+			this.graph = getSubGraphWithInheritance(this.allResources, this.completeGraph, this.resourceNode, this.resourceNode);
+	
+			CoreAPIGraph.cleanDiscriminatorEdges(this.graph, this.mainResource);
+			
+			init();
+		} else {
+			this.graph = null;
+		}
 		
 	}
 	

@@ -13,7 +13,8 @@
 	},
 
 	
-	"parentPresentCondition": " (if present)",
+	"old_parentPresentCondition": " (if present)",
+	"parentPresentCondition": "",
 	
 	"minimizeResourceDetails": true,
 	

@@ -25,12 +25,9 @@ import org.jgrapht.traverse.GraphIterator;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-
 import no.paneon.api.model.APIModel;
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
-import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
@@ -46,6 +43,7 @@ public class CoreAPIGraph {
 		
     private static final String INHERITANCE = "coreInheritanceTypes"; 
     private static final String INHERITANCE_PATTERN = "coreInheritanceRegexp"; 
+    private static final String CUSTOM_INHERITANCE = "customInheritanceTypes"; 
 
     static final String INCLUDE_INHERITED = "includeInherited"; 
     
@@ -763,7 +761,8 @@ public class CoreAPIGraph {
 		
 		String type = APIModel.getTypeByReference(allOfObject.optString(REF));
 		
-		boolean flattenInheritance = isBasicInheritanceType(type) || isPatternInheritance(type);
+		boolean flattenInheritance = isBasicInheritanceType(type) || isPatternInheritance(type) ;
+		boolean customFlattenInheritance = isCustomInheritanceType(type);
 
 //		LOG.debug("processAllOfReference:: type={} node={} isBasicInheritanceType={} isPatternInheritance={}", 
 //				type, node, isBasicInheritanceType(type), isPatternInheritance(type));	
@@ -777,8 +776,67 @@ public class CoreAPIGraph {
 		
 		LOG.debug("processAllOfReference:: type={} node={} flattenInheritance={} includeInherited={}", type, node, flattenInheritance, includeInherited);	
 
-		if(flattenInheritance) {
+		if(customFlattenInheritance) {
 			
+			Out.debug("processAllOfReference:: customFlattenInheritance type={} node={}", type, node);	
+
+			if(node.getInheritance().contains(type)) {
+				Out.debug("processAllOfReference:: customFlattenInheritance node={} already processed inheritance={}", node, type);
+				return;
+			}
+			
+			node.addInheritance(type);
+			node.addCustomFlatten(type);		
+			
+			JSONObject obj = APIModel.getDefinitionBySchemaObject(allOfObject);							
+			
+			Set<Property> propertiesBefore = new HashSet<>(node.getProperties());
+			
+			node.addAllOfObject(obj, Property.VISIBLE_INHERITED);
+			
+			LOG.debug("processAllOfReference:: node={} properties={}", node, node.getPropertyNames());	
+
+			addEnumsToGraph(g, node, propertiesBefore);			
+							
+			Node inheritsFromNode = getOrAddNode(g, type); 
+			
+			Set<Edge> outboundEdges = getOutboundEdges(g, inheritsFromNode).stream()
+											.filter(Predicate.not(Edge::isAllOf))
+											.filter(Predicate.not(Edge::isEnumEdge))	
+											.collect(Collectors.toSet());
+			
+			Out.debug("processAllOfReference:: customFlattenInheritance node={} inheritsFromNode={} inheritEdges={}", node, type, outboundEdges);	
+
+			for(Edge edge : outboundEdges) {
+				Node to = edge.getRelated();
+				
+				if(!to.equals(node)) {
+					Edge newEdge = new Edge(edge,node);
+					
+					Out.debug("processAllOfReference:: customFlattenInheritance newEdge={}", newEdge);	
+	
+					g.addEdge(node, to, newEdge);
+				}
+				
+			}
+			
+//			boolean hasAllOfEdge = g.edgesOf(node).stream().anyMatch(isAllOfWithToNode);
+//			
+//			LOG.debug("processAllOfReference:: node={} to={} hasAllOfEdge={}", node, to, hasAllOfEdge);	
+//
+//			if(!hasAllOfEdge) {
+//				Edge edge = new AllOf(node, to);
+//				addGraphEdge(g, node, to, edge);		
+//				LOG.debug("processAllOfReference:: adding edge={}", edge);	
+//				
+//				LOG.debug("processAllOfReference:: node={} edges={}", node, g.outgoingEdgesOf(node));	
+//
+//			}			
+//			
+		} else if(flattenInheritance) {
+			
+			LOG.debug("processAllOfReference:: flattenInheritance type={} node={}", type, node);	
+
 			node.addInheritance(type);
 			
 			if(includeInherited) {
@@ -790,7 +848,8 @@ public class CoreAPIGraph {
 				
 				LOG.debug("processAllOfReference:: node={} properties={}", node, node.getPropertyNames());	
 
-				addEnumsToGraph(g, node, propertiesBefore);				
+				addEnumsToGraph(g, node, propertiesBefore);			
+			
 			}
 			
 		} else {		
@@ -841,6 +900,16 @@ public class CoreAPIGraph {
 		}		
 	}
 
+	private static boolean isCustomInheritanceType(String type) {
+		final List<String> inheritance = Config.get(CUSTOM_INHERITANCE);
+		
+		boolean res = inheritance.contains(type);
+		
+		if(res) LOG.debug("isCustomInheritanceType: type={} inheritance={}", type, inheritance);
+
+		return res;
+	}
+	
 	private static boolean isBasicInheritanceType(String type) {
 		final List<String> inheritance = Config.get(INHERITANCE);
 		
@@ -1180,7 +1249,7 @@ public class CoreAPIGraph {
 //		LOG.debug("getNodesOfSubGraph:: node={} allDiscriminators={}", node, allDiscriminators);
 		
 		if(node==null) {
-			Out.printAlways("node argument equal to null - not expected");
+			Out.printAlways("... node argument equal to null - not expected");
 			return res;
 		}	
 		
