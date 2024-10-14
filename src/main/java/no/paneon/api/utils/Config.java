@@ -948,15 +948,20 @@ public class Config {
 				if(o instanceof JSONObject) {
 					JSONObject rule = (JSONObject)o;
 					if(includeResource.test(rule)) res.add(rule.optString("name"));
+					
+					LOG.debug("getResourcesFromRules: rule={}", rule.toString(2));
+
 				}
 			
 			}
 
 		}
+				
+		res = res.stream().distinct().collect(Collectors.toList());
 		
-		LOG.debug("getResourcesFromRules: {}", res);
-		
-		return res.stream().distinct().collect(Collectors.toList());
+		LOG.debug("#0 getResourcesFromRules: {}", res);
+
+		return res;
 		
 	}
 	

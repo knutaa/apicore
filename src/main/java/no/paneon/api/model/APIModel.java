@@ -2306,8 +2306,15 @@ public class APIModel {
 
 		if(definition==null) return res;
 		
+		LOG.debug("getPropertyt: property={} definition={}", property, definition.toString(2));
+
 		if(definition.has(property)) {
 			JSONObject def = definition.optJSONObject(property);
+			
+			if(def==null) return res;
+
+			LOG.debug("getPropertyt: property={} definition={}", property, definition.toString(2));
+
 			return def.optJSONObject(property);
 		}
 		
