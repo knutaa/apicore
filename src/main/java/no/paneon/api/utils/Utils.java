@@ -211,7 +211,7 @@ public class Utils {
 	        
 		} catch(Exception e) {
 			Out.println("... unable to read source: : error: " + e.getLocalizedMessage() );
-			e.printStackTrace();
+			// e.printStackTrace();
 			System.exit(0);
 		}
 		

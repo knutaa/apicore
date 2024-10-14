@@ -157,7 +157,7 @@ public class APIModel {
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from source '" + source + "'");
 			Out.println("... error=" + ex.getLocalizedMessage());
-			ex.printStackTrace();
+			// ex.printStackTrace();
 
 			System.exit(0);
 		}
