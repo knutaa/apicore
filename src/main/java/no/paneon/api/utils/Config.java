@@ -1077,4 +1077,55 @@ public class Config {
 		}
 	}
 	
+	public static Optional<Boolean> optIgnoreSchemaDomains = Optional.empty();;
+	public static boolean ignoreSchemaDomains() {
+		LOG.debug("ignoreSchemaDomains: opt=" + optIgnoreSchemaDomains);
+		if(optIgnoreSchemaDomains.isPresent()) 
+			return optIgnoreSchemaDomains.get();
+		else if(has("ignoreSchemaDomains")) {
+			return getBoolean("ignoreSchemaDomains");
+		} else {
+			return false;
+		}
+	}
+	public static void setIgnoreSchemaDomains(boolean value) {
+		optIgnoreSchemaDomains = Optional.of(value);
+	}
+
+	public static Optional<Boolean> optIncludeReferences = Optional.empty();;
+	public static boolean includeReferences() {
+		LOG.debug("includeReferences: opt=" + optIncludeReferences);
+		if(optIncludeReferences.isPresent()) 
+			return optIncludeReferences.get();
+		else if(has("optIncludeReferences")) {
+			return getBoolean("optIncludeReferences");
+		} else {
+			return false;
+		}
+	}
+	
+	public static void setIncludeReferences(boolean value) {
+		optIncludeReferences = Optional.of(value);		
+	}
+	
+	static List<String> localSources = new LinkedList<>();
+	public static void setLocalSources(List<String> sources) {
+		LOG.debug("setLocalSources: " + sources);
+		localSources.addAll(sources);
+	}
+	
+	public static List<String>  getLocalSources() {
+		return localSources;
+	}
+
+	public static Optional<Boolean> optRepairSchemas = Optional.of(true);
+	public static void setRepairSchemas(boolean value) {
+		optRepairSchemas = Optional.of(value);
+	}
+	
+	public static boolean repairSchemas() {
+		return getBoolean("repairSchemas");
+	}
+
+	
 }

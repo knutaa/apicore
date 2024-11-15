@@ -77,6 +77,9 @@ public class ComplexityAdjustedAPIGraph {
 	    
 	    Graph<Node,Edge> resourceGraph = CoreAPIGraph.getSubGraphWithInheritance(allResources, graph.getCompleteGraph(), resourceNode, resourceNode);
 
+		LOG.debug("###### generateSubGraphsForResource: #0 nodes={}", graph.getCompleteGraph().vertexSet() );
+		LOG.debug("###### generateSubGraphsForResource: #0 edges={}", graph.getCompleteGraph().edgeSet() );
+
 		LOG.debug("###### generateSubGraphsForResource: #0 node={} edgesForResourceNode={}",  resource, resourceGraph.edgesOf(resourceNode));
 
 		LOG.debug("generateSubGraphsForResource:: #1 resource={} resourceGraph={}",  resource, resourceGraph.vertexSet() );

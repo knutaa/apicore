@@ -176,20 +176,27 @@ public class Utils {
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static JSONObject readJSONOrYaml(String source) {
+		final boolean failIfNotFound=true;
+		return readJSONOrYaml(source, failIfNotFound);
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
+	public static JSONObject readJSONOrYaml(String source, boolean failIfNotFound) {
 		JSONObject res = null;
 		try {
 			if(source.endsWith(".yaml") || source.endsWith(".yml")) {
-				res = readYamlAsJSON(source,false);
+				res = readYamlAsJSON(source,!failIfNotFound);
 			} else {
-				res = readJSON(source,false);
+				res = readJSON(source,!failIfNotFound);
 			}
 		} catch(Exception e) {
 			Out.println("... unable to read source " + getBaseFileName(source) + " (error: " + e.getLocalizedMessage() + ")");
-			// e.printStackTrace();
-			System.exit(0);
+			if(failIfNotFound) e.printStackTrace();
+			if(failIfNotFound) System.exit(0);
 		}
 		return res;
 	}
+	
 	
 	@LogMethod(level=LogLevel.TRACE)
 	public static JSONObject readJSONOrYaml(InputStream file) {
@@ -1317,10 +1324,17 @@ public class Utils {
 			
 		} else {
 			String baseDirectory=new File(baseFilename).getParent();
-			if(!baseDirectory.endsWith("/")) {
-				res=baseDirectory + "/" + relativeFilename;
+			
+			LOG.debug("getRelativeFile: ## baseFilename={} baseDirectory={}", baseFilename, baseDirectory);
+
+			if(baseDirectory==null) {
+				res=relativeFilename;
 			} else {
-				res=baseDirectory + relativeFilename;
+				if(!baseDirectory.endsWith("/")) {
+					res=baseDirectory + "/" + relativeFilename;
+				} else {
+					res=baseDirectory + relativeFilename;
+				}
 			}
 				
 			Path path = Path.of(res);
@@ -1362,5 +1376,14 @@ public class Utils {
 		}
 		return res;
 	}
+	
+	public static String getLast(String str, String delim) {
+		String res=str;
+		String[] parts = str.split(delim);
+		if(parts.length>0)
+			res = parts[parts.length-1];
+		return res;
+	}
+	
 	
 }

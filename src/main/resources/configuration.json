@@ -162,6 +162,8 @@
 	
 	"diagrams.yaml": "generated/diagrams/diagrams.yaml",
 	
-    "specialProperties": [ "value" ]
+    "specialProperties": [ "value" ],
+    
+    "excludedResourceExtensions": [ ]
 	
 }

@@ -778,10 +778,10 @@ public class CoreAPIGraph {
 
 		if(customFlattenInheritance) {
 			
-			Out.debug("processAllOfReference:: customFlattenInheritance type={} node={}", type, node);	
+			LOG.debug("processAllOfReference:: customFlattenInheritance type={} node={}", type, node);	
 
 			if(node.getInheritance().contains(type)) {
-				Out.debug("processAllOfReference:: customFlattenInheritance node={} already processed inheritance={}", node, type);
+				LOG.debug("processAllOfReference:: customFlattenInheritance node={} already processed inheritance={}", node, type);
 				return;
 			}
 			
@@ -803,17 +803,18 @@ public class CoreAPIGraph {
 			Set<Edge> outboundEdges = getOutboundEdges(g, inheritsFromNode).stream()
 											.filter(Predicate.not(Edge::isAllOf))
 											.filter(Predicate.not(Edge::isEnumEdge))	
+											.filter(Predicate.not(Edge::isDiscriminator))
 											.collect(Collectors.toSet());
 			
-			Out.debug("processAllOfReference:: customFlattenInheritance node={} inheritsFromNode={} inheritEdges={}", node, type, outboundEdges);	
+			LOG.debug("processAllOfReference:: customFlattenInheritance node={} inheritsFromNode={} inheritEdges={}", node, type, outboundEdges);	
 
 			for(Edge edge : outboundEdges) {
 				Node to = edge.getRelated();
 				
-				if(!to.equals(node)) {
+				if(!to.equals(node) && !edge.isDiscriminator()) {
 					Edge newEdge = new Edge(edge,node);
 					
-					Out.debug("processAllOfReference:: customFlattenInheritance newEdge={}", newEdge);	
+					LOG.debug("processAllOfReference:: customFlattenInheritance newEdge={} to={}", newEdge, to);	
 	
 					g.addEdge(node, to, newEdge);
 				}

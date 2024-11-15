@@ -49,7 +49,7 @@ public class APIModel {
 
 	static final Logger LOG = LogManager.getLogger(APIModel.class);
 
-	private static JSONObject swagger;
+	private static JSONObject swagger = new JSONObject();
 
 	static final Map<String,String> formatToType = new HashMap<>();
 	static final Map<String,String> typeMapping = new HashMap<>();
@@ -157,7 +157,7 @@ public class APIModel {
 		} catch(Exception ex) {
 			Out.println("... unable to read API specification from source '" + source + "'");
 			Out.println("... error=" + ex.getLocalizedMessage());
-			// ex.printStackTrace();
+			ex.printStackTrace();
 
 			System.exit(0);
 		}
@@ -336,6 +336,7 @@ public class APIModel {
 			return p1 + "/" + p2;
 		}
 	}
+	
 	private static void fixResourceMapping() {
 		LOG.debug("fixResourceMapping:: resourceMapping={} reverseMapping={}", resourceMapping, reverseMapping);
 
@@ -429,17 +430,42 @@ public class APIModel {
 		obj.put(REF, ref);
 	}
 
-	private static String addResource(String title, JSONObject obj) {
+	public static String addResource(String title, JSONObject obj) {
+		if(obj==null) return "";
+//		
+//		obj = new JSONObject(obj.toString());
+//		JSONObject embedded = swagger.optJSONObject("embedded");
+//		if(embedded==null) {
+//			swagger.put("embedded", new JSONObject());
+//			embedded = swagger.optJSONObject("embedded");
+//		}
+//		embedded.put(title, obj); // SIMPLE
+//		allDefinitions.put(title, obj);
+//		
+//		return "#/embedded/" + title;
+	
+		if(obj==null) return "";
+		
 		obj = new JSONObject(obj.toString());
-		JSONObject embedded = swagger.optJSONObject("embedded");
-		if(embedded==null) {
-			swagger.put("embedded", new JSONObject());
-			embedded = swagger.optJSONObject("embedded");
+		JSONObject components = swagger.optJSONObject("components");
+		if(components==null) {
+			swagger.put("components", new JSONObject());
+			components = swagger.optJSONObject("components");
 		}
-		embedded.put(title, obj); // SIMPLE
+		JSONObject schemas = components.optJSONObject("schemas");
+		if(schemas==null) {
+			components.put("schemas", new JSONObject());
+			schemas = components.optJSONObject("schemas");
+		}
+		
+		schemas.put(title, obj); // SIMPLE
+		
+		LOG.debug("addResource::title={}", title);
+
 		allDefinitions.put(title, obj);
 		
-		return "#/embedded/" + title;
+		return "#/components/schemas/" + title;
+		
 		
 	}
 
@@ -1102,10 +1128,27 @@ public class APIModel {
 			
 		LOG.debug("getTypeByReference: ref={} type={}",  ref, type);
 
+		if(type.contains(".")) {
+			parts = type.split("\\.");
+			
+			type = parts[0];
+
+			LOG.debug("getTypeByReference: type={} parts={}",  type, parts);
+
+		}
+		
+		if(APIModel.getDefinition(type)!=null) {
+			LOG.debug("getTypeByReference: ref={} type={}",  ref, type);
+
+			return type; 
+		}
+		
 		if(isExternalReference(ref)) {
 			
 			JSONObject external=getExternal(ref);
 			
+			LOG.debug("getTypeByReference: ref={} type={} external={}",  ref, type, external);
+
 			if(external!=null) {
 				JSONObject definition=getExternalDefinition(external,ref);
 				LOG.debug("getTypeByReference: ref={} type={} definition={}",  ref, type, definition);
@@ -1113,8 +1156,13 @@ public class APIModel {
 				addDefinition(ref, definition);
 				addLocalReferences(external,definition);
 				addExternalReferences(definition);
+				
+				addResource(type, definition);
 	
 				LOG.debug("getTypeByReference: ref={} type={}",  ref, type);
+				
+				LOG.debug("getTypeByReference: type={} definition={}", type, definition.toString(2));
+
 			}
 		}
 		
@@ -1143,25 +1191,31 @@ public class APIModel {
 				String ref=definition.optString(property);
 				
 				if(!isExternalReference(ref)) {
-					String queryRef=ref.replace("#/","/");
+					String queryRef=ref; // .replace("#/","/");
 					
-					LOG.debug("APIModel::addLocalReferences:: queryRef={} external={}", queryRef, external );
+					queryRef = APIModel.getLocalPart(queryRef);
+					
+					LOG.debug("APIModel::addLocalReferences:: ## ref={} queryRef={} external={} ref={}", ref, queryRef, external );
 
-					Object externalDefinition=external.optQuery(queryRef);
-
-					LOG.debug("APIModel::addLocalReferences:: ref={} queryRef={} externalDefinition={}", ref, queryRef, externalDefinition );
-
-					if(externalDefinition!=null) {
-						JSONObject obj=(JSONObject)externalDefinition;
-						LOG.debug("APIModel::addLocalReferences:: ref={} externalDefinition={}", definition.get(property), externalDefinition);
-						addDefinition(ref,obj);
-						addExternalReferences(obj);
-						addLocalReferences(external,obj);
-												
+					if(queryRef==null) {
+						
 					} else {
-						LOG.debug("APIModel::addLocalReferences:: ref={} external={}", ref, external.keySet());
-						LOG.debug("APIModel::addLocalReferences:: external={}", external.toString(2) );
-
+						Object externalDefinition=external.optQuery(queryRef);
+	
+						LOG.debug("APIModel::addLocalReferences:: ref={} queryRef={} externalDefinition={}", ref, queryRef, externalDefinition );
+	
+						if(externalDefinition!=null) {
+							JSONObject obj=(JSONObject)externalDefinition;
+							LOG.debug("APIModel::addLocalReferences:: ref={} externalDefinition={}", definition.get(property), externalDefinition);
+							addDefinition(ref,obj);
+							addExternalReferences(obj);
+							addLocalReferences(external,obj);
+													
+						} else {
+							LOG.debug("APIModel::addLocalReferences:: ref={} external={}", ref, external.keySet());
+							LOG.debug("APIModel::addLocalReferences:: external={}", external.toString(2) );
+	
+						}
 					}
 				}
 				
@@ -1655,7 +1709,7 @@ public class APIModel {
 					if(externalDefinition!=null) {
 						LOG.debug("APIModel::addExternalReferences:: ref={} externalDefinition={}", api.get(property), externalDefinition);
 						addDefinition(ref,externalDefinition);
-						addExternalReferences(externalDefinition);
+						// 2024-11-10 addExternalReferences(externalDefinition);
 						addLocalReferences(external,externalDefinition);
 					}
 					String localRef=getExternalReference(ref); //ref.substring(ref.indexOf("#/"));	
@@ -1676,14 +1730,14 @@ public class APIModel {
 		
 	}
 
-	private static void addDefinition(String ref, JSONObject definition) {
+	public static void addDefinition(String ref, JSONObject definition) {
 		//String localRef=ref.substring(ref.indexOf("#/"));
 		String localRef=getExternalReference(ref);
 		
 		if(swagger!=null) {
 			String parts[] = localRef.replace("#/", "").split("/");
 		
-			LOG.debug("addDefinition: localRef={} parts={}",  localRef, parts);
+			LOG.debug("addDefinition: ref={} localRef={} parts={}",  ref, localRef, parts);
 			JSONObject target=swagger;
 			if(parts.length>1) {
 				for(int idx=0; idx<parts.length-1; idx++) {
@@ -1691,6 +1745,8 @@ public class APIModel {
 					if(target==null) break;
 					
 					String part=parts[idx];
+					
+					part = part.replace(".schema.json","");
 					
 					if(!target.has(part)) {
 						target.put(part,new JSONObject());
@@ -1705,6 +1761,8 @@ public class APIModel {
 				if(target!=null) {
 					String type=parts[parts.length-1];
 					
+					type = type.replace(".schema.json", ""); // 2024-11-04
+					
 					if(target.has(type)) {
 						String currentDef=target.get(type).toString();
 						
@@ -1718,8 +1776,13 @@ public class APIModel {
 						}
 
 					} else {
+						
+						removeExternalReferencePart(definition); // 2024-11-05
+
 						target.put(type,  definition);
 						allDefinitions.put(type, definition);
+
+			    		addResource(type, definition);
 
 						LOG.debug("addDefinition: put type={} target={}",  type, target.keySet());
 					}
@@ -1730,11 +1793,11 @@ public class APIModel {
 		}
 	}
 
-	private static void removeExternalReferencePart(JSONObject definition) {
+	public static void removeExternalReferencePart(JSONObject definition) {
 		if(definition==null) return;
 		if(definition.has(REF)) {
 			String ref=definition.optString(REF);
-			if(isExternalReference(ref)) {
+			if(isExternalReference(ref) && ref.indexOf("#/")>=0) {
 				ref=ref.substring(ref.indexOf("#/"));
 				definition.put(REF,ref);
 			}
@@ -1750,7 +1813,7 @@ public class APIModel {
 		}
 	}
 
-	private static void removeExternalReferencePart(JSONArray array) {
+	public static void removeExternalReferencePart(JSONArray array) {
 		if(array==null) return;
 		
 		for(int i=0; i<array.length(); i++) {
@@ -1762,6 +1825,52 @@ public class APIModel {
 		}		
 	}
 
+	public static void updateExternalReferencePart(JSONObject definition) {
+		if(definition==null) return;
+		if(definition.has(REF)) {
+			String ref=definition.optString(REF);
+			String old_ref=new String(ref);
+			boolean isExternal = isExternalReference(ref);
+			if(isExternal && ref.indexOf("#/")>=0) {
+				ref=ref.substring(ref.indexOf("#/"));
+			} else 	if(isExternal && ref.indexOf("#")>=0) {
+				ref=ref.substring(ref.indexOf("#"));
+			}
+
+			ref = Utils.getLast(ref, "/");
+			ref = Utils.getLast(ref, "#");
+
+			ref = "#/components/schemas/" + ref;
+			
+			definition.put(REF,ref);
+
+			LOG.debug("updateExternalReferencePart: isExternal={} ref={} old_ref={}", isExternal, ref, old_ref);
+			
+		} else {
+			Set<String> properties = definition.keySet().stream().collect(Collectors.toSet());
+			for(String property : properties) {
+				if(definition.optJSONObject(property)!=null) {
+					updateExternalReferencePart(definition.optJSONObject(property));
+				} else if(definition.optJSONArray(property)!=null) {
+					updateExternalReferencePart(definition.optJSONArray(property));
+				}
+			}
+		}
+	}
+
+	public static void updateExternalReferencePart(JSONArray array) {
+		if(array==null) return;
+		
+		for(int i=0; i<array.length(); i++) {
+			if(array.optJSONObject(i)!=null) {
+				updateExternalReferencePart(array.optJSONObject(i));
+			} else if(array.optJSONArray(i)!=null) {
+				updateExternalReferencePart(array.optJSONArray(i));
+			}
+		}		
+	}
+	
+	
 //	private static JSONObject getExternalDefinition_old(String ref) {
 //		JSONObject res=null;
 //		if(isExternalReference(ref)) {
@@ -1804,9 +1913,20 @@ public class APIModel {
 	private static String getLocalPart(String ref) {
 		String res=null;
 		int hashIndex=ref.indexOf("#/");
-		if(hashIndex>0) {
+		if(hashIndex>=0) {
 			res=ref.substring(hashIndex);
+		} else {
+			hashIndex=ref.indexOf("#");
+			if(hashIndex>=0) {
+				res=ref.substring(hashIndex);
+			}
 		}
+		LOG.debug("getLocalPart: ref={} res={}",  ref, res);
+
+		if(res!=null && res.startsWith("#") && !res.startsWith("#/")) {
+			res = "#/" + res.substring(1);
+		}
+		
 		return res;
 	}
 
@@ -1817,6 +1937,12 @@ public class APIModel {
 		} else if(ref.indexOf("#")<0) {
 			return ref;
 		} else {
+			
+			hashIndex=ref.indexOf("#");
+			if(hashIndex>=0) {
+				return ref.substring(0, hashIndex);
+			}
+			
 			Out.printAlways("... ERROR: Unable to determine external reference from '{}'", ref);
 			System.exit(0);
 		}
@@ -1841,7 +1967,10 @@ public class APIModel {
 			
 				LOG.debug("getExternalDefinition: ref={} localRef={} definition={}",  ref, localRef, definition);
 
-				if(definition!=null) res=(JSONObject)definition;
+				if(definition!=null) 
+					res=(JSONObject)definition;
+				else
+					res=external;
 			
 			} else {
 				res=external;
@@ -1882,8 +2011,8 @@ public class APIModel {
 		} else {
 				
 			if(seenRefs.contains(ref) && !externals.isEmpty()) {
-				Out.debug("getExternal: RECURSIVE ref={}", ref );
-				Out.debug("getExternal: externals keys={}", externals.keySet() );
+				LOG.debug("getExternal: RECURSIVE ref={}", ref );
+				LOG.debug("getExternal: externals keys={}", externals.keySet() );
 
 				return new JSONObject();
 			}
@@ -1894,23 +2023,57 @@ public class APIModel {
 			if(externalSource!=null && !externalSource.isEmpty()) {	
 				// String externalSource=ref.substring(0, hashIndex);
 				
-				Out.printOnce("... retrieve external source {}",  externalSource);
+				Out.printOnce("... retrieve external source {} ref={}",  externalSource, ref);
 
-				LOG.debug("... retrieve external source {} key={} keys={}",  externalSource, key, externals.keySet());
+				String baseExternalSource = Utils.getLastPart(externalSource, "/");
+				
+				if(Schema.getKeys().contains(baseExternalSource)) {
 					
-				String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);							
-				if(candidateExternalSource!=null) {		
-					
-					// candidateExternalSource = candidateExternalSource.replace("0//", "0/");
-					
-					LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
-	
-					res=Utils.readJSONOrYaml(candidateExternalSource);
-					
+					Schema schema = Schema.getSchemaByKey(baseExternalSource);
+					res = schema.getDefinitions();
+
+					LOG.debug("... ### found in schema baseExternalSource={} key={} res={}",  baseExternalSource, key, res);
+
 					externals.put(key, res);
-									
-				}
+
+					
+				} else {
+				
+					LOG.debug("... retrieve external source {} key={} keys={}",  externalSource, key, externals.keySet());
+						
+					String candidateExternalSource=Utils.getRelativeFile(swaggerSource, externalSource);							
+					if(candidateExternalSource!=null) {		
+						
+						// candidateExternalSource = candidateExternalSource.replace("0//", "0/");
+						
+						LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={}", candidateExternalSource);
+		
+						final boolean failIfNotFound=false;
+						res=Utils.readJSONOrYaml(candidateExternalSource,failIfNotFound);
+						
+						if(res!=null) {
+							
+							Schema schema = new Schema(new File(candidateExternalSource));
+							
+							LOG.debug("getExternal: readJSONOrYaml candidateExternalSource={} schema={}", candidateExternalSource, schema);
+
+							externals.put(key, res);
+							
+				    		APIModel.addResource(schema.getTitle(), schema.getDefinitions());
+
+						} else {
+							LOG.debug("getExternal: readJSONOrYaml NOT FOUND candidateExternalSource={}", candidateExternalSource);
 	
+							candidateExternalSource = candidateExternalSource.replace("../", "Tmf/");
+							res=Utils.readJSONOrYaml(candidateExternalSource,failIfNotFound);
+					
+							LOG.debug("getExternal: readJSONOrYamlcandidateExternalSource={} res={}", candidateExternalSource, res);
+	
+						}
+										
+					}
+				}
+		
 			}
 		}
 				
@@ -1926,7 +2089,7 @@ public class APIModel {
 
 	public static boolean isExternalReference(String ref) {
 		int hashIndex=ref.indexOf("#/");
-		return hashIndex>0 || ref.indexOf('#')<0;
+		return hashIndex>0 || ref.indexOf('#')>0;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -2215,19 +2378,36 @@ public class APIModel {
 				.collect(toList());
 	}
 
+	static List<String> excludedResourceExtensions = null;
+	
+	public static boolean isExcludedResourceExtensions(String s) {
+		
+		if(excludedResourceExtensions==null) {
+			excludedResourceExtensions = Config.get("excludedResourceExtensions");
+			if(excludedResourceExtensions.isEmpty()) {
+				excludedResourceExtensions = Arrays.asList("_MVO", "_FVO", "_RES");
+			}
+		}
+		
+	   boolean res = excludedResourceExtensions.stream().anyMatch(ext -> s.endsWith(ext));
+	   
+	   return res;
+	   
+	};
+	
 	public static Set<String> filterMVOFVO(Set<String> resources) {
 		if(!Config.getBoolean("keepMVOFVOResources")) {
-			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
-			resources = resources.stream().filter(MVO_or_FVO.negate()).collect(toSet());
+			// Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			resources = resources.stream().filter(s -> !isExcludedResourceExtensions(s)).collect(toSet());
 		} 
 		return resources;
 	}
 	
 	public static List<String> filterMVOFVO(List<String> resources) {
 		if(!Config.getBoolean("keepMVOFVOResources")) {
-			Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+			// Predicate<String> MVO_or_FVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
 			resources = resources.stream()
-					.filter(MVO_or_FVO.negate())
+					.filter(s -> !isExcludedResourceExtensions(s))
 					.collect(Collectors.toList());
 		} 
 		return resources;
@@ -3425,12 +3605,14 @@ public class APIModel {
 
 						JSONObject expanded =  getResourceExpanded(superior); // getPropertyObjectForResource(superior);
 						
-						LOG.debug("expandAllOfs: merging with resource {} keys {}",  superior, expanded.keySet());
-						// LOG.debug("expandAllOfs: merging with resource {} ",  expanded.toString(2));
-
-						merge(node, res, expanded);
-						
-						LOG.debug("expandAllOfs: merged res={}", res.keySet());
+						if(expanded!=null) {
+							LOG.debug("expandAllOfs: merging with resource {} keys {}",  superior, expanded.keySet());
+							// LOG.debug("expandAllOfs: merging with resource {} ",  expanded.toString(2));
+	
+							merge(node, res, expanded);
+							
+							LOG.debug("expandAllOfs: merged res={}", res.keySet());
+						}
 
 					}
 				}
@@ -4134,7 +4316,7 @@ public class APIModel {
 		return res;
 	}
 
-	public static Predicate<String> isFVO_MVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
+	// public static Predicate<String> isFVO_MVO = s -> s.endsWith("_FVO") || s.endsWith("_MVO");
 
 	
 	public static JSONObject getAllPropertiesInSubclasses(String resource) {
