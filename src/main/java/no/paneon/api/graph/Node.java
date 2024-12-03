@@ -86,7 +86,7 @@ public class Node implements Comparable<Object>  {
 	
 	Set<String> additional_edges;
 	
-	public static Predicate<Node> isFVO_MVO = n -> n.getName().endsWith("_FVO") || n.getName().endsWith("_MVO");
+	// public static Predicate<Node> isFVO_MVO = n -> n.getName().endsWith("_FVO") || n.getName().endsWith("_MVO");
 
 	protected Node() {
 		

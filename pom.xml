@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>no.paneon.api</groupId>
 	<artifactId>apicore</artifactId>
-	<version>7.0.16-SNAPSHOT</version>
+	<version>7.0.17-SNAPSHOT</version>
 	<name>API tooling core library</name>
 
 	<properties>
@@ -195,7 +195,7 @@
 		<dependency>
 			<groupId>com.github.spullara.mustache.java</groupId>
 			<artifactId>compiler</artifactId>
-			<version>0.9.4</version>
+			<version>0.9.14</version>
 		</dependency>
 
 		<dependency>

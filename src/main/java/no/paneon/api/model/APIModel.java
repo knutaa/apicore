@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.JSONObjectOrArray;
+import no.paneon.api.utils.ListExt;
 import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
 import no.paneon.api.logging.LogMethod;
@@ -828,6 +830,8 @@ public class APIModel {
 	private static List<String> getResourceFromResponse(JSONObject obj) {
 		List<String> res = new LinkedList<>();
 
+		LOG.debug("getResourceFromResponse: #1 obj={}", obj );
+
 		if(obj.has(REF)) {
 			String ref=obj.optString(REF);
 			LOG.debug("getResourceFromResponse: ref={}", ref );
@@ -839,7 +843,7 @@ public class APIModel {
 			// obj = APIModel.getDefinitionByReference(obj.optString(REF));
 		}
 
-		LOG.debug("getResourceFromResponse: obj={}", obj );
+		LOG.debug("getResourceFromResponse: #2 obj={}", obj );
 
 		JSONObject schema = getSchemaFromResponse(obj);
 
@@ -856,7 +860,15 @@ public class APIModel {
 			}
 		}
 
+		LOG.debug("getResourceFromResponse: #1 res={}", res );
+
 		res = res.stream().map(str -> str.replaceAll("[^/]+/","")).collect(toList());
+
+		LOG.debug("getResourceFromResponse: #2 res={}", res );
+
+		res = res.stream().map(str -> str.replaceAll("_RES$","")).collect(toList());
+
+		LOG.debug("getResourceFromResponse: #3 res={}", res );
 
 		return res;
 	}
@@ -1587,7 +1599,11 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private static JSONObject getPathObjectByKey(String path) {
-		return swagger.getJSONObject(PATHS).getJSONObject(path);
+		JSONObject res = swagger.getJSONObject(PATHS).getJSONObject(path);
+		
+		LOG.debug("getPathObjectByKey:: path={} res={}", path, res);
+
+		return res;
 	}
 
 
@@ -2287,13 +2303,20 @@ public class APIModel {
 			// String name = notificationRule.optString("name", "").toUpperCase();
 			String schema = notificationRule.optString("schema", "").toUpperCase();
 
+			LOG.debug("notificationRule: resource={} notification={} notificationRule={}",  resource, notification, notificationRule.toString(2));
+
 			if(notificationRule!=null && schema.contains(notification.toUpperCase())) {
+				
+				LOG.debug("notificationRule: resource={} schema={}", resource, schema);
+
 				JSONArray examples = notificationRule.optJSONArray("examples");
 				if(examples!=null) {
 					for(int j=0; j<examples.length(); j++) {
 						JSONObject example = examples.optJSONObject(j);
 						res.add(example);
 					}
+				} else {
+					res.add(notificationRule);
 				}
 			}
 		}
@@ -3302,6 +3325,8 @@ public class APIModel {
 		} else {
 			List<String> allPaths = getPathsForResource(resource);
 	
+			LOG.debug("getOperationsByResource: resource={} allPaths={}", resource, allPaths);
+
 			List<String> res = allPaths.stream()
 					.map(APIModel::getPath)
 					.map(JSONObject::keySet)
@@ -3310,6 +3335,10 @@ public class APIModel {
 					.distinct()
 					.collect(toList());
 	
+			LOG.debug("getOperationsByResource: resource={} res={}", resource, res);
+
+			LOG.debug("getOperationsByResource: resource={} getPaths={}", resource, getPaths());
+
 			// the first part will not find DELETE operations
 			// look for paths of the form /.../{..} where we have seen the first part, i.e. /.../
 			getPaths().forEach( path ->  {
@@ -3317,6 +3346,10 @@ public class APIModel {
 	
 				if(!allPaths.contains(corePath)) return;
 	
+				LOG.debug("getOperationsByResource: resource={} path={} corePath={}", resource, path, corePath);
+
+				LOG.debug("getOperationsByResource: resource={} path={} getOperationsForPath={}", resource, path, getOperationsForPath(path));
+
 				res.addAll( getOperationsForPath(path) );
 	
 			});
@@ -3352,6 +3385,8 @@ public class APIModel {
 
 			getPaths().forEach( path ->  {
 
+				LOG.debug("getPathsForResource: resource={} path={}", resource, path);
+
 				List<String> foundResources = getResponseResourcesByPath(path);
 
 				foundResources.forEach(found -> {
@@ -3364,6 +3399,8 @@ public class APIModel {
 			});
 
 		}
+
+		LOG.debug("getPathsForResource: resource={} res={}", resource, pathsForResources.get(resource));
 
 		return pathsForResources.get(resource);
 
@@ -4426,6 +4463,21 @@ public class APIModel {
 
 	}
 	
-
+	public static  Map<String,List<String>> getSuperiorResources(Collection<String> resources) {
+		 Map<String,List<String>> res = new HashMap<>();
+		 
+		 for(String resource : resources) {
+			 Set<String> discriminators = APIModel.getDiscriminators(resource);
+			 discriminators.remove(resource);
+			 for(String disc : discriminators) {
+				 if(!res.containsKey(disc)) {
+					 res.put(disc, new LinkedList<>() );
+				 }
+				 res.get(disc).add(resource);
+			 }
+		 }
+		 
+		 return res;
+	}	
 
 }
