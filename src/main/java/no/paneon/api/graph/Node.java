@@ -1045,6 +1045,7 @@ public class Node implements Comparable<Object>  {
 				|| APIModel.isSpecialSimpleType(type) 
 				|| APIModel.isSimpleType(type) 
 				|| Config.getSimpleTypes().contains(type) 
+				|| Config.getCustomSimpleTypes().contains(type) 
 				|| APIModel.isEnumType(type);
 		
 	}
@@ -1197,6 +1198,15 @@ public class Node implements Comparable<Object>  {
 	}
 	
 	public void setDiscriminatorDefault() {
+		
+		if(this.localDiscriminatorMapping.size()>1 || 
+		  (this.isAPIResource()) ||
+		  (this.localDiscriminatorMapping.size()==1 && !this.localDiscriminatorMapping.contains(this.getName()) )) {
+			LOG.debug("#### setDiscriminatorDefault: node={} localDiscriminatorMapping={}",  this.getName(), this.localDiscriminatorMapping);
+			return;
+		}
+				
+				
 		Optional<Property> atType = properties.stream().filter(p -> p.getName().contentEquals(ATTYPE)).findAny();
 		
 		if(atType.isEmpty()) {

@@ -423,6 +423,18 @@ public class Config {
 	}
 	
 	@LogMethod(level=LogLevel.TRACE)
+	public static List<String> getCustomSimpleTypes() {
+		List<String> res = new LinkedList<>();;
+		if(has("customSimpleTypes")) {
+			res.addAll( get("customSimpleTypes") );
+		} 
+		
+		LOG.debug("getCustomSimpleTypes: res={}", res);
+
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
 	public static List<String> getSimpleEndings() {
 		if(has("simpleEndings")) {
 			return get("simpleEndings");
