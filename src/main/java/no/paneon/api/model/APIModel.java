@@ -4089,6 +4089,18 @@ public class APIModel {
 		return res;
 	}
 
+	public static List<String> getResponseCodes(String path, String op) {
+		List<String> res=new LinkedList<>();
+		JSONObject operation = APIModel.getOperationsDetailsByPath(path, op);
+		
+		if(operation!=null && operation.has(RESPONSES)) {
+			Set<String> responseCodes = operation.optJSONObject(RESPONSES).keySet().stream().filter(v -> v.startsWith("2")).collect(toSet());
+			res.addAll(responseCodes);
+		}
+		
+		return res;
+	}
+	
 	public static JSONObject getMappingForResource(String resource) {	
 		return getDefinition(resource, DISCRIMINATOR, MAPPING);
 	}
