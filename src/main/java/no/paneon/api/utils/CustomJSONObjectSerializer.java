@@ -37,7 +37,14 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
         }
      }
  
-    private static final List<String> ORDER = List.of(
+	List<String> ordering = new LinkedList<>();
+
+    public CustomJSONObjectSerializer(JsonSerializer<Object> serializer, List<String> ordering) {
+		this(serializer);
+		this.ordering = ordering;
+	}
+
+	private static final List<String> ORDER = List.of(
     										"condition", "comment", 
     										"operations", "resources", "notifications", 
     										"attributes", "operations-details",
@@ -48,6 +55,11 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
       	    	
         gen.writeStartObject();
     
+        if(this.ordering.isEmpty()) {
+        	this.ordering.addAll(ORDER);
+            if(Config.has("yamlOrdering")) this.ordering = Config.get("yamlOrdering");
+        }
+        
         //
         // order the JSONObject fields according to the custom ordering, either based on the ORDER constant here
         // or specified in the configuration
@@ -55,20 +67,21 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
         // the ordering is currently global and the same for all JSONObjects (independent of hierarchy or parent)
         //
         
-        List<String> fieldOrder = ORDER;
-        if(Config.has("yamlOrdering")) fieldOrder = Config.get("yamlOrdering");
+        List<String> fieldOrder = new LinkedList<>(this.ordering);
         
         List<String> properties = new LinkedList<>(value.keySet());
         List<String> ordering = new LinkedList<>(fieldOrder);
-        ordering.retainAll(properties);
+        fieldOrder.retainAll(properties);
         
-        properties.removeAll(ordering);
+        properties.removeAll(fieldOrder);
         
         properties = properties.stream().sorted().collect(toList());
         
-        ordering.addAll(properties);
+        fieldOrder.addAll(properties);
         
-    	for(String field : ordering) {	  
+		LOG.debug("####### serialize: ordering={} fieldOrder={}", ordering, fieldOrder);		
+
+    	for(String field : fieldOrder) {	  
     		
     		if(isNullValue(value,field)) {			
     			provider.defaultSerializeField(field, "", gen);

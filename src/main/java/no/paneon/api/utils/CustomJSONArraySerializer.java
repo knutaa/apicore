@@ -2,6 +2,8 @@ package no.paneon.api.utils;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.json.JSONArray;
 
@@ -32,7 +34,14 @@ public class CustomJSONArraySerializer extends StdSerializer<JSONArray> {
         }
     }
            
-    @Override
+	List<String> ordering = new LinkedList<>();
+
+    public CustomJSONArraySerializer(JsonSerializer<Object> serializer, List<String> ordering) {
+    	this(serializer);
+    	this.ordering = ordering;
+    }
+
+	@Override
     public void serialize(JSONArray value, JsonGenerator gen, SerializerProvider provider) throws IOException {
       	
         gen.writeStartArray();

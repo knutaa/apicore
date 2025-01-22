@@ -1242,6 +1242,7 @@ public class Utils {
 				 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES) 
 		         .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
 		         .enable(YAMLGenerator.Feature.INDENT_ARRAYS)
+		         .enable(YAMLGenerator.Feature.ALLOW_LONG_KEYS)
 		         ;
 			
 			ObjectMapper mapper = new ObjectMapper(yamlFactory);		 
@@ -1385,5 +1386,90 @@ public class Utils {
 		return res;
 	}
 	
+	static public String serialize(JSONObject object, List<String> ordering) {
+		String res="";
+		try {
+
+			ObjectMapper mapper = new ObjectMapper()
+					.enable(SerializationFeature.INDENT_OUTPUT);
+			
+		    SimpleModule module = new SimpleModule();
+		    
+		    module.setSerializerModifier(new JSONSerializerModifier(ordering));
+		    mapper.registerModule(module);
+		    
+		    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 	
+		    res = mapper.writeValueAsString(object);
+
+		    LOG.debug("serializer res={}", res);
+			
+			
+		} catch(Exception e) {
+			Out.printOnce("... issue serializing JSON object: " + object.toString());
+		}
+
+		return res;
+		
+	}
+
+	public static JSONObject append(JSONObject target, Object delta) {
+		if(delta instanceof JSONObject) {
+			append(target,(JSONObject)delta);
+		}
+		if(delta instanceof JSONArray) {
+			append(target,(JSONArray)delta);
+		}
+		return target;
+		
+	}
+	
+	public static JSONObject append(JSONObject target, JSONObject delta) {
+		
+	    LOG.debug("Utils.append delta={}", delta);
+
+		if(delta!=null) {	
+			
+		    LOG.debug("Utils.append delta={}", delta.keySet());
+
+			for(String key : delta.keySet()) {
+				target.put(key, delta.get(key));			
+			}
+		}
+		
+		return target;
+	}
+	
+	public static JSONObject append(JSONObject target, JSONArray delta) {
+		
+	    LOG.debug("Utils.append delta={}", delta);
+
+		if(delta!=null) {	
+			
+			delta.forEach(item -> {
+				if(item instanceof JSONObject) {
+					append(target, (JSONObject)item);
+				}
+			});
+
+		}
+		
+		return target;
+	}
+
+	public static  String addSentences(String ...sentences) {
+		StringBuilder res = new StringBuilder();
+		String lastAdded = "";
+		for(String s : sentences) {
+			if(lastAdded.endsWith(".")) res.append(" ");
+			lastAdded = s;
+			res.append(lastAdded);
+			if(!s.isEmpty() && !s.endsWith(".") && !s.endsWith("\n")) {
+				lastAdded = ".";
+				res.append(lastAdded);
+			}
+		}
+		return res.toString();
+	}
+
 }

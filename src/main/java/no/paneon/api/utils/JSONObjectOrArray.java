@@ -40,6 +40,7 @@ public class JSONObjectOrArray {
 				
 			} catch(Exception e2) {
 				Out.printAlways("... unable to initialize JSONObjectOrArray from value=" + value );
+				e2.printStackTrace();
 			}
 		}
 						

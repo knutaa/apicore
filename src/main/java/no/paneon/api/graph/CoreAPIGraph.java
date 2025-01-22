@@ -953,6 +953,8 @@ public class CoreAPIGraph {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
 		
+			if(property==null) continue;
+			
 			LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, property.optBoolean(DEPRECATED) );
 
 			LOG.debug("addProperties: typeName={} property={}", typeName, property);

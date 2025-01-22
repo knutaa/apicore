@@ -1,5 +1,6 @@
 package no.paneon.api.model;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -127,14 +128,23 @@ public class APIModel {
 
 	private static Set<String> typeWarnings = new HashSet<>();
 
+	// static Map<String, Set<String>> seenPropertiesExpanded = new HashMap<>();
+
+	// final static private Map<String,Set<String>> propertiesForResourceSeen = new HashMap<>();
+
     public static String getSource() {
     	return swaggerSource;
     }
     
+    final private static APIModelCache cache = new APIModelCache();
+    
 	private APIModel() {
+		
+		LOG.debug("####### APIModel - base constructor");
+
 		// resourceMapping = Config.getConfig(RESOURCE_MAPPING);
 		// reverseMapping = generateReverseMapping(resourceMapping);
-		clean();
+		// clean();
 
 	}
 
@@ -189,6 +199,9 @@ public class APIModel {
 	}
 
 	public static void clean() {
+		
+		LOG.debug("####### APIModel::clean");
+
 		allDefinitions = new JSONObject();	
 		resourcePropertyMap = new HashMap<>();
 		swagger = null;
@@ -220,7 +233,13 @@ public class APIModel {
 		isRequiredSeen.clear();
 		isDeprecatedSeen.clear();
 
+		// seenPropertiesExpanded = new HashMap<>();
+
+		// propertiesForResourceSeen = new HashMap<>();
+		
 	}
+	
+	static boolean setSwaggerDone = false;
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static void setSwagger(JSONObject api) {
@@ -238,7 +257,25 @@ public class APIModel {
 		// rearrangeDefinitions(swagger);
 		
 		// refactorEmbeddedTitles();
+		
+		List<String> resources = APIModel.getResources();
+		
+		LOG.debug("setSwagger:: resources={}", resources);
+		
+		cache.setCoreResources(resources);
+		
+		for(String def : APIModel.getAllDefinitions()) {
+			APIModel.getResourceExpanded(def);
+			APIModel.getPropertiesExpanded(def);
+		}
+		
+		for(String resource : resources) {
+			Set<String> properties = APIModel.getPropertiesExpanded(resource);
+			LOG.debug("setSwagger:: resource={} properties={}", resources, properties);
 
+		}
+
+		setSwaggerDone = true;
 	}
 
 	private static void checkSwagger(JSONObject obj) {
@@ -273,12 +310,17 @@ public class APIModel {
 				if(!isLocalReference(ref)) {
 					Out.debug("... not checking reference {}", ref);
 				} else {
-					Object referenced = swagger.optQuery(ref);
-					if(referenced==null) {
-						Out.debug("... ERROR: Reference {} not found in the OAS/swagger", ref);
+					try {
+						Object referenced = swagger.optQuery(ref);
+						if(referenced==null) {
+							Out.debug("... ERROR: Reference {} not found in the OAS/swagger", ref);
+							res=false;
+						}
+						LOG.debug("... checking referenced={}", referenced);
+					} catch(Exception e) {
 						res=false;
+						Out.debug("... ERROR: invalid reference {} in object {}", ref, obj);
 					}
-					LOG.debug("... checking referenced={}", referenced);
 
 				}
 
@@ -294,7 +336,7 @@ public class APIModel {
 						
 						LOG.debug("... checking path={} property={}", propertyPath, property);
 
-						if(!property.matches(camelCasePattern)) {
+						if(!property.matches(camelCasePattern) && !propertyPath.contains("Header") && !propertyPath.contains("X-")) {
 							
 							Out.debug("... possible issue: found property '{}' in {} - expecting camelcase", property, propertyPath);
 						}
@@ -304,6 +346,8 @@ public class APIModel {
 		
 			}
 			
+			// Out.debug("### 2");
+
 			if(obj.optJSONObject(key)!=null) {
 				LOG.debug("... checking key={}", key);
 
@@ -323,6 +367,8 @@ public class APIModel {
 
 		}
 		
+		// Out.debug("### 3");
+
 		return res;
 		
 	}
@@ -549,7 +595,7 @@ public class APIModel {
 		}
 			
 		List<String> res = getCoreResources(); 
-							
+		
 		Predicate<String> notAlreadySeen = s -> !res.contains(s);
 		
 		if(Config.getBoolean("includeResourcesFromRules")) {
@@ -649,10 +695,12 @@ public class APIModel {
 		             .build();
 
 		     DocumentContext jsonContext = JsonPath.using(configuration).parse(swagger.toString());
-		     List<String> tags = jsonContext.read("$.tags..name");			
+		     List<String> tags = jsonContext.read("$..tags..name");			
 
-		     res = tags.stream().map(Utils::upperCaseFirst).collect(toList());
-		     	     
+		     res = tags.stream().map(Utils::upperCaseFirst).distinct().collect(toList());
+		     	
+		     LOG.debug("getCoreResources:: res={}", res);
+
 		}
 		
 		return res;
@@ -730,46 +778,115 @@ public class APIModel {
 				.build();
 
 		DocumentContext jsonContext = JsonPath.using(configuration).parse(swagger.toString());
-		List<String> tags = jsonContext.read("$.tags..name");			
+		
+		JSONObject operations = swagger.optJSONObject("operations");
+		
+		if(operations!=null) {
+			LOG.debug("getAsyncDetails:: operations={}", operations.keySet());  
+			for(String op : operations.keySet()) {
+				JSONObject operation = operations.getJSONObject(op);
+				String requestChannel = operation.query("#/channel/$ref").toString();
+				
+				LOG.debug("getAsyncDetails:: operation={} channel={}", op, requestChannel);  
+				
+				Object channelDetails = swagger.query(requestChannel);
+				
+				LOG.debug("getAsyncDetails:: channel={} class={}", channelDetails, channelDetails.getClass());  
+
+				if(channelDetails instanceof JSONObject) {
+					JSONObject details = (JSONObject) channelDetails;
+					
+					LOG.debug("getAsyncDetails:: channel={}", channelDetails);  
+					LOG.debug("getAsyncDetails:: tags={}", details.get("tags"));  
+
+					String tag =  details.optJSONArray("tags").getJSONObject(0).getString("name");
+					
+					LOG.debug("getAsyncDetails:: tag={}", tag);  
+
+					String resource = Utils.upperCaseFirst(tag);
+
+					LOG.debug("getAsyncDetails:: channelDetails={}", channelDetails);  
+
+					if(!res.containsKey(resource)) {
+						res.put(resource, new AsyncResourceInfo(resource));
+					}
+					
+					AsyncResourceInfo resourceInfo = res.get(resource);					
+					
+					JSONArray requests  = details.optJSONArray("messages");
+					JSONArray responses = null; 
+					String responseChannel = "";
+					if(operation.has("reply") && operation.optJSONObject("reply").has("messages")) {
+						responses = operation.optJSONObject("reply").optJSONArray("messages");
+						
+						responseChannel = operation.optJSONObject("reply").optJSONObject("channel").optString("$ref");	
+						
+						LOG.debug("##### getAsyncDetails:: responseChannel={}", responseChannel);  
+
+					}
+
+					resourceInfo.addOperation(op, requestChannel, responseChannel, requests, responses);
+					
+				}
+
+			}
+		}
+		
+		
+		List<String> tags = jsonContext.read("$..tags..name");			
 
 		tags.forEach(tag -> {
 
+			LOG.debug("getAsyncDetails:: tag={}", tag);  
+
 			String resource = Utils.upperCaseFirst(tag);
 
-			String query = String.format("$.channels..tags.[?(@.name=='%s')]", tag);
+			String query = String.format("$..channels..tags.[?(@.name=='%s')]", tag);
 
 			JsonPath jsonpath = JsonPath.compile(query);
 
 			List<String> paths = jsonpath.read(api, Configuration.builder().options(Option.AS_PATH_LIST).build() );
 
+			LOG.debug("getAsyncDetails:: paths={}", paths);  
+
 			paths.forEach(path -> {
 				path = path.replace("['tags'][0]", "");
 
 				Map<String,Object> obj = jsonContext.read(path);
-				// DocumentContext obj = jsonContext.read(path);
 
-				LOG.debug("getCoreResources:: path={} obj={}", path, obj.getClass());  
+				LOG.debug("getAsyncDetails:: path={} obj={}", path, obj.getClass());  
 
-				LOG.debug("getCoreResources:: obj={}", obj.keySet());  
+				// Out.debug("getCoreResources:: obj={}", obj.keySet());  
+				LOG.debug("getAsyncDetails:: obj={}", obj);  
 
-				String opId = obj.get("operationId").toString();
-				String baseId = obj.get("operationId").toString().replaceAll("Request$", "").replaceAll("Reply$", "");
+//				String opId = obj.get("operationId").toString();
+//				String baseId = obj.get("operationId").toString().replaceAll("Request$", "").replaceAll("Reply$", "");
 
-				LOG.debug("getCoreResources:: baseId={}", baseId );  
+				Map<String,Object> obj2 = (Map<String,Object>) obj.get("messages");
+				if(obj2 instanceof  Map) {
+					LOG.debug("getAsyncDetails:: MAP obj2={}", obj2 );  
+					LOG.debug("getAsyncDetails:: keys obj2={}", obj2.keySet() );  
 
-				if(!res.containsKey(resource)) {
-					res.put(resource, new AsyncResourceInfo(resource));
+
 				}
 				
-				if(opId.endsWith("Request") ) {
-					res.get(resource).addRequest(baseId,obj,path);
-				} else if (opId.endsWith("Reply") ) {
-					res.get(resource).addReply(baseId,obj,path);
-				}
+				if(! (obj2 instanceof  Map)) return;
+
+				LOG.debug("getAsyncDetails:: obj2={}", obj2.keySet() );  
+
+				String messages = "{}"; // obj.get("messages").toString(); /// ASYNC continue
+				
+				LOG.debug("getAsyncDetails:: messages={}", messages );  
+
+				JSONObject message = new JSONObject(messages);
+				messages = message.keySet().toString();
+				
+				LOG.debug("getAsyncDetails:: messages={}", messages );  
+
 
 			});
 
-			LOG.debug("getCoreResources:: paths={}", paths);  
+			LOG.debug("getAsyncDetails:: paths={}", paths);  
 
 		});
 
@@ -1099,12 +1216,21 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static String getReferencedType(String type, String property) {
-		JSONObject specification = APIModel.getResourceExpanded(type);
-//		JSONObject specification = getPropertySpecification(type,property);
 		
-		LOG.debug("getReferencedType: property={} specification={}",  property, specification.toString(2));
+		if(cache.hasReferencedType(type,property)) {
+			String res = cache.getReferencedType(type,property);
+			return res;
+		}
+		
+		JSONObject specification = APIModel.getResourceExpanded(type);
+		
+		// LOG.debug("getReferencedType: property={} specification={}",  property, specification.toString(2));
 
-		return getReferencedType(specification,property);	    	    
+		String res = getReferencedType(specification,property);	  
+		
+		cache.addReferencedType(type,property,res);
+		
+		return res;
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -1398,8 +1524,11 @@ public class APIModel {
 	private static JSONObject getAsyncMessageDefinition(String node) {
 		JSONObject res = new JSONObject();
 		
-		Object obj = swagger.query("#/components/messages/" + node);
-		
+		LOG.debug("getAsyncMessageDefinition: node={}", node );
+
+		// Object obj = swagger.query("#/components/messages/" + node);
+		Object obj = swagger.query("#/components/schemas/" + node);
+
 		if(obj!=null) {
 			LOG.debug("getAsyncMessageDefinition: node={} obj={}", node, obj.toString());
 			if(obj instanceof JSONObject) {
@@ -2836,8 +2965,10 @@ public class APIModel {
 			if(definition!=null) {
 				res = isRequired(definition,property);
 				
-				res = res || isRequired(resource + "_FVO", property);
-			
+				if(!res && !resource.contains("_FVO")) {
+					res = res || isRequired(resource + "_FVO", property);
+				}
+				
 				isRequiredSeen.put(key, res);
 
 				LOG.debug("isRequired: resource={} property={} res={}", resource, property, res);
@@ -2865,8 +2996,10 @@ public class APIModel {
 			if(definition!=null) {
 				res = isDeprecated(definition,property);
 				
-				res = res || isDeprecated(resource + "_FVO", property);
-			
+				if(!res && !resource.contains("_FVO")) {
+					res = res || isDeprecated(resource + "_FVO", property);
+				}
+				
 				isDeprecatedSeen.put(key, res);
 				
 				LOG.debug("isDeprecated: resource={} property={} res={}", resource, property, res);
@@ -3295,6 +3428,8 @@ public class APIModel {
 			
 			Map<String, AsyncResourceInfo> asyncDetails = APIModel.getAsyncDetails();
 			
+			LOG.debug("getOperationsByResource: resource={} asyncDetails={}", resource, asyncDetails);
+
 			AsyncResourceInfo resourceInfo = asyncDetails.get(resource);
 			
 			if(resourceInfo!=null) {
@@ -3469,13 +3604,97 @@ public class APIModel {
 		if(obj!=null) res.addAll(obj.keySet());
 		return res;
 	}       
-
+		
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Set<String> getPropertiesExpanded(String resource) {
+		
 		Set<String> res = new HashSet<>();
-		JSONObject obj = getPropertyObjectForResourceExpanded(resource);
-		if(obj!=null) res.addAll(obj.keySet());
+
+		if(resource.isEmpty()) return res;
+
+//		LOG.debug("getPropertiesExpanded:: resource={} propertiesForResourceSeen={}", resource, propertiesForResourceSeen.keySet());
+//
+//		for(String key : propertiesForResourceSeen.keySet()) {
+//			LOG.debug("getPropertiesExpanded:: key={} propertiesForResourceSeen={}", key, propertiesForResourceSeen.get(key));
+//
+//		}
+				
+		LOG.debug("#1 APIModel::getPropertiesExpanded:: resource={} FOUND?={}", resource, cache.hasPropertiesForResource(resource));
+
+		if(cache.hasPropertiesForResource(resource)) {
+			
+			// res.addAll( propertiesForResourceSeen.get(resource) );
+			
+			res =  cache.getPropertiesForResource(resource); // propertiesForResourceSeen.get(resource);
+			
+			LOG.debug("#1 APIModel::getPropertiesExpanded:: resource={} FOUND res={} setSwaggerDone={}", resource, res, setSwaggerDone);
+
+			return res;
+		}
+
+		if(setSwaggerDone) {
+			LOG.debug("##### APIModel::setSwaggerDone={} resource={}", setSwaggerDone, resource);
+		}
+
+		LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} NOT FOUND", resource);
+
+		// CHECK 2025
+		JSONObject objA = getResourceExpanded(resource);
+		
+		LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} objA={}", resource, objA);
+		
+		if(objA==null) objA = new JSONObject();
+		
+		LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} objA={}", resource, objA.keySet());
+
+		if(objA.has(PROPERTIES)) {
+			objA = objA.optJSONObject(PROPERTIES);
+			if(objA!=null) {
+				res.addAll( objA.keySet() );
+			}
+			
+			if(!res.isEmpty()) {
+				LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} res={}", resource, res);
+				
+				// res = new HashSet<>(res);
+				
+				// propertiesForResourceSeen.put(resource, new HashSet<>(res) );
+				cache.addPropertiesForResource(resource,res);
+				
+				res = cache.getPropertiesForResource(resource); // propertiesForResourceSeen.get(resource);
+				
+				LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} UPDATED propertiesForResourceSeen keys={}", resource, res);
+
+				return res;
+				
+			} else {
+				LOG.debug("#0 APIModel::getPropertiesExpanded EMPTY getPropertiesExpanded:: resource={} res={}", resource, res);
+
+			}
+		} else {
+			LOG.debug("#10 APIModel::getPropertiesExpanded:: resource={} objA={}", resource, objA);
+
+		}
+				
 		return res;
+		
+//		if(resource.isEmpty()) return res;
+//		
+//		if(seenPropertiesExpanded.containsKey(resource)) 
+//			res = seenPropertiesExpanded.get(resource) ;
+//		else {
+//			JSONObject obj = getPropertyObjectForResourceExpanded(resource);
+//			if(obj!=null) res.addAll(obj.keySet());
+//
+//			LOG.debug("#1 getPropertiesExpanded:: resource={} res={}", resource, res);
+//
+//			seenPropertiesExpanded.put(resource, res);
+//		}
+//		
+//		LOG.debug("#2 getPropertiesExpanded:: resource={} res={}", resource, res);
+//
+//		return res;
+		
 	} 
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -3498,6 +3717,7 @@ public class APIModel {
 	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static JSONObject getPropertyObjectForResourceExpanded(String node) {
+		
 		LOG.debug("getPropertyObjectForResourceExpanded: node={}",  node);
 
 		JSONObject resource = getDefinition(node);
@@ -3513,6 +3733,7 @@ public class APIModel {
 	
 	@LogMethod(level=LogLevel.DEBUG) 
 	private static JSONObject getPropertyObjectForResourceExpanded(String node, JSONObject resource) {
+				
 		JSONObject res=getResourceExpanded(node,resource);
 		if(res!=null && res.has(PROPERTIES)) return res.optJSONObject(PROPERTIES);
 		
@@ -3526,20 +3747,33 @@ public class APIModel {
 
 		return getResourceExpanded(node,null);
 	}
-	
+		
 	@LogMethod(level=LogLevel.DEBUG) 
 	private static JSONObject getResourceExpanded(String node, JSONObject resource) {
 		JSONObject res=null;
 		
-		if(!resourceMapExpanded.containsKey(node)) {
-						
+		LOG.debug("#1 APIModel::setSwaggerDone={}", setSwaggerDone);
+
+		if(cache.hasExpandedResource(node)) {
+			
+			res = cache.getExpandedResource(node);
+			
+			if(res==null) res=new JSONObject();
+			return res;
+			
+		} else {
+					
+			LOG.debug("getResourceExpanded: resource={} not seen before setSwaggerDone={}", node, setSwaggerDone);
+
 			if(resource==null) resource=getDefinition(node);
 			
-			if(resource==null) return null;
+			// if(resource==null) return null;
 
-			LOG.debug("getResourceExpanded: resource={} keys={}",  node, resource.keySet());
-			LOG.debug("getResourceExpanded: resource={} required={}",  node, resource.optJSONArray(REQUIRED));
-
+			if(resource!=null) {
+				LOG.debug("getResourceExpanded: resource={} keys={}",  node, resource.keySet());
+				LOG.debug("getResourceExpanded: resource={} required={}",  node, resource.optJSONArray(REQUIRED));
+			}
+			
 			res = resource;
 			
 			if(res!=null && res.has(ALLOF)) {
@@ -3576,7 +3810,9 @@ public class APIModel {
 
 			}
 			
-			resourceMapExpanded.put(node, res);
+			if(res==null) res=new JSONObject();
+			
+			cache.addResourceExpanded(node, res);
 			
 			LOG.debug("getResourceExpanded: add resurceMapExpanded resource={} properties={}",  node, res);
 			
@@ -3584,10 +3820,11 @@ public class APIModel {
 
 		}
 
-		LOG.debug("getResourceExpanded: resource={} res={}",  node, resourceMapExpanded.get(node));
-
-		res = resourceMapExpanded.get(node);
+		res = cache.getExpandedResource(node);
 		if(res==null) res=new JSONObject();
+
+		LOG.debug("getResourceExpanded: resource={} res={}",  node, res);
+
 		return res;
 		
 	}
@@ -4490,6 +4727,103 @@ public class APIModel {
 		 }
 		 
 		 return res;
-	}	
+	}
+
+	public static JSONObject getByPath(String path) {
+		JSONObject res = new JSONObject();
+		
+		Object o = swagger.optQuery(path);
+		
+		LOG.debug("getByPath: path={} obj={}", path, o);
+
+		if(o instanceof JSONObject) res = (JSONObject)o;
+		
+		return res;
+	}
+
+	public static List<JSONObject> getAsyncExamples(String resource, String op, Boolean useCollection) {
+		List<JSONObject> res = new LinkedList<>();
+						
+		JSONObject rulesForResource =  Config.getRulesForResource(resource);
+		JSONObject rulesForOperation = Config.getRulesForOperation(rulesForResource, op);
+			
+		JSONArray examples = rulesForOperation.optJSONArray("examples");
+		
+		LOG.debug("getAsyncExamples: resource={} examples={}", resource, examples);
+
+		if(examples!=null) {
+			examples.forEach(ex -> {
+				if(ex instanceof JSONObject) {
+					JSONObject e = (JSONObject) ex;
+					if(!e.has("isCollection") || e.getBoolean("isCollection")==useCollection) {
+						res.add(e);
+					}
+				}
+			});
+			
+		}
+		
+		return res;
+	}
+
+	public static List<Map<?,?>> getAllAsyncExamples() {
+		
+		String api = swagger.toString();
+
+		Configuration configuration = Configuration.builder().build();
+
+		String query = "$..examples";
+
+		JsonPath jsonpath = JsonPath.compile(query);
+
+		List<List<Map<?,?>>> examples = jsonpath.read(api, configuration );
+				
+		LOG.debug("getAllAsyncExamples: examples={}", examples.getClass());
+				
+		List<Map<?,?>> res = examples.stream().flatMap(list -> list.stream()).collect(Collectors.toList());
+		
+		LOG.debug("getAllAsyncExamples: examples={}", res);
+		
+		return res;
+	
+	}
+	
+	public static Map<?,?> getAsyncExampleByName(List<Map<?,?>> examples, String resource, String name, String subName) {
+		
+		Map<?,?>  res = null;
+		
+		name = name + " " + subName;
+		
+		String n1 = name.replace(" ", "_").toUpperCase();     // replace("_", "").toUpperCase();
+		String n2 = subName.replace(" ", "_").toUpperCase();  // replace("_", "").toUpperCase();
+
+		Predicate<Map<?,?>> nameMatch = m -> {
+			String n = m.get("name").toString().toUpperCase();
+			return n.startsWith(n1); // && n.contains(n2);
+		};
+
+		List<Map<?,?>> matched = examples.stream()
+				.filter(nameMatch)
+				.collect(Collectors.toList());
+
+		if(matched.size()>1) {
+			Out.debug("... expecting one matching example for {} {} - found {}", name, subName, matched.size());
+		}
+		
+		if(matched.size()==1) {		
+			res = matched.get(0);
+			
+			LOG.debug("getAsyncExampleByName: {} {} - found {}", name, subName, res);
+
+			return matched.get(0);
+		} 
+		
+		return res;
+	
+	}
+
+	public static APIModelCache getCache() {
+		return cache;
+	}
 
 }
