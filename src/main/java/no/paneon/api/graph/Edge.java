@@ -22,7 +22,19 @@ public class Edge {
 	public boolean deprecated=false;
 	
 	public boolean isMarked = false;
+	
+	public String description;
 		
+	public Edge(Node node, String relation, Node related, String cardinality, boolean required, boolean isDeprecated, String optDescription) {
+		this.node=node;
+		this.relation=relation;
+		this.related=related;
+		this.cardinality=cardinality;
+		this.required=required;
+		this.deprecated=isDeprecated;
+		this.description=optDescription;
+	}
+	
 	public Edge(Node node, String relation, Node related, String cardinality, boolean required, boolean isDeprecated) {
 		this.node=node;
 		this.relation=relation;
@@ -30,6 +42,7 @@ public class Edge {
 		this.cardinality=cardinality;
 		this.required=required;
 		this.deprecated=isDeprecated;
+		this.description="";
 	}
 	
 	public Edge(Edge edge, Node newFrom) {
@@ -41,6 +54,7 @@ public class Edge {
 		
 		this.node=newFrom;
 		this.related=edge.related;
+		this.description=edge.description;
 
 	}
 		
@@ -184,6 +198,10 @@ public class Edge {
 
 	public boolean getDeprecated() {
 		return this.deprecated;
+	}
+
+	public String getDescription() {
+		return this.description;
 	}
 	
 }

@@ -569,7 +569,7 @@ public class Node implements Comparable<Object>  {
 			return;
 		} 
 		
-		LOG.debug("addPropertyDetails obj={}", propObj);
+		LOG.debug("##### addPropertyDetails obj={}", propObj);
 
 		
 		if(propObj.has(TYPE) && ARRAY.equals(propObj.opt(TYPE)) && !APIModel.isAsyncAPI()) {
@@ -589,7 +589,7 @@ public class Node implements Comparable<Object>  {
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
 								
-				LOG.debug("addPropertyDetails: property={} definition={}" , propName, property );
+				LOG.debug("#### addPropertyDetails: property={} definition={}" , propName, property );
 								
 				if(property==null) {
 					if(!APIModel.isAsyncAPI() ) { // TBD CHECK ON POSSIBLE properties for async || !propName.contentEquals("name")) {
@@ -784,7 +784,7 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addAllOfs(JSONArray allOfs, Property.Visibility visibility) {
 		
-		LOG.debug("addAllOfs: node={} addAllOfs={}", this, allOfs.toString(2));
+		LOG.debug("###### addAllOfs: node={} addAllOfs={}", this, allOfs.toString(2));
 
 		allOfs.forEach(allOf -> {
 			if(allOf instanceof JSONObject) {
@@ -798,7 +798,7 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	public void addAllOfObject(JSONObject definition, Property.Visibility visibility) {
 		
-		LOG.debug("addAllOfs: node={} definition={}", this, definition);
+		LOG.debug("####### addAllOfs: node={} definition={}", this, definition);
 
 		LOG.debug("addAllOfs: node={} EXPAND_ALL_PROPERTIES_FROM_ALLOFS={} EXPAND_INHERITED={} INCLUDE_INHERITED={}", 
 				this, 
@@ -838,13 +838,15 @@ public class Node implements Comparable<Object>  {
 		if(definition.has(PROPERTIES)) {
 			JSONObject obj = definition.optJSONObject(PROPERTIES); // APIModel.getPropertyObjectBySchemaObject(definition);			
 			if(obj!=null) {	
-				LOG.debug("addAllOfs: node={} obj={}", this, obj);
+				LOG.debug("######## addAllOfs: node={} obj={}", this, obj);
 
 				addPropertyDetails(obj,visibility,definition);				
 			}
 		}
 		
 		if(definition.has(ALLOF)) {
+			LOG.debug("######## addAllOfs: node={} definition={}", this, definition);
+
 			addAllOfs(definition.optJSONArray(ALLOF), visibility);
 		}
 	}
@@ -1243,7 +1245,7 @@ public class Node implements Comparable<Object>  {
 
 			// List<String> requiredPropertiesByName = requiredProperties.stream().map(Property::getName).toList();
 
-			// Out.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
+			// LOG.debug("updatePropertiesFromFVO: node={} requiredProperties={} requiredPropertiesByName={}",  this.getName(), requiredProperties, requiredPropertiesByName );
 
 			requiredProperties.stream()
 				.map(Property::getName)
@@ -1453,7 +1455,7 @@ public class Node implements Comparable<Object>  {
 		res = res | abstracts.contains(this.getName());
 		
 		if(res) {
-			Out.debug("Node: name={} isAbstract={}", this.resource, res);
+			LOG.debug("Node: name={} isAbstract={}", this.resource, res);
 		}
 		
 		return res;

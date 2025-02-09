@@ -66,6 +66,7 @@ public class Property {
 		this.isEnum = APIModel.isEnumType(this.type);	
 	}
 
+
 	@LogMethod(level=LogLevel.DEBUG)
 	public String getName() { 
 		return name;
@@ -112,7 +113,7 @@ public class Property {
 	}
 	
 	public String toString() {
-		return name + " : " + type + " required:" + required + " visibility:" + this.visibility;
+		return name + " : " + type + " required:" + required + " visibility:" + this.visibility + " (" + this.description + ")";
 	}
 	
 	List<String> values = new LinkedList<>();

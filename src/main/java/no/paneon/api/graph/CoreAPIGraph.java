@@ -551,13 +551,14 @@ public class CoreAPIGraph {
 		LOG.debug("addProperties:: node={} edges={}", node, edges);
 		Set<Property> referencedProperties = new HashSet<>();
 		edges.stream().filter(Edge::isRegularEdgeCore).forEach(e -> {
-			String description = "";
 			
 			Property p = new Property(e.getRelationship(), 
 									e.getRelated().getName(), 
 									e.cardinality, 
-									e.required, description, 
-									Property.VISIBLE_INHERITED );
+									e.required, 
+									e.description, 
+									Property.VISIBLE_INHERITED
+									);
 			
 			p.setDeprected(e.getDeprecated());
 			
@@ -952,10 +953,12 @@ public class CoreAPIGraph {
 		for(String propertyName : properties.keySet()) {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
-		
+					
 			if(property==null) continue;
 			
-			LOG.debug("addPropertyDetails: property={} deprecated={}" , propertyName, property.optBoolean(DEPRECATED) );
+			String optDescription = property.optString(DESCRIPTION);
+
+			LOG.debug("addPropertyDetails: property={} deprecated={} optDescription={}" , propertyName, property.optBoolean(DEPRECATED), optDescription );
 
 			LOG.debug("addProperties: typeName={} property={}", typeName, property);
 
@@ -1103,7 +1106,7 @@ public class CoreAPIGraph {
 
 				Edge edge = APIModel.isEnumType(type) ? 
 								new EdgeEnum(from, propertyName, to, cardinality, isRequired, isDeprecated) :
-								new Edge(from, propertyName, to, cardinality, isRequired, isDeprecated);
+								new Edge(from, propertyName, to, cardinality, isRequired, isDeprecated, optDescription);
 			
 				LOG.debug("addProperties: edge={} isRequired={} isDeprecated={}", edge, isRequired, isDeprecated);
 
@@ -1116,7 +1119,7 @@ public class CoreAPIGraph {
 
 				String propType = APIModel.typeOfProperty(property, propertyName);		
 
-				LOG.debug("###### addProperties: property={} typeOfProperty={}", property, propType);
+				LOG.debug("!!!!###### addProperties: propertyName={} property={} typeOfProperty={}", propertyName, property, propType);
 
 				if(APIModel.isAddedType(propType)) {
 					Node to = getOrAddNode(graph, propType);
@@ -1127,21 +1130,24 @@ public class CoreAPIGraph {
 				
 				LOG.debug("addProperties: typeName={} propertyName={} propType={} isRequired={}", typeName, propertyName, propType, isRequired);
 
+				if(optDescription.isEmpty()) {
+					optDescription = property.optString(DESCRIPTION);	
+				};
+				
 				Property propDetails = new Property(propertyName, 
 													propType, 
 													cardinality, 
 													isRequired, 
-													property.optString(DESCRIPTION), 
+													optDescription, 
 													Property.VISIBLE_INHERITED );
 
-				LOG.debug("addProperties: typeName={} property={}", propType, property);
+				LOG.debug("addProperties: propertyName={} typeName={} property={}", propertyName, propType, property);
 
 				List<String> enumValues = Config.getList(property, ENUM);
 				propDetails.addEnumValues(enumValues);
 				
 				if(property.has(ENUM)) {
 					LOG.debug("addProperties: ENUM typeName={} values={}", propType, enumValues);
-
 				}
 				
 				if(isDeprecated) {
