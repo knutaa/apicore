@@ -1247,6 +1247,14 @@ public class APIGraph extends CoreAPIGraph {
 
 		return res;
 	}
+
+	public List<Node> getInheritsFrom(Node resource) {
+		return this.getOutboundEdges(resource).stream().filter(Edge::isInheritance).map(Edge::getRelated).sorted().collect(Collectors.toList());
+	}
+	
+	public List<Node> getDisciminatorInheritanceFrom(Node resource) {
+		return this.getOutboundEdges(resource).stream().filter(Edge::isDiscriminator).map(Edge::getRelated).sorted().collect(Collectors.toList());
+	}
 	
 }
 

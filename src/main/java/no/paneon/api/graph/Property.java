@@ -13,7 +13,7 @@ import no.paneon.api.utils.Out;
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
-public class Property {
+public class Property implements Comparable<Property> {
 
     static final Logger LOG = LogManager.getLogger(Property.class);
 
@@ -210,4 +210,9 @@ public class Property {
 	public void setDeprected(boolean value) {
 		this.isDeprected=value;
 	}
+	
+	 public int compareTo(Property o) {
+		 return this.name.compareTo(o.name);
+	 }
+	    	
 }
