@@ -335,6 +335,24 @@ public class Config {
 	}
 
 	@LogMethod(level=LogLevel.TRACE)
+	public static Object getObjectByPath(JSONObject config, String path, boolean silentIfNotFound) {
+		Object res = null;
+		
+		try {
+			path = "#/" + path.replace(".",  "/");
+			res = config.query(path);
+			
+		} catch(Exception ex) {
+			if(!silentIfNotFound) {
+				Out.println("... configuration for '" + path + "' not found - exception: " + ex.getLocalizedMessage());
+				Out.println("... configutation seen: " + config.toString(2));
+			}
+		}
+		
+		return res;
+	}
+	
+	@LogMethod(level=LogLevel.TRACE)
 	public static List<String> getList(JSONObject config, String key) {
 		List<String> res = new LinkedList<>();
 				

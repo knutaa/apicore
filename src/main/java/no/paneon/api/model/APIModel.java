@@ -2276,6 +2276,8 @@ public class APIModel {
 					.collect(toList());
 		}
 		
+		LOG.debug("getPaths: resource={} res={}", resource, res);
+
 		if(allpaths!=null) {
 			
 			String regexp = ".*\\/" + resource.toUpperCase() + "(\\/\\{[a-zA-Z0-9]+\\})?";
@@ -2288,6 +2290,28 @@ public class APIModel {
 
 			LOG.debug("getPaths: resource={} res={}", resource, res);
 			
+		}
+		
+		if(res.isEmpty()) {
+			
+			LOG.debug("getPaths: resource={} checking if name override in rules file", resource);
+
+			JSONObject rules = Config.getRulesForResource(resource);
+			
+			LOG.debug("getPaths: resource={} rules={}", resource, rules);
+
+			final boolean nullIfNot = true;
+			Object override = Config.getObjectByPath(rules, "uriOptions/nameOverride", nullIfNot);
+			
+			LOG.debug("getPaths: resource={} override={}", resource, override);
+			
+			if(override!=null) {
+				res = getPaths(override.toString());
+			}
+			
+			LOG.debug("getPaths: resource={} res={}", resource, res);
+
+
 		}
 		
 		
