@@ -93,6 +93,8 @@ public class Config {
     	if(initStatus) return;
     	initStatus = true;
 
+		LOG.debug("Config.init");
+
     	try {
     		InputStream is ;
     		if(!skipInternalConfiguration) {
@@ -105,7 +107,8 @@ public class Config {
     		
 			LOG.debug("config={}", json);
 
-    		for(String file : configFiles) {
+			
+    		for(String file : configFiles.stream().distinct().collect(toList())) {
     			Out.println("... adding configuration from file " + Utils.getBaseFileName(file));
 
     			is = Utils.openFileStream(workingDirectory, file);

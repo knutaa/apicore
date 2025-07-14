@@ -3,6 +3,7 @@ package no.paneon.api.model;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -254,7 +255,25 @@ public class APIModel {
 		
 		checkSwagger(swagger);
 		
-		// rearrangeDefinitions(swagger);
+		LOG.debug("rearrangeDefinitions:: {}", Config.getBoolean("rearrangeDefinitions") );
+
+		if(Config.getBoolean("rearrangeDefinitions")) {
+			rearrangeDefinitions(swagger);
+		}
+		
+		if(Config.getBoolean("schemaRefactor")) {
+			LOG.debug("... refactor schema" );
+
+			InlineSchemaRefactorer refactorer = new InlineSchemaRefactorer();
+			swagger = refactorer.refactorInlineSchemas(swagger);
+			
+			LOG.debug("schemaRefactor:: swagger={}", swagger.toString(2));
+			
+			LOG.debug("schemaRefactor:: components={}", swagger.getJSONObject("components").getJSONObject("schemas").keySet());
+
+
+			
+		}
 		
 		// refactorEmbeddedTitles();
 		
@@ -338,7 +357,9 @@ public class APIModel {
 
 						if(!property.matches(camelCasePattern) && !propertyPath.contains("Header") && !propertyPath.contains("X-")) {
 							
-							Out.debug("... possible issue: found property '{}' in {} - expecting camelcase", property, propertyPath);
+							if(!Config.getBoolean("noCamelCaseWarning")) {
+								Out.debug("... possible issue: found property '{}' in {} - expecting camelcase", property, propertyPath);
+							}
 						}
 					}
 					
@@ -521,7 +542,14 @@ public class APIModel {
 		
 		LOG.debug("rearrangeDefinitions:: keys={}", api.keySet());
 		
-		if(true) return;  // TBD 2023-06-18
+		if(!Config.getBoolean("rearrangeDefinitions")) return;  // TBD 2025-06-12 // TBD 2023-06-18
+		
+		Out.debug("rearrangeDefinitions:: keys={}", api.keySet());
+
+		List<JSONObject> ops = APIModel.getPathObjs();
+		
+		Out.debug("rearrangeDefinitions:: ops={}", ops);
+
 		
 		for(String type : getAllDefinitions() ) {
 			JSONObject definition = getDefinition(type);
@@ -596,6 +624,8 @@ public class APIModel {
 			
 		List<String> res = getCoreResources(); 
 		
+		LOG.debug("#0 getResources::getCoreResources={}", res);
+
 		Predicate<String> notAlreadySeen = s -> !res.contains(s);
 		
 		if(Config.getBoolean("includeResourcesFromRules")) {
@@ -2321,7 +2351,37 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG)
 	private static boolean isPathForResource(String path, String prefix) {
-		return path.equalsIgnoreCase(prefix) || path.toUpperCase().startsWith(prefix+"/");
+		
+		LOG.debug("isPathForResource: path={} prefix={}", path, prefix);
+
+		List<String> parts = Arrays.stream(path.split("/"))
+				.filter(s -> !s.isEmpty())
+				.filter(s -> !s.matches("\\{.+\\}"))
+				.collect(Collectors.toList());
+		
+		Collections.reverse(parts);
+		
+		if(!parts.isEmpty()) {
+			String candidate = "/" + parts.get(0).toUpperCase();
+
+			if(candidate.contentEquals(prefix)) {
+				LOG.debug("isPathForResource: path={} prefix={} candidate={}", path, prefix, candidate);
+				return candidate.contentEquals(prefix);
+			}
+			
+
+		}
+		
+		return false;
+		
+//		if(path.toUpperCase().contains(prefix)) {
+//			Out.debug("isPathForResource: path={} prefix={} parts={}", path, prefix, parts);
+//		}
+//		
+//		// return path.equalsIgnoreCase(prefix) || path.toUpperCase().startsWith(prefix+"/");
+//		
+//		return path.equalsIgnoreCase(prefix) || path.toUpperCase().endsWith(prefix+"/");
+
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
@@ -4848,6 +4908,40 @@ public class APIModel {
 
 	public static APIModelCache getCache() {
 		return cache;
+	}
+
+	public static String updateResourceNameOverride(String resource) {
+		String res = resource;
+
+		String override = getResourceNameOverride(resource);
+		
+		if(!override.contentEquals(resource)) {
+			res = Utils.upperCaseFirst(override);
+		}
+
+		return res;
+	}
+
+	public static String getResourceNameOverride(String resource) {
+		String res = resource;
+		try {
+			JSONObject rulesForResource = Config.getRulesForResource(resource);
+			LOG.debug("updateResourceNameOverride: resource={} rulesForResource={}", resource, rulesForResource);
+	
+			Object overRide = rulesForResource.query("#/uriOptions/nameOverride");
+			LOG.debug("updateResourceNameOverride: resource={} overRide={}", resource, overRide);
+			
+			if(overRide!=null) {
+				res = overRide.toString();
+			}
+			
+		} catch(Exception e) {
+			LOG.debug("updateResourceNameOverride: resource={} exception={}", resource, e);
+		}
+		
+		LOG.debug("updateResourceNameOverride: resource={} res={}", resource, res);
+
+		return res;
 	}
 
 }
