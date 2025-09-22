@@ -401,6 +401,10 @@ public class Node implements Comparable<Object>  {
 			} else if(def.has(ALLOF)) {
 				JSONArray array = def.optJSONArray(ALLOF);
 				
+				LOG.debug("Node::getInlineDefinition resource={} allOf={}" , resource, array );
+				
+				boolean singleRef = checkIfAllOfIsSingleReference(array);
+				
 				res = getInlineDefinition(array,required);
 
 				if(!res.isEmpty()) {
@@ -442,6 +446,28 @@ public class Node implements Comparable<Object>  {
 		
 		if(!res.isBlank()) LOG.debug("Node::getInlineDefinition resource={} res={}" , resource, res );
 
+		return res;
+		
+	}
+
+	private boolean checkIfAllOfIsSingleReference(JSONArray allOf) {
+		boolean res = false;
+		
+		boolean seenRef = false;
+		int itemsWithContent = 0;
+		
+		for(int i=0; i<allOf.length(); i++) {
+			JSONObject item = allOf.optJSONObject(i);
+			if(item!=null) {
+				if(item.keySet().size()!=0) itemsWithContent++;
+				if(item.has(REF)) seenRef = true;
+			}
+		}
+		
+		if(itemsWithContent>0) {
+			LOG.debug("Node::checkIfAllOfIsSingleReference() allOf={} itemsWithContent={} seenRef={}" , allOf, itemsWithContent, seenRef);
+		}
+		
 		return res;
 		
 	}

@@ -109,11 +109,20 @@ public class Config {
 
 			
     		for(String file : configFiles.stream().distinct().collect(toList())) {
-    			Out.println("... adding configuration from file " + Utils.getBaseFileName(file));
-
-    			is = Utils.openFileStream(workingDirectory, file);
     			
-    			addConfiguration(is,file);
+    			// Out.println("... adding configuration from file " + file);
+
+    	        File f = new File(file);
+
+    	        if (f.exists()) {
+    	         
+    	        	Out.println("... adding configuration from file " + Utils.getBaseFileName(file));
+
+    	        	is = Utils.openFileStream(workingDirectory, file);
+    			
+    	        	addConfiguration(is,file);
+    	        
+    	        }
  
     		}
     		  	       		
@@ -685,6 +694,13 @@ public class Config {
 	public static JSONObject readJSONOrYaml(String file) {
 		JSONObject res = null;
 		try {
+			
+ 	        File f = new File(file);
+
+	        if (!f.exists()) {
+	        	return new JSONObject();
+	        }
+
 			if(file.endsWith(".yaml") || file.endsWith(".yml")) 
 				res = readYamlAsJSON(file,false);
 			else

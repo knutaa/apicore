@@ -99,6 +99,7 @@ public class APIModel {
 
 	private static final String ALLOF = "allOf";
 	private static final String ONEOF = "oneOf";
+	private static final String ANYOF = "anyOf";
 
 	private static final String DISCRIMINATOR = "discriminator";
 	private static final String MAPPING = "mapping";
@@ -1718,6 +1719,16 @@ public class APIModel {
 		JSONObject definition = getDefinition(type);
 		if(definition!=null) {
 			res = definition.has(ENUM);
+			if(!res && definition.has(ANYOF)) {
+				JSONArray anyofs = definition.optJSONArray(ANYOF);
+				if(anyofs!=null) {
+					for(int i=0; i<anyofs.length(); i++) {
+						JSONObject item = anyofs.getJSONObject(i);
+						res = item.has(ENUM);
+						if(res) return res;
+					}
+				}
+			}
 		}
 		return res;
 	}
@@ -2889,7 +2900,14 @@ public class APIModel {
 		}
 
 		if(res==null) {
-			if(isAsyncAPI() ) {
+			
+			String singleType = checkIfAllOfWithSingleType(property);
+			
+			if(!singleType.isEmpty()) {
+				
+				res = singleType;
+				
+			} else if(isAsyncAPI() ) {
 				
 				if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
 					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
@@ -2919,6 +2937,39 @@ public class APIModel {
 		}
 		
 		return res;
+	}
+
+	private static String checkIfAllOfWithSingleType(JSONObject allOf) {
+		String res = "";
+		
+		boolean seenRef = false;
+		int itemsWithContent = 0;
+		
+		JSONArray allOfs = allOf.optJSONArray(ALLOF);
+		if(allOfs==null) return res;
+		
+		for(int i=0; i<allOfs.length(); i++) {
+			JSONObject item = allOfs.optJSONObject(i);
+			if(item!=null) {
+				if(item.keySet().size()!=0) itemsWithContent++;
+				if(item.has(REF)) {
+					if(seenRef) {
+						res="";
+						return res;
+					} else {
+						seenRef=true;
+						res = APIModel.getTypeByReference(item.optString(REF));
+					}
+				}
+			}
+		}
+		
+		if(itemsWithContent>0) {
+			LOG.debug("checkIfAllOfIsSingleReference() res={} allOf={}" , res, allOf);
+		}
+		
+		return res;
+		
 	}
 
 	public static String getStringOrNull(JSONObject obj, String key) {

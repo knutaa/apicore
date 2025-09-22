@@ -27,6 +27,8 @@ public class EnumNode extends Node {
 	Place placedInDirection;
 	
 	List<String> values;
+	
+	final static String ANYOF = "anyOf";
 
 	public EnumNode(String type) {
 		super(type);
@@ -76,8 +78,28 @@ public class EnumNode extends Node {
 	    	  
 	    JSONObject definition = APIModel.getDefinition(type);
 
-	    List<Object> elements = Config.getListAsObject(definition, "enum");
+	    List<Object> elements = Config.getListAsObject(definition, ENUM);
 	    	    	    
+		LOG.debug("processEnum:: elements={}", elements);
+		LOG.debug("processEnum:: definition={}", definition);
+
+	    if(definition.has(ANYOF)) {
+			JSONArray anyofs = definition.optJSONArray(ANYOF);
+			
+			LOG.debug("processEnum:: anyofs={}", anyofs);
+
+			if(anyofs!=null) {
+				for(int i=0; i<anyofs.length(); i++) {
+					JSONObject item = anyofs.getJSONObject(i);
+					List<Object> candidates = Config.getListAsObject(item, ENUM);
+					
+					LOG.debug("processEnum:: candidates={}", candidates);
+
+					elements.addAll(candidates);
+				}
+			}
+	    }
+	    
 	    elements.stream().filter(Objects::nonNull).map(Object::toString).forEach(this::addValue);
 	    
 	    boolean candidateNullable =  elements.stream().anyMatch(Objects::isNull);
