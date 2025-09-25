@@ -101,20 +101,23 @@ public class Utils {
 	public static boolean isSimpleType(String type) {
 		boolean res=false;
 	    List<String> simpleTypes = Config.getSimpleTypes(); 
-    
-	    List<String> simpleEndings = Config.getSimpleEndings();       
-	    List<String> nonSimpleEndings = Config.getNonSimpleEndings();
-	    
+    	    
         if(APIModel.isEnumType(type)) {
         	res=true;
         }
         else if(simpleTypes.contains(type)) {
 	        res=true;
 	    } else {
+		    List<String> nonSimpleEndings = Config.getNonSimpleEndings();
+
 	        boolean nonSimple=nonSimpleEndings.stream().anyMatch(type::endsWith);
-	        if(nonSimple) res=false;
-	
-	        res=simpleEndings.stream().anyMatch(type::endsWith);
+	        if(nonSimple) {
+	        	res=false;
+	        } else {
+	    	    List<String> simpleEndings = Config.getSimpleEndings();       
+
+	        	res=simpleEndings.stream().anyMatch(type::endsWith);
+	        }
 	    }
         
         LOG.debug("isSimpleType: type={} res={}", type, res);
