@@ -950,6 +950,8 @@ public class CoreAPIGraph {
 
 		// Set<String> newProperties = properties.keySet(); // .stream().filter(p -> !existingProperties.contains(p)).collect(toSet());		
 		
+		LOG.debug("addProperties: typeName={} properties={}", typeName, properties.keySet());
+
 		for(String propertyName : properties.keySet()) {
 						
 			JSONObject property = properties.optJSONObject(propertyName);
@@ -1164,7 +1166,7 @@ public class CoreAPIGraph {
 				
 		LOG.debug("addProperties: #1 from={} edgesOfFromNode={}", from, edgesOfFromNode.stream().filter(e -> graph.getEdgeSource(e).equals(from)).map(graph::getEdgeTarget).toList());
 
-		LOG.debug("addProperties: typeName={} node.properties={}", typeName, from.properties);
+		LOG.debug("## addProperties: typeName={} node.properties={}", typeName, from.properties.stream().map(Property::getName).collect(Collectors.toList()));
 
 	}
 	

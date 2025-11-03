@@ -45,7 +45,7 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
 	}
 
 	private static final List<String> ORDER = List.of(
-    										"condition", "comment", "nameOverride", 
+    										"info", "condition", "comment", "nameOverride", 
     										"operations", "resources", "notifications", 
     										"attributes", "operations-details",
     										"conformance", "layout", "default_conformance");

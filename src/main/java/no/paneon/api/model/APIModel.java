@@ -48,6 +48,10 @@ import no.paneon.api.logging.AspectLogger.LogLevel;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jgrapht.Graph;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+import org.jgrapht.traverse.DepthFirstIterator;
 
 public class APIModel {
 
@@ -129,6 +133,9 @@ public class APIModel {
 	private static Map<String,Boolean> isDeprecatedSeen = new HashMap<>();
 
 	private static Set<String> typeWarnings = new HashSet<>();
+
+	static final int INCLUDE_ALLOF = 0x01;
+	static final int INCLUDE_ONEOF = 0x02;
 
 	// static Map<String, Set<String>> seenPropertiesExpanded = new HashMap<>();
 
@@ -545,11 +552,11 @@ public class APIModel {
 		
 		if(!Config.getBoolean("rearrangeDefinitions")) return;  // TBD 2025-06-12 // TBD 2023-06-18
 		
-		Out.debug("rearrangeDefinitions:: keys={}", api.keySet());
+		LOG.debug("rearrangeDefinitions:: keys={}", api.keySet());
 
 		List<JSONObject> ops = APIModel.getPathObjs();
 		
-		Out.debug("rearrangeDefinitions:: ops={}", ops);
+		LOG.debug("rearrangeDefinitions:: ops={}", ops);
 
 		
 		for(String type : getAllDefinitions() ) {
@@ -1505,12 +1512,21 @@ public class APIModel {
 
 	@LogMethod(level=LogLevel.DEBUG) 
 	public static JSONObject getPropertyObjectForResource(String coreResource) {
+		return getPropertyObjectForResource(coreResource, INCLUDE_ALLOF | INCLUDE_ONEOF);
+	}
+	
+	@LogMethod(level=LogLevel.DEBUG) 
+	public static JSONObject getPropertyObjectForResource(String coreResource, int filter) {
 		JSONObject res=null;
 		
 		LOG.debug("getPropertyObjectForResource: resource={} {}={}",  coreResource, FLATTEN_INHERITANCE, Config.getBoolean(FLATTEN_INHERITANCE));
 
 		if(resourcePropertyMap.containsKey(coreResource)) {
+			
+			LOG.debug("getPropertyObjectForResource: resource={} CACHED",  coreResource);
+
 			return resourcePropertyMap.get(coreResource);
+			
 		} else {
 			res = getDefinition(coreResource, PROPERTIES);
 			
@@ -1717,6 +1733,27 @@ public class APIModel {
 	public static boolean isEnumType(String type) {
 		boolean res=false;
 		JSONObject definition = getDefinition(type);
+		return isEnumDefinition(definition);
+		
+//		if(definition!=null) {
+//			res = definition.has(ENUM);
+//			if(!res && definition.has(ANYOF)) {
+//				JSONArray anyofs = definition.optJSONArray(ANYOF);
+//				if(anyofs!=null) {
+//					for(int i=0; i<anyofs.length(); i++) {
+//						JSONObject item = anyofs.getJSONObject(i);
+//						res = item.has(ENUM);
+//						if(res) return res;
+//					}
+//				}
+//			}
+//		}
+//		return res;
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isEnumDefinition(JSONObject definition) {
+		boolean res=false;
 		if(definition!=null) {
 			res = definition.has(ENUM);
 			if(!res && definition.has(ANYOF)) {
@@ -1726,6 +1763,14 @@ public class APIModel {
 						JSONObject item = anyofs.getJSONObject(i);
 						res = item.has(ENUM);
 						if(res) return res;
+						
+						if(item.has(REF)) {
+							String ref = item.optString(REF);
+							String type = getTypeByReference(ref);
+							if(isEnumType(type)) {
+								return true;
+							}
+						}
 					}
 				}
 			}
@@ -1733,7 +1778,30 @@ public class APIModel {
 		return res;
 	}
 
-
+	@LogMethod(level=LogLevel.DEBUG)
+	public static String getEnumType(JSONObject definition) {
+		String res="";
+		if(definition!=null) {
+			boolean isEnum = definition.has(ENUM);
+			if(!isEnum && definition.has(ANYOF)) {
+				JSONArray anyofs = definition.optJSONArray(ANYOF);
+				if(anyofs!=null) {
+					for(int i=0; i<anyofs.length(); i++) {
+						JSONObject item = anyofs.getJSONObject(i);
+						isEnum = item.has(ENUM);
+						if(isEnum) return res;
+						
+						if(item.has(REF)) {
+							String ref = item.optString(REF);
+							res = getTypeByReference(ref);
+						}
+					}
+				}
+			}
+		}
+		return res;
+	}
+	
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Set<String> getPaths() {
 		if(swagger!=null && swagger.has(PATHS))
@@ -1867,6 +1935,17 @@ public class APIModel {
 			else {
 				JSONObject components = swagger.optJSONObject("components");
 				if(components!=null) res = components.optJSONObject("schemas");
+				
+//				components = swagger.optJSONObject("components");
+//				if(components!=null) components = components.optJSONObject("requestBodies");
+//				if(res!=null && components!=null) {
+//					res = new JSONObject( res.toString() );
+//					for(String key : components.keySet()) {
+//						// res.append(key, components.get(key));
+//					}
+//				}
+
+
 			}
 			
 			if(res!=null) allDefinitions = res;
@@ -2823,7 +2902,7 @@ public class APIModel {
 				}
 	
 			} else {
-				LOG.debug("typeOfProperty:: name={}", name);
+				LOG.debug("## typeOfProperty:: name={}", name);
 
 				if(isAsyncAPI()) {
 					
@@ -2836,8 +2915,17 @@ public class APIModel {
 					}
 				
 				} else if(!isSecialProperty(name)) {  
+										
+					LOG.debug("## check if isEnumDefinition:: name={}", name);
+
+					if(isEnumDefinition(property)) {
 					
-					if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
+						res = getEnumType(property);
+						
+						LOG.debug("isEnumDefinition:: name={} type={}", name, res);
+
+						
+					} else if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
 
 						Out.printOnce("... Possible issue: No type information for {} in '{}' ({}) - using '{}'", name, property.toString(2), Utils.getBaseFileName(swaggerSource), "{}");
 						res = "{}"; // property.toString(); // should not really happen
@@ -2923,17 +3011,35 @@ public class APIModel {
 					res = name;	
 				}
 				
-			} else 	if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
-				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
-				res="{}";
-			} else if(!isSecialProperty(name)) {
-				Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
-				res="{}";
-			} else if(property.has(ALLOF) || property.has(ONEOF) || name.contentEquals("value")) {
-				res="{}";
+			} else 	{
+				
+				LOG.debug("## check if isEnumDefinition:: name={}", name);
+
+				if(isEnumDefinition(property)) {
+				
+					res = getEnumType(property);
+					
+					LOG.debug("### isEnumDefinition:: name={} type={}", name, res);
+
+					
+				} else if(!property.has(ALLOF) && !property.has(ONEOF) && !name.contentEquals("value")) {
+					
+					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+					res="{}";
+					
+				} else if(!isSecialProperty(name)) {
+					
+					Out.printOnce("... Possible issue: No type information in '{}' ({}) - using '{}'", property, Utils.getBaseFileName(swaggerSource), "{}");
+					res="{}";
+					
+				} else if(property.has(ALLOF) || property.has(ONEOF) || name.contentEquals("value")) {
+					
+					res="{}";
+					
+				}
+					// System.exit(1);
+					// res="{}";
 			}
-				// System.exit(1);
-				// res="{}";
 		}
 		
 		return res;
@@ -3311,6 +3417,9 @@ public class APIModel {
 	public static String getDescription(String resource) {
 		String res="";
 		JSONObject obj = getDefinition(resource);
+		
+		LOG.debug("getDescription: resource={} - definition={}", resource, obj);
+		
 		if(obj!=null) {
 			res = obj.optString(DESCRIPTION);
 			if(res.isBlank()) {
@@ -3738,7 +3847,15 @@ public class APIModel {
 		JSONObject obj = getPropertyObjectForResource(resource);
 		if(obj!=null) res.addAll(obj.keySet());
 		return res;
-	}       
+	}  
+	
+	@LogMethod(level=LogLevel.DEBUG)
+	public static Set<String> getProperties(String resource, int filter) {
+		Set<String> res = new HashSet<>();
+		JSONObject obj = getPropertyObjectForResource(resource,filter);
+		if(obj!=null) res.addAll(obj.keySet());
+		return res;
+	}  
 		
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Set<String> getPropertiesExpanded(String resource) {
@@ -3831,6 +3948,101 @@ public class APIModel {
 //		return res;
 		
 	} 
+
+	@LogMethod(level=LogLevel.DEBUG)
+	public static Set<String> getPropertiesExpandedByRequestBody(String resource) {
+		
+		Set<String> res = new HashSet<>();
+
+		if(resource.isEmpty()) return res;
+				
+		LOG.debug("#1 APIModel::getPropertiesExpandedByRequestBody:: resource={} FOUND?={}", resource, cache.hasPropertiesForResource(resource));
+
+		if(cache.hasPropertiesForResource(resource)) {
+			
+			// res.addAll( propertiesForResourceSeen.get(resource) );
+			
+			res =  cache.getPropertiesForResource(resource); // propertiesForResourceSeen.get(resource);
+			
+			LOG.debug("#1 APIModel::getPropertiesExpandedByRequestBody:: resource={} FOUND res={} setSwaggerDone={}", resource, res, setSwaggerDone);
+
+			return res;
+		}
+
+		LOG.debug("#0 APIModel::getPropertiesExpandedByRequestBody:: resource={} NOT FOUND", resource);
+
+		// CHECK 2025
+		JSONObject objA = getResourceByRequestBody(resource);
+		
+		LOG.debug("#0 APIModel::getPropertiesExpandedByRequestBody:: resource={} objA={}", resource, objA);
+				
+		if(objA==null) objA = new JSONObject();
+		
+		LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} objA={}", resource, objA.keySet());
+
+		if(objA.has(PROPERTIES)) {
+			objA = objA.optJSONObject(PROPERTIES);
+			if(objA!=null) {
+				res.addAll( objA.keySet() );
+			}
+			
+			if(!res.isEmpty()) {
+				LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} res={}", resource, res);
+				
+				// res = new HashSet<>(res);
+				
+				// propertiesForResourceSeen.put(resource, new HashSet<>(res) );
+				cache.addPropertiesForResource(resource,res);
+				
+				res = cache.getPropertiesForResource(resource); // propertiesForResourceSeen.get(resource);
+				
+				LOG.debug("#0 APIModel::getPropertiesExpanded:: resource={} UPDATED propertiesForResourceSeen keys={}", resource, res);
+
+				return res;
+				
+			} else {
+				LOG.debug("#0 APIModel::getPropertiesExpanded EMPTY getPropertiesExpanded:: resource={} res={}", resource, res);
+
+			}
+		} else {
+			LOG.debug("#10 APIModel::getPropertiesExpanded:: resource={} objA={}", resource, objA);
+
+		}
+				
+		return res;
+		
+	} 
+
+	
+	
+	private static JSONObject getResourceByRequestBody(String resource) {
+		String jsonPointer = "#/components/requestBodies/" + resource;
+		Object o = swagger.optQuery(jsonPointer);
+		if(o instanceof JSONObject) {
+			
+			JSONObject requestBody = (JSONObject)o;
+			if(requestBody!=null && requestBody.has("content")) {
+				requestBody = requestBody.optJSONObject("content");
+			}
+			if(requestBody!=null && requestBody.has("application/json")) {
+				requestBody = requestBody.optJSONObject("application/json");
+			}	
+			if(requestBody!=null && requestBody.has("schema")) {
+				requestBody = requestBody.optJSONObject("schema");
+			}
+			if(requestBody!=null && requestBody.has("$ref")) {
+				requestBody = APIModel.getDefinitionByReference(requestBody.optString("$ref"));
+			}
+			
+			LOG.debug("getResourceByRequestBody: resource={} res={}",  resource, requestBody);
+
+			return requestBody;
+			
+		} else {
+			return new JSONObject();
+		}
+		
+	}
 
 	@LogMethod(level=LogLevel.DEBUG)
 	public static Map<String,String> getMandatoryOptional(JSONObject resource) {
@@ -3928,7 +4140,7 @@ public class APIModel {
 
 			}
 			
-			if(res!=null && res.has(ONEOF)) {
+			if(Config.getBoolean("includeOneOfInExpanded") && res!=null && res.has(ONEOF)) {
 				
 				LOG.debug("getResourceExpanded: resource={} def={}",  node, res.keySet());
 
@@ -4154,6 +4366,11 @@ public class APIModel {
 
 		LOG.debug("getMandatoryOptional: resource={}",  resource);
 		
+		JSONArray required = core.optJSONArray(REQUIRED);
+		LOG.debug("#### getMandatoryOptional: resource={} required={}",  resource, required);
+		Set<String> requiredProperties = new HashSet<>();
+		if(required!=null) requiredProperties = required.toList().stream().map(Object::toString).collect(Collectors.toSet());
+		
 //		JSONObject createResource = getDefinition( getReverseResourceMapping(resource) + "_Create");
 //		if(createResource==null) createResource = getDefinition( getReverseResourceMapping(resource) + "_FVO");
 //		
@@ -4186,36 +4403,41 @@ public class APIModel {
 		
 		for(String property : core.keySet()) {
 
-			String coreCondition = getMandatoryOptionalHelper(coreResource, property);
-			String createCondition = getMandatoryOptionalHelper(createResource, property);
-
-			LOG.debug("getMandatoryOptional: resource={} property={} coreCondition={} createCondition={}",  resource, property, coreCondition, createCondition);
-
-			if(coreCondition.contains("M")) {
-				res.put(property, coreCondition);
-
-			} else if(createCondition.contains("M")) {
-				res.put(property, createCondition);
-
-			} else if(createProperties!=null && !createProperties.isEmpty()) {
-
-				Set<String> setByServer = Utils.difference(coreProperties, createProperties);
-				List<String> globals = Config.get("globalsSetByServer");  // Arrays.asList("href", "id");
-			
-				List<String> topLevelResources = APIModel.getResources();
+			if(requiredProperties.contains(property)) {
+				res.put(property, "M");
 				
-				LOG.debug("getMandatoryOptional: resource={} property={} topLevelResources={}",  resource, property, topLevelResources);
-
-				boolean includeSetBy = includeSetByServer && setByServer.contains(property) && globals.contains(property);
+			} else {
+				String coreCondition = getMandatoryOptionalHelper(coreResource, property);
+				String createCondition = getMandatoryOptionalHelper(createResource, property);
+	
+				LOG.debug("getMandatoryOptional: resource={} property={} coreCondition={} createCondition={}",  resource, property, coreCondition, createCondition);
+	
+				if(coreCondition.contains("M")) {
+					res.put(property, coreCondition);
+	
+				} else if(createCondition.contains("M")) {
+					res.put(property, createCondition);
+	
+				} else if(createProperties!=null && !createProperties.isEmpty()) {
+	
+					Set<String> setByServer = Utils.difference(coreProperties, createProperties);
+					List<String> globals = Config.get("globalsSetByServer");  // Arrays.asList("href", "id");
 				
-				if(!topLevelResources.contains(resource) && !Config.getBoolean("includeSubResourcesForSetByServer"))
-					includeSetBy = false;
-				
-				LOG.debug("getMandatoryOptional: resource={} property={} includeSetBy={}",  resource, property, includeSetBy);
-
-				// 2024-10-01
-				if(includeSetBy) {
-					res.put(property, Config.getString("setByServerRule"));
+					List<String> topLevelResources = APIModel.getResources();
+					
+					LOG.debug("getMandatoryOptional: resource={} property={} topLevelResources={}",  resource, property, topLevelResources);
+	
+					boolean includeSetBy = includeSetByServer && setByServer.contains(property) && globals.contains(property);
+					
+					if(!topLevelResources.contains(resource) && !Config.getBoolean("includeSubResourcesForSetByServer"))
+						includeSetBy = false;
+					
+					LOG.debug("getMandatoryOptional: resource={} property={} includeSetBy={}",  resource, property, includeSetBy);
+	
+					// 2024-10-01
+					if(includeSetBy) {
+						res.put(property, Config.getString("setByServerRule"));
+					}
 				}
 			}
 		}
@@ -4242,6 +4464,10 @@ public class APIModel {
 			JSONObject request = opDetail.optJSONObject("requestBody");
 			if(request.has(REF)) res = APIModel.getDefinitionByReference(request.optString(REF));
 			
+		}
+		
+		if(res!=null) {
+			LOG.debug("getResourceForPost: resource={} opDetail={} res={}", resource, opDetail, res.toString());
 		}
 		
 		if(false && res!=null) {
@@ -4409,9 +4635,16 @@ public class APIModel {
 	public static JSONObject getOperationsDetailsByPath(String path, String op) {
 		JSONObject res = null;
 
+		LOG.debug("getOperationsDetailsByPath: path={} op={}",  path, op);
+
 		if(swagger==null) return res;
 
 		JSONObject allPaths = swagger.optJSONObject(PATHS);
+
+		LOG.debug("getOperationsDetailsByPath: allPaths={}",  allPaths.toString());
+		
+		path = Utils.lowerCaseFirst(path);
+		if(!path.startsWith("/")) path = "/" + path;
 
 		if(allPaths!=null && allPaths.has(path) && allPaths.optJSONObject(path)!=null) {
 			JSONObject endpoint = allPaths.optJSONObject(path);
@@ -4991,6 +5224,210 @@ public class APIModel {
 		}
 		
 		LOG.debug("updateResourceNameOverride: resource={} res={}", resource, res);
+
+		return res;
+	}
+
+	public static boolean isVirtual(String resource) {
+		JSONObject properties = APIModel.getPropertyObjectForResource(resource);
+		Set<String> discriminators = APIModel.getDiscriminators(resource);
+		
+		return properties.isEmpty() && !discriminators.isEmpty();
+	}
+
+	public static String getVirtualResource(JSONObject opDetail, String resource) {
+		String res = resource;
+		
+		if(opDetail==null) return res;
+		
+		LOG.debug("... getVirtualResource resource={} opDetail={}",resource, opDetail.toString());
+
+		if(opDetail.has("requestBody")) opDetail = opDetail.optJSONObject("requestBody");
+
+		if(opDetail.has(REF)) {
+			String ref = opDetail.optString(REF);
+			JSONObject refs = APIModel.getDefinitionByReference(ref);
+			
+			LOG.debug("... getVirtualResource refs={}",refs.toString());
+			
+			JSONObject schema = Utils.getJSObjectByPath(refs, "content", "application/json", "schema");
+
+			if(schema!=null && schema.has(REF)) {
+			
+				ref = schema.optString(REF);
+				JSONObject definition = APIModel.getDefinitionByReference(ref);
+				
+				if(definition!=null && definition.has(ONEOF)) {
+
+					LOG.debug("... getVirtualResource definition={}",definition.toString());
+
+					JSONArray oneOfs = definition.optJSONArray(ONEOF);
+					Optional<String> optRef = oneOfs.toList().stream()
+												.filter(o -> o instanceof java.util.HashMap)
+												.map( o -> (java.util.HashMap)o)
+												.map( o -> o.get(REF))
+												.map( o -> o.toString())
+												.filter(s -> s.contains(resource))
+												.findFirst();
+	
+					LOG.debug("... getVirtualResource ref={}", optRef);
+	
+					if(optRef.isPresent()) {
+						res = optRef.get();
+						
+						res = APIModel.getResourceFromReference(res);
+						
+//						definition = APIModel.getDefinitionByReference(res);
+//						Out.debug("... getVirtualResource definition={}", definition.toString());
+						
+//						
+//						if(definition.has(REQUIRED)) {
+//							JSONArray required = definition.optJSONArray(REQUIRED);
+//							Out.debug("... getVirtualResource required={}", required);
+//	
+//						}
+				
+					}
+				}
+
+			}
+			
+		}
+		
+//			if(definition!=null)
+//				Out.debug("... getPostData definition={}",definition.toString());
+
+		LOG.debug("... getVirtualResource resource={} res={}", resource, res);
+
+		return res;
+		
+	}
+
+	private static String getResourceFromReference(String ref) {
+		String res = ref;
+		
+		res = Utils.getLastPart(res,"/");
+		
+		return res;
+	}
+	
+	public static Set<String> getDiscriminatorMapping(String resource) {
+		Map<String,Set<String>> map = getDiscriminatorMapping();
+		return map.get(resource);
+		
+	}
+
+	static Map<String,Set<String>> discriminatorMapping = new HashMap<>();
+	public static Map<String,Set<String>> getDiscriminatorMapping() {
+		if(discriminatorMapping.isEmpty()) {
+			List<String> resources = APIModel.getAllDefinitions();
+			for(String key : resources) {
+				Set<String> discriminators = APIModel.getDiscriminators(key);
+				for(String discriminator : discriminators) {
+					if(!discriminatorMapping.containsKey(discriminator)) {
+						discriminatorMapping.put(discriminator, new HashSet<>());
+					}
+					discriminatorMapping.get(discriminator).add(key);
+				}
+			}
+		}	
+		return discriminatorMapping;
+	}
+
+	public static boolean isPureVirtual(String resource) {
+		Set<String> properties = APIModel.getPropertiesExpanded(resource);
+		Set<String> discriminators = APIModel.getDiscriminators(resource);
+		
+		LOG.debug("... isPureVirtual resource={} properties={}", resource, properties);
+
+		return properties.isEmpty() && !discriminators.isEmpty();
+	}
+
+	static Map<String,Set<String>> superiors = new HashMap<>();
+	
+	public static Set<String> getSuperiorsByResourse(String resource) {
+		Set<String> res = new HashSet<>();
+		
+		if(superiors.isEmpty()) {
+			for(String key : APIModel.getResources()) {
+				Map<String,List<String>> map = APIModel.getSuperiorResources(Arrays.asList(key));
+				
+				LOG.debug("getSuperiorsByResourse resource={} map={}", resource, map);
+
+				for(String mapKey : map.keySet()) {
+					if(!superiors.containsKey(mapKey)) superiors.put(mapKey, new HashSet<>() );
+
+					superiors.get(mapKey).addAll( map.get(mapKey));
+					
+				}
+				
+			}
+		}
+		
+		if(superiors.containsKey(resource)) res = superiors.get(resource);
+		
+		return res;
+	}
+
+	public static List<String> sortResourcesByInheritance(List<String> resources) {
+		List<String> res = new LinkedList<>();
+		
+		if(!Config.getBoolean("sortResourcesByInheritance")) {
+			res.addAll(resources);
+			return res;
+		}
+		
+		Map<String,Set<String>> map = getDiscriminatorMapping();
+
+		Predicate<String> isResource = s -> resources.contains(s);
+
+		Set<String> nonResourceMapping = map.keySet().stream().collect(Collectors.toSet());
+		nonResourceMapping.removeIf(isResource);
+		nonResourceMapping.forEach(map::remove);
+		
+		LOG.debug("sortResourcesByInheritance nonResourceMapping={}", nonResourceMapping);
+
+		map.forEach((key,value) ->  {
+			value.removeIf(Predicate.not(isResource));
+			value.remove(key);
+		});
+				
+		LOG.debug("sortResourcesByInheritance map={}", map);
+
+		Graph<String, DefaultEdge> g = new SimpleGraph<>(DefaultEdge.class);
+		
+		map.keySet().forEach(g::addVertex);
+		map.forEach((key,value) ->  {
+			value.forEach(v -> g.addEdge(v,  key));
+		});
+
+		LOG.debug("sortResourcesByInheritance g={}", g);
+
+		Set<String> roots = map.entrySet().stream()
+								.filter(entry -> entry.getValue().isEmpty())
+								.map(entry -> entry.getKey()) 
+								.collect(Collectors.toSet());
+		
+		for(String root : roots) {
+			Iterator<String> dfsIterator = new DepthFirstIterator<>(g, root);
+			while (dfsIterator.hasNext()) {
+				String key = dfsIterator.next();
+				if(!res.contains(key)) res.add(key);
+			}
+		}
+			
+		// res.addAll(resources);
+		
+		LOG.debug("sortResourcesByInheritance res={}", res);
+
+		Set<String> remaining = new HashSet<>(resources);
+		remaining.removeAll(res);
+		
+		LOG.debug("sortResourcesByInheritance remaining={}", remaining);
+
+		res.addAll(remaining);
+		
+		LOG.debug("sortResourcesByInheritance res={}", res);
 
 		return res;
 	}

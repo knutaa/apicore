@@ -1475,4 +1475,45 @@ public class Utils {
 		return res.toString();
 	}
 
+	public static void addJSONObject(JSONObject target, JSONObject source, String ... path) {
+
+		final JSONObject target_orig = target;
+		
+	    LOG.debug("Utils.addJSONObject path={}", Arrays.asList(path));
+
+	    String last = path[path.length-1];
+	    
+	    LOG.debug("Utils.addJSONObject path={}", path.toString());
+
+		for(int i=0; i<path.length-1; i++) {
+			String pos = path[i];
+			if(!target.has(pos)) target.put(pos, new JSONObject());
+			target = target.getJSONObject(pos);
+			
+		    LOG.debug("Utils.addJSONObject pos={} target_orig={}", pos, target_orig.toString());
+
+		}
+		
+		target.put(path[path.length-1], source);
+
+	    LOG.debug("Utils.addJSONObject target_orig={}", target_orig.toString());
+
+	}
+
+	public static JSONObject getJSObjectByPath(JSONObject source, String ... path) {
+		JSONObject res = new JSONObject();
+				
+	    LOG.debug("Utils.getJSObjectByPath path={}", path.toString());
+
+		for(int i=0; i<path.length; i++) {
+			String pos = path[i];
+			if(source!=null && source.has(pos)) source = source.optJSONObject(pos);			
+		}
+		
+		if(source!=null) res=source;
+		
+		return source;
+		
+	}
+
 }
