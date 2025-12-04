@@ -84,6 +84,9 @@ public class Node implements Comparable<Object>  {
 	
 	static final String DEPRECATED = "deprecated";
 	
+	static final String EXAMPLE = "example";
+	static final String EXAMPLES = "examples";
+
 	Set<String> additional_edges;
 	
 	// public static Predicate<Node> isFVO_MVO = n -> n.getName().endsWith("_FVO") || n.getName().endsWith("_MVO");
@@ -615,6 +618,8 @@ public class Node implements Comparable<Object>  {
 			for(String propName : propObj.keySet()) {
 				JSONObject property = propObj.optJSONObject(propName);
 								
+				LOG.debug("#### addPropertyDetails: node={} property={}" , this.getName(), propName );
+
 				LOG.debug("#### addPropertyDetails: property={} definition={}" , propName, property );
 								
 				if(property==null) {
@@ -724,10 +729,41 @@ public class Node implements Comparable<Object>  {
 					
 					propDetails.setDeprected(isDeprecated);
 					
+					propDetails.setExamplesFromDefinition(property);
+					
+//					if(property.has(EXAMPLE)) {
+//						Out.debug("### addPropertyDetails: node={} property={} example={}" , 
+//								this, propDetails.name, property.optString(EXAMPLE));
+//						JSONObject example = new JSONObject();
+//						example.put(EXAMPLE, property.get(EXAMPLE));
+//						propDetails.setExamples(example);
+//					}
+//					
+//					if(property.has(EXAMPLES)) {
+//						Out.debug("### addPropertyDetails: node={} property={} examples={}" , 
+//						JSONObject example = new JSONObject();
+//						example.put(EXAMPLES, property.get(EXAMPLES));
+//						propDetails.setExamples(example);
+//					
+//					}
+					
 					this.addProperty( propDetails );
 					
 				} else {
 					LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
+					
+					Optional<Property> prop = properties.stream().filter(p -> p.name.contentEquals(propName)).findFirst();
+					
+					if(prop.isPresent()) {
+						Property p = prop.get();
+						if(!property.optString(DESCRIPTION).isEmpty()) {
+							p.description = property.optString(DESCRIPTION);
+							
+							LOG.debug("addPropertyDetails: node={} property={} update description to {}" , 
+									this, propName, p.description );
+
+						}
+					}
 
 				}
 				
@@ -973,6 +1009,9 @@ public class Node implements Comparable<Object>  {
 			if(!seen.contains(p.getName())) {
 				res.add(p);
 				seen.add(p.getName());
+			} else {
+				LOG.debug("getAllProperties:: node={} already seen property={}", this.getName(), p.getName());
+				LOG.debug("   inherited description={}",  p.getDescription());
 			}
 		}
 		

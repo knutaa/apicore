@@ -32,15 +32,19 @@ public class JSONObjectOrArray {
 	public JSONObjectOrArray(String value) {
 		
 		String content = value;
-		try {
-			this.set(new JSONObject(content) );		
-		} catch(Exception e1) {
+		content = content.strip();
+		
+		if(!content.isEmpty()) {
 			try {
-				this.set(new JSONArray(content) );
-				
-			} catch(Exception e2) {
-				Out.printAlways("... unable to initialize JSONObjectOrArray from value=" + value );
-				e2.printStackTrace();
+				this.set(new JSONObject(content) );		
+			} catch(Exception e1) {
+				try {
+					this.set(new JSONArray(content) );
+					
+				} catch(Exception e2) {
+					Out.printAlways("... unable to initialize JSONObjectOrArray from value=" + value );
+					e2.printStackTrace();
+				}
 			}
 		}
 						

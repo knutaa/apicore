@@ -30,6 +30,9 @@ public class Property implements Comparable<Property> {
 	
 	String description = "";
 	
+	static final String EXAMPLE = "example";
+	static final String EXAMPLES = "examples";
+
 	public enum Visibility {
 		BASE,
 		VISIBLE_INHERITED,
@@ -40,6 +43,8 @@ public class Property implements Comparable<Property> {
 	public static Visibility VISIBLE_INHERITED = Visibility.VISIBLE_INHERITED;
 	public static Visibility HIDDEN_INHERITED = Visibility.HIDDEN_INHERITED;
 
+	public List<Example> examples = new LinkedList<>();
+	
 	public Property(String name, String type, String cardinality, boolean required, String description, Visibility visibility) {
 		this.name = name;
 		this.type = type;
@@ -50,7 +55,7 @@ public class Property implements Comparable<Property> {
 		
 		this.isEnum = APIModel.isEnumType(type);
 		
-		LOG.debug("Property: name={} type={}",  name, type);
+		LOG.debug("Property: #1 name={} type={}",  name, type);
 
 				
 	}
@@ -64,6 +69,9 @@ public class Property implements Comparable<Property> {
 		this.visibility = property.visibility;
 		
 		this.isEnum = APIModel.isEnumType(this.type);	
+		
+		LOG.debug("Property: #2 name={} type={}",  name, type);
+
 	}
 
 
@@ -213,6 +221,41 @@ public class Property implements Comparable<Property> {
 	
 	 public int compareTo(Property o) {
 		 return this.name.compareTo(o.name);
+	 }
+
+	 public void setExamples(JSONObject examples) {
+		 Example ex = new Example(examples);
+		 if(!ex.isEmpty())
+			 this.examples.add(ex);
+		 
+	 }
+	 
+	 public void setExamples(String example) {
+		 Example ex = new Example(example);
+		 if(!ex.isEmpty())
+			 this.examples.add(ex);
+	 }
+	 
+	 public List<Example> getExamples() {
+		return examples;
+	 }
+
+	 public void setExamplesFromDefinition(JSONObject property) {
+		 
+		if(property.has(EXAMPLE)) {
+			LOG.debug("### setExamplesFromDefinition: property={} example={}" , this.name, property.optString(EXAMPLE));
+			JSONObject example = new JSONObject();
+			example.put(EXAMPLE, property.get(EXAMPLE));
+			this.setExamples(example);
+		}
+		
+		if(property.has(EXAMPLES)) {
+			LOG.debug("### addPropertyDetails: property={} examples={}" , this.name, property.optString(EXAMPLES));
+			JSONObject example = new JSONObject();
+			example.put(EXAMPLES, property.get(EXAMPLES));
+			this.setExamples(example);
+		
+		}		
 	 }
 	    	
 }

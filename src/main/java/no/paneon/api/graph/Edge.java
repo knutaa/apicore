@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
 
 import no.paneon.api.utils.Config;
 import no.paneon.api.utils.Out;
@@ -25,6 +26,12 @@ public class Edge {
 	
 	public String description;
 		
+	private boolean isRequiredExtension=false;
+
+	private JSONObject examples = new JSONObject();
+	static final String EXAMPLE = "example";
+	static final String EXAMPLES = "examples";
+
 	public Edge(Node node, String relation, Node related, String cardinality, boolean required, boolean isDeprecated, String optDescription) {
 		this.node=node;
 		this.relation=relation;
@@ -183,7 +190,6 @@ public class Edge {
 		return this.isCardinalityExtension;
 	}
 	
-	private boolean isRequiredExtension=false;
 	public void setRequiredExtension(boolean value) {
 		this.isRequiredExtension=value;
 	}
@@ -202,6 +208,23 @@ public class Edge {
 
 	public String getDescription() {
 		return this.description;
+	}
+
+	public JSONObject getExamples() {
+		return this.examples;
+	}
+	
+	public void setExamples(JSONObject examples) {
+		JSONObject ex = new JSONObject();
+		
+		if(examples.has(EXAMPLES))
+			ex.put(EXAMPLES, examples.get(EXAMPLES));
+		
+		if(examples.has(EXAMPLE))
+			ex.put(EXAMPLE, examples.get(EXAMPLE));
+				
+		this.examples = ex;
+		
 	}
 	
 }

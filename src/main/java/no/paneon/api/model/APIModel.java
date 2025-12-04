@@ -43,6 +43,7 @@ import no.paneon.api.utils.JSONObjectOrArray;
 import no.paneon.api.utils.ListExt;
 import no.paneon.api.utils.Out;
 import no.paneon.api.utils.Utils;
+
 import no.paneon.api.logging.LogMethod;
 import no.paneon.api.logging.AspectLogger.LogLevel;
 
@@ -5398,7 +5399,7 @@ public class APIModel {
 		
 		map.keySet().forEach(g::addVertex);
 		map.forEach((key,value) ->  {
-			value.forEach(v -> g.addEdge(v,  key));
+			value.forEach(v -> { if(g.containsVertex(v)) g.addEdge(v,  key); });
 		});
 
 		LOG.debug("sortResourcesByInheritance g={}", g);
@@ -5406,6 +5407,7 @@ public class APIModel {
 		Set<String> roots = map.entrySet().stream()
 								.filter(entry -> entry.getValue().isEmpty())
 								.map(entry -> entry.getKey()) 
+								.filter(g::containsVertex)
 								.collect(Collectors.toSet());
 		
 		for(String root : roots) {
@@ -5430,6 +5432,51 @@ public class APIModel {
 		LOG.debug("sortResourcesByInheritance res={}", res);
 
 		return res;
+	}
+	
+	public static JSONObject getOASInfo() {
+					
+		JSONObject info = APIModel.getInfo();
+		JSONObject res = new JSONObject(info.toString());
+						
+		Predicate<String> allowedMetaData = s -> s.startsWith("x-");
+		
+		for(String key: res.keySet().stream().filter(Predicate.not(allowedMetaData)).toList() ) {
+			res.remove(key);
+			LOG.debug("getOASInfo remove key={}", key);
+		}
+		
+		LOG.debug("getOASInfo res={}", res.toString());
+		
+		return res;
+		
+	}
+
+//    public static Map<String, Object> prepareContext(HashMap<String, Object> originalMap) {
+//        List<EntryWrapper> entries = new ArrayList<>();
+//        for (Map.Entry<String, Object> entry : originalMap.entrySet()) {
+//            entries.add(new EntryWrapper(entry.getKey(), entry.getValue()));
+//        }
+//
+//        Map<String, Object> context = new HashMap<>();
+//        context.put("mapEntries", entries); // "mapEntries" is the list Mustache will iterate
+//        return context;
+//    }
+    
+	public static Map<String, String> getOASInfoAsMap() {
+		Map<String,String> res = new HashMap<>();
+		JSONObject info = getOASInfo();
+		
+		info.keySet().forEach(key -> 
+			{ 
+				res.put(key,  info.get(key).toString());
+				LOG.debug("getOASInfo key={} value={}", key, res.get(key));
+			});
+			
+		LOG.debug("getOASInfoMap res={}", res.keySet());
+		
+		return res;
+		
 	}
 
 }

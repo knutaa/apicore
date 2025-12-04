@@ -371,6 +371,11 @@ public class Utils {
 				
 		LOG.debug("save:: destination={}",  destination);
 		
+		if(text==null) {
+			Out.println("ERROR: save to file" + destination + " with null content");
+			return;
+		}
+		
 		if(destination==null) {
 			Out.println(text);
 		} else {
@@ -382,7 +387,8 @@ public class Utils {
 				out.close();
 				
 			} catch(Exception e) {
-				Out.println("unable to write to file: ", destination);
+				Out.println("unable to write to file - destination={}", destination);
+				Out.debug("save:: exception={}", e);
 				System.exit(1);
 			}
 		}

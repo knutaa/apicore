@@ -562,6 +562,8 @@ public class CoreAPIGraph {
 			
 			p.setDeprected(e.getDeprecated());
 			
+			p.setExamples(e.getExamples());
+			
 			referencedProperties.add(p);
 			
 			LOG.debug("addProperties:: node={} referenced property={}", node, p);
@@ -1112,6 +1114,8 @@ public class CoreAPIGraph {
 			
 				LOG.debug("addProperties: edge={} isRequired={} isDeprecated={}", edge, isRequired, isDeprecated);
 
+				edge.setExamples(property);
+				
 				addGraphEdge(graph, from, to, edge);
 
 			} else {
@@ -1159,6 +1163,8 @@ public class CoreAPIGraph {
 				
 				from.addProperty(propDetails);
 				
+				propDetails.setExamplesFromDefinition(property);
+	
 			}
 		}
 		
