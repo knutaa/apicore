@@ -170,10 +170,20 @@ public class Node implements Comparable<Object>  {
 		if(!this.propertyNames.contains(property.name)) {
 			this.properties.add(property);
 			this.propertyNames.add(property.name);
+		} else {
+			this.updateProperty(property);
 		}
 		return this;
 	}
 	
+	private void updateProperty(Property property) {
+		Property p = this.getPropertyByName(property.name);
+		if(p!=null) {
+			p.update(property);
+		}
+		
+	}
+
 	public Node addProperties(Collection<Property> properties) {
 		properties.stream().forEach(this::addProperty);
 		return this;
@@ -564,6 +574,9 @@ public class Node implements Comparable<Object>  {
 	@LogMethod(level=LogLevel.DEBUG)
 	private void addPropertyDetails(Property.Visibility visibility) {
 		JSONObject propObj = APIModel.getPropertyObjectForResource(this.resource);
+
+		LOG.debug("addPropertyDetails resource={} propObj={}", this.resource, propObj);
+		
 		addPropertyDetails(propObj, visibility, null);
 		
 	}
@@ -753,14 +766,20 @@ public class Node implements Comparable<Object>  {
 					LOG.debug("addPropertyDetails: node={} property={} seen={}" , this, propName, seen );
 					
 					Optional<Property> prop = properties.stream().filter(p -> p.name.contentEquals(propName)).findFirst();
+				
+					List<Property> all_prop = properties.stream().filter(p -> p.name.contentEquals(propName)).collect(Collectors.toList());
+					
+					LOG.debug("addPropertyDetails: node={} property={} all_prop={}" , this, propName, all_prop );
 					
 					if(prop.isPresent()) {
 						Property p = prop.get();
 						if(!property.optString(DESCRIPTION).isEmpty()) {
+							
+							String old_description = p.description;
 							p.description = property.optString(DESCRIPTION);
 							
-							LOG.debug("addPropertyDetails: node={} property={} update description to {}" , 
-									this, propName, p.description );
+							LOG.debug("addPropertyDetails: node={} property={} update description to '{}' was '{}'" , 
+									this, propName, p.description, old_description );
 
 						}
 					}

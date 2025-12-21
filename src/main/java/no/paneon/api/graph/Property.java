@@ -257,5 +257,10 @@ public class Property implements Comparable<Property> {
 		
 		}		
 	 }
+
+	 public void update(Property property) {
+		this.description = property.description;
+		this.isDeprected = this.isDeprected | property.isDeprected;
+	 }
 	    	
 }

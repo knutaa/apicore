@@ -846,6 +846,8 @@ public class CoreAPIGraph {
 			if(includeInherited) {
 				JSONObject obj = APIModel.getDefinitionBySchemaObject(allOfObject);							
 				
+				LOG.debug("processAllOfReference:: flattenInheritance type={} node={} obj={}", type, node, obj.toString(2));
+				
 				Set<Property> propertiesBefore = new HashSet<>(node.getProperties());
 				
 				node.addAllOfObject(obj, Property.VISIBLE_INHERITED);
