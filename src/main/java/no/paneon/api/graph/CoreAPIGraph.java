@@ -992,6 +992,7 @@ public class CoreAPIGraph {
 			String type = APIModel.getTypeName(property, propertyName);
 			
 			LOG.debug("addProperties: typeName={} type={}", typeName, type);
+			LOG.debug("addProperties: propertyName={} typeName={} type={} proerty={}", propertyName, typeName, type, property);
 
 			if(type.isEmpty() && !APIModel.isAsyncAPI()) continue;
 			
@@ -1141,6 +1142,12 @@ public class CoreAPIGraph {
 				if(optDescription.isEmpty()) {
 					optDescription = property.optString(DESCRIPTION);	
 				};
+
+				if(type.contentEquals("string") && property.has("type") && property.optString("type").contentEquals("array")) {
+					property = property.optJSONObject("items");
+					LOG.debug("addProperties: propertyName={} cardinality={} array of {}", propertyName, cardinality, property);
+
+				}
 				
 				Property propDetails = new Property(propertyName, 
 													propType, 
@@ -1151,6 +1158,7 @@ public class CoreAPIGraph {
 
 				LOG.debug("addProperties: propertyName={} typeName={} property={}", propertyName, propType, property);
 
+		
 				List<String> enumValues = Config.getList(property, ENUM);
 				propDetails.addEnumValues(enumValues);
 				

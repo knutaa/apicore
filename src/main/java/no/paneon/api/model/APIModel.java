@@ -1753,6 +1753,28 @@ public class APIModel {
 	}
 
 	@LogMethod(level=LogLevel.DEBUG)
+	public static boolean isOneOfType(String type) {
+		boolean res=false;
+		JSONObject definition = getDefinition(type);
+		return definition!=null && definition.has(ONEOF);
+		
+//		if(definition!=null) {
+//			res = definition.has(ENUM);
+//			if(!res && definition.has(ANYOF)) {
+//				JSONArray anyofs = definition.optJSONArray(ANYOF);
+//				if(anyofs!=null) {
+//					for(int i=0; i<anyofs.length(); i++) {
+//						JSONObject item = anyofs.getJSONObject(i);
+//						res = item.has(ENUM);
+//						if(res) return res;
+//					}
+//				}
+//			}
+//		}
+//		return res;
+	}
+
+	@LogMethod(level=LogLevel.DEBUG)
 	public static boolean isEnumDefinition(JSONObject definition) {
 		boolean res=false;
 		if(definition!=null) {
@@ -4711,7 +4733,7 @@ public class APIModel {
 		return getDefinition(resource, DISCRIMINATOR, MAPPING);
 	}
 	
-	public static Set<String> getDisriminatorKeys(String resource) {	
+	public static Set<String> getDiscriminatorKeys(String resource) {	
 		return getDefinition(resource, DISCRIMINATOR, MAPPING).keySet();
 	}
 
@@ -5477,6 +5499,50 @@ public class APIModel {
 		
 		return res;
 		
+	}
+
+	public static JSONObject getPropertyObjectForCommonOneOf(String type) {
+		JSONObject tmp = new JSONObject();
+		Set<String> discriminators = getDiscriminatorKeys(type);
+		
+		List<Set<String>> propertiesEachOneOf = new LinkedList<>();
+		
+		for(String oneOf : discriminators) {
+			JSONObject propObj = getPropertyObjectForResourceExpanded(oneOf);
+			
+			propertiesEachOneOf.add( propObj.keySet());
+			
+			for(String prop : propObj.keySet()) {
+				tmp.put(prop, propObj.get(prop));
+			}
+		}
+		
+		Set<String> allProps = propertiesEachOneOf.stream().flatMap(Set::stream).collect(Collectors.toSet());
+		
+		propertiesEachOneOf.forEach(s -> allProps.retainAll(s));
+		
+		JSONObject res = new JSONObject();
+		
+		for(String prop : allProps) {
+			res.put(prop, tmp.get(prop));
+		}
+		
+		LOG.debug("getPropertyObjectForCommonOneOf type={} props={}", type, res.keySet());
+
+		return res;
+	}
+	
+	public static JSONObject getPropertyObjectForAllOneOf(String type) {
+		JSONObject res = new JSONObject();
+		Set<String> discriminators = getDiscriminatorKeys(type);
+		
+		for(String oneOf : discriminators) {
+			JSONObject propObj = getPropertyObjectForResourceExpanded(oneOf);
+			for(String prop : propObj.keySet()) {
+				res.put(prop, propObj.get(prop));
+			}
+		}
+		return res;
 	}
 
 }

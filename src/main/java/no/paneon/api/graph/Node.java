@@ -311,6 +311,9 @@ public class Node implements Comparable<Object>  {
 			JSONObject items = obj.optJSONObject(ITEMS);
 			if(items!=null) {
 				res = getExpandedJSON(items);
+				
+				LOG.debug("node:: obj ITEMS :: {}", res);
+				
 				if(res.isPresent()) {
 					clone.put(ITEMS, res.get());
 					res = Optional.of(clone);

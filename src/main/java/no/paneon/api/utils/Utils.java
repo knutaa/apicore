@@ -1489,19 +1489,30 @@ public class Utils {
 
 	    String last = path[path.length-1];
 	    
-	    LOG.debug("Utils.addJSONObject path={}", path.toString());
-
-		for(int i=0; i<path.length-1; i++) {
-			String pos = path[i];
-			if(!target.has(pos)) target.put(pos, new JSONObject());
-			target = target.getJSONObject(pos);
+	    if(last.startsWith("#/")) {
+	    	Object o = target.optQuery(last);
+	    	if(o instanceof JSONObject) {
+	    	    LOG.debug("Utils.addJSONObject jsonpath={}", last);
+	    	    JSONObject t = (JSONObject)o;
+	    	    for(String k : source.keySet()) {
+	    	    	t.put(k, source.get(k));
+	    	    }
+	    	}
+	    } else {
+		    LOG.debug("Utils.addJSONObject path={}", path.toString());
+	
+			for(int i=0; i<path.length-1; i++) {
+				String pos = path[i];
+				if(!target.has(pos)) target.put(pos, new JSONObject());
+				target = target.getJSONObject(pos);
+				
+			    LOG.debug("Utils.addJSONObject pos={} target_orig={}", pos, target_orig.toString());
+	
+			}
 			
-		    LOG.debug("Utils.addJSONObject pos={} target_orig={}", pos, target_orig.toString());
-
-		}
-		
-		target.put(path[path.length-1], source);
-
+			target.put(path[path.length-1], source);
+	    }
+			
 	    LOG.debug("Utils.addJSONObject target_orig={}", target_orig.toString());
 
 	}

@@ -38,6 +38,7 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
      }
  
 	List<String> ordering = new LinkedList<>();
+	List<String> lastOrdering = new LinkedList<>();
 
     public CustomJSONObjectSerializer(JsonSerializer<Object> serializer, List<String> ordering) {
 		this(serializer);
@@ -50,6 +51,8 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
     										"attributes", "operations-details",
     										"conformance", "layout", "default_conformance");
     
+	private static final List<String> LAST_ORDER = List.of( "x-removed" );
+	
     @Override
     public void serialize(JSONObject value, JsonGenerator gen, SerializerProvider provider) throws IOException {
       	    	
@@ -60,6 +63,11 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
             if(Config.has("yamlOrdering")) this.ordering = Config.get("yamlOrdering");
         }
         
+        if(this.lastOrdering.isEmpty()) {
+        	this.lastOrdering.addAll(LAST_ORDER);
+            if(Config.has("yamlOrderingLast")) this.lastOrdering = Config.get("yamlOrderingLast");
+        }
+                    
         //
         // order the JSONObject fields according to the custom ordering, either based on the ORDER constant here
         // or specified in the configuration
@@ -68,16 +76,22 @@ public class CustomJSONObjectSerializer extends StdSerializer<JSONObject> {
         //
         
         List<String> fieldOrder = new LinkedList<>(this.ordering);
-        
+        List<String> fieldOrderLast = new LinkedList<>(this.lastOrdering);
+
         List<String> properties = new LinkedList<>(value.keySet());
         List<String> ordering = new LinkedList<>(fieldOrder);
         fieldOrder.retainAll(properties);
+        fieldOrder.removeAll(fieldOrderLast);
+        
+        fieldOrderLast.retainAll(properties);
         
         properties.removeAll(fieldOrder);
+        properties.removeAll(fieldOrderLast);
         
         properties = properties.stream().sorted().collect(toList());
         
         fieldOrder.addAll(properties);
+        fieldOrder.addAll(fieldOrderLast);
         
 		LOG.debug("####### serialize: ordering={} fieldOrder={}", ordering, fieldOrder);		
 
